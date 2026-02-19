@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { CameraService } from '../../core/camera/camera.service';
+import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
 import { HexCanvasRendererService } from '../renderer/hex-canvas-renderer.service';
 
 const HEX_SIZE = 30;
@@ -39,6 +40,7 @@ const HEX_SIZE = 30;
 })
 export class GameViewportComponent implements OnDestroy {
   private readonly camera = inject(CameraService);
+  private readonly chunkManager = inject(ChunkManagerService);
   private readonly renderer = inject(HexCanvasRendererService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
@@ -61,13 +63,11 @@ export class GameViewportComponent implements OnDestroy {
     });
 
     effect(() => {
-      // Read reactive dependencies to trigger re-render
-      this.camera.viewport();
-
+      const chunks = this.chunkManager.visibleChunks();
       const canvas = this.canvasRef().nativeElement;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        this.renderer.draw(ctx, this.camera, HEX_SIZE);
+        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks);
       }
     });
   }
