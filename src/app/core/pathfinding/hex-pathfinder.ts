@@ -1,6 +1,7 @@
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance, hexNeighbors } from '../../shared/hex/hex-math';
 import { HexData, StellarObjectType } from '../../models/hex-data';
+import { UnitType } from '../../models/game-state';
 
 export type HexLookup = (q: number, r: number) => HexData | null;
 export type UnitBlockCheck = (q: number, r: number) => boolean;
@@ -32,6 +33,26 @@ function moveCost(hex: HexData | null): number {
 export function miningDroneCostOverride(hex: HexData | null): number | undefined {
   if (hex?.object?.type === 'star') return 2;
   return undefined;
+}
+
+/**
+ * Cost override for scouts and colony ships: nebulae cost 1 MP instead of 2.
+ */
+export function lightUnitCostOverride(hex: HexData | null): number | undefined {
+  if (hex?.object?.type === 'nebula') return 1;
+  return undefined;
+}
+
+/**
+ * Returns the appropriate cost override for a unit type, or undefined if none.
+ */
+export function getUnitCostOverride(type: UnitType): MoveCostOverride | undefined {
+  switch (type) {
+    case 'mining_drone': return miningDroneCostOverride;
+    case 'scout':
+    case 'colony_ship': return lightUnitCostOverride;
+    default: return undefined;
+  }
 }
 
 function hexKey(q: number, r: number): string {

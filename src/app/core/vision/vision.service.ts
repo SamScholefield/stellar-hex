@@ -29,46 +29,31 @@ export class VisionService {
   readonly visionSources = computed<VisionSource[]>(() => {
     const player = this.gameState.currentPlayer();
     if (!player) return [];
-
-    const sources: VisionSource[] = [];
-
-    for (const unit of this.gameState.units().values()) {
-      if (unit.ownerId === player.id) {
-        sources.push({ q: unit.q, r: unit.r, sightRange: unit.sightRange });
-      }
-    }
-
-    for (const building of this.gameState.buildings().values()) {
-      if (building.ownerId === player.id) {
-        sources.push({ q: building.q, r: building.r, sightRange: 2 });
-      }
-    }
-
-    return sources;
+    return this.sourcesForPlayer(player.id);
   });
 
   /** Set of hex keys currently visible to the current player. */
   readonly visibleHexes = computed<Set<string>>(() => {
-    const sources = this.visionSources();
-    const visible = new Set<string>();
-
-    for (const source of sources) {
-      const hexes = hexesInRange(
-        { q: source.q, r: source.r, s: -source.q - source.r },
-        source.sightRange,
-      );
-      for (const hex of hexes) {
-        visible.add(`${hex.q},${hex.r}`);
-      }
-    }
-
-    return visible;
+    return this.computeVisible(this.visionSources());
   });
 
   /** The explored hexes set for the current player. */
   readonly exploredHexes = computed<Set<string>>(() => {
     const player = this.gameState.currentPlayer();
     return player?.exploredHexes ?? new Set();
+  });
+
+  /** Vision always from the human player's perspective (for rendering). */
+  readonly humanVisibleHexes = computed<Set<string>>(() => {
+    const human = this.gameState.players().find(p => !p.isAI);
+    if (!human) return new Set();
+    return this.computeVisible(this.sourcesForPlayer(human.id));
+  });
+
+  /** Explored hexes for the human player (for rendering). */
+  readonly humanExploredHexes = computed<Set<string>>(() => {
+    const human = this.gameState.players().find(p => !p.isAI);
+    return human?.exploredHexes ?? new Set();
   });
 
   constructor() {
@@ -100,5 +85,34 @@ export class VisionService {
 
   isExplored(q: number, r: number): boolean {
     return this.exploredHexes().has(`${q},${r}`);
+  }
+
+  private sourcesForPlayer(playerId: string): VisionSource[] {
+    const sources: VisionSource[] = [];
+    for (const unit of this.gameState.units().values()) {
+      if (unit.ownerId === playerId) {
+        sources.push({ q: unit.q, r: unit.r, sightRange: unit.sightRange });
+      }
+    }
+    for (const building of this.gameState.buildings().values()) {
+      if (building.ownerId === playerId) {
+        sources.push({ q: building.q, r: building.r, sightRange: 2 });
+      }
+    }
+    return sources;
+  }
+
+  private computeVisible(sources: VisionSource[]): Set<string> {
+    const visible = new Set<string>();
+    for (const source of sources) {
+      const hexes = hexesInRange(
+        { q: source.q, r: source.r, s: -source.q - source.r },
+        source.sightRange,
+      );
+      for (const hex of hexes) {
+        visible.add(`${hex.q},${hex.r}`);
+      }
+    }
+    return visible;
   }
 }

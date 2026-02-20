@@ -13,11 +13,12 @@ import { AIService } from '../../core/ai/ai.service';
         <span class="player-name">{{ player.name }}</span>
       }
       <span class="turn">Turn {{ turn() }}</span>
-      @if (aiExecuting()) {
-        <span class="ai-thinking">AI thinking...</span>
-      } @else {
-        <button class="end-turn" (click)="endTurn()">End Turn</button>
-      }
+      <div class="action-slot">
+        <button class="end-turn" [style.visibility]="aiExecuting() ? 'hidden' : 'visible'" (click)="endTurn()">End Turn</button>
+        @if (aiExecuting()) {
+          <span class="ai-thinking">AI thinking...</span>
+        }
+      </div>
     </div>
   `,
   styles: `
@@ -58,6 +59,13 @@ import { AIService } from '../../core/ai/ai.service';
     }
     .end-turn:hover {
       background: #374151;
+    }
+    .action-slot {
+      display: grid;
+    }
+    .action-slot > * {
+      grid-area: 1 / 1;
+      place-self: center;
     }
     .ai-thinking {
       font-size: 0.8rem;

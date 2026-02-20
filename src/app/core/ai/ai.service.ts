@@ -6,7 +6,7 @@ import { EventLogService } from '../state/event-log.service';
 import { UnitData } from '../../models/game-state';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
-import { findPath, miningDroneCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
+import { findPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
 import { attackWithResult } from '../state/game-reducer';
 import { scoreExplore, scoreAttack, scoreBuild, scoreProduction } from './ai-scoring';
 
@@ -29,7 +29,7 @@ export class AIService {
   async executeTurn(playerId: string): Promise<void> {
     this._executing.set(true);
     try {
-      const minWait = delay(5000);
+      const minWait = delay(1000);
       await this.executeActions(playerId);
       await minWait;
     } finally {
@@ -112,7 +112,7 @@ export class AIService {
               return false;
             };
 
-            const override = freshUnit.type === 'mining_drone' ? miningDroneCostOverride : undefined;
+            const override = getUnitCostOverride(freshUnit.type);
             const path = findPath(from, moveTarget, freshUnit.movementPoints, hexLookup, isBlocked, override);
             if (path && path.length > 1) {
               const cost = pathCost(path, hexLookup, override);

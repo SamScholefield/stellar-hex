@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findPath, getReachableHexes, pathCost, HexLookup, UnitBlockCheck, miningDroneCostOverride } from './hex-pathfinder';
+import { findPath, getReachableHexes, pathCost, HexLookup, UnitBlockCheck, miningDroneCostOverride, lightUnitCostOverride, getUnitCostOverride } from './hex-pathfinder';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { HexData } from '../../models/hex-data';
 
@@ -203,6 +203,83 @@ describe('hex-pathfinder', () => {
     it('returns undefined for black hole hexes', () => {
       const bhHex = { q: 0, r: 0, object: { type: 'black_hole' as const, size: 5 } };
       expect(miningDroneCostOverride(bhHex)).toBeUndefined();
+    });
+  });
+
+  describe('lightUnitCostOverride', () => {
+    it('returns 1 for nebula hexes', () => {
+      const nebulaHex = { q: 0, r: 0, object: { type: 'nebula' as const, subtype: 'dense', size: 1 } };
+      expect(lightUnitCostOverride(nebulaHex)).toBe(1);
+    });
+
+    it('returns undefined for non-nebula hexes', () => {
+      const emptyHex = { q: 0, r: 0, object: null };
+      expect(lightUnitCostOverride(emptyHex)).toBeUndefined();
+    });
+
+    it('returns undefined for null hex', () => {
+      expect(lightUnitCostOverride(null)).toBeUndefined();
+    });
+
+    it('returns undefined for star hexes', () => {
+      const starHex = { q: 0, r: 0, object: { type: 'star' as const, size: 3, resources: { energy: 5 } } };
+      expect(lightUnitCostOverride(starHex)).toBeUndefined();
+    });
+  });
+
+  describe('getUnitCostOverride', () => {
+    it('returns miningDroneCostOverride for mining_drone', () => {
+      expect(getUnitCostOverride('mining_drone')).toBe(miningDroneCostOverride);
+    });
+
+    it('returns lightUnitCostOverride for scout', () => {
+      expect(getUnitCostOverride('scout')).toBe(lightUnitCostOverride);
+    });
+
+    it('returns lightUnitCostOverride for colony_ship', () => {
+      expect(getUnitCostOverride('colony_ship')).toBe(lightUnitCostOverride);
+    });
+
+    it('returns undefined for fighter', () => {
+      expect(getUnitCostOverride('fighter')).toBeUndefined();
+    });
+
+    it('returns undefined for cruiser', () => {
+      expect(getUnitCostOverride('cruiser')).toBeUndefined();
+    });
+  });
+
+  describe('lightUnitCostOverride integration', () => {
+    it('scout can path through nebula at cost 1', () => {
+      const lookup = nebulaAt([1, 0]);
+      // Without override: nebula costs 2, so 2+1=3 to reach (2,0)
+      const pathWithout = findPath(coord(0, 0), coord(2, 0), 2, lookup);
+      expect(pathWithout).toBeNull();
+
+      // With override: nebula costs 1, so 1+1=2 to reach (2,0)
+      const pathWith = findPath(coord(0, 0), coord(2, 0), 2, lookup, undefined, lightUnitCostOverride);
+      expect(pathWith).not.toBeNull();
+      expect(pathWith!.some(h => h.q === 1 && h.r === 0)).toBe(true);
+    });
+
+    it('getReachableHexes with lightUnitCostOverride treats nebula as cost 1', () => {
+      const lookup = nebulaAt([1, 0]);
+      // Without override: nebula at (1,0) costs 2
+      const reachableWithout = getReachableHexes(coord(0, 0), 2, lookup);
+      expect(reachableWithout.get('1,0')).toBe(0); // 2 - 2 = 0
+
+      // With override: nebula at (1,0) costs 1
+      const reachableWith = getReachableHexes(coord(0, 0), 2, lookup, undefined, lightUnitCostOverride);
+      expect(reachableWith.get('1,0')).toBe(1); // 2 - 1 = 1
+    });
+
+    it('lightUnitCostOverride does not affect star passability', () => {
+      const lookup = starAt([1, 0]);
+      const path = findPath(coord(0, 0), coord(2, 0), 10, lookup, undefined, lightUnitCostOverride);
+      // Star is still impassable for scouts
+      if (path) {
+        expect(path.some(h => h.q === 1 && h.r === 0)).toBe(false);
+      }
     });
   });
 
