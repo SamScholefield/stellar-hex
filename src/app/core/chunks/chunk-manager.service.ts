@@ -6,7 +6,8 @@ import { HexData } from '../../models/hex-data';
 import { hexToPixel } from '../../shared/hex/hex-math';
 
 const SQRT3 = Math.sqrt(3);
-const EVICTION_DISTANCE = 3;
+const VISIBLE_BUFFER = 2;
+const EVICTION_DISTANCE = 5;
 
 function chunkKey(cx: number, cy: number): string {
   return `${cx},${cy}`;
@@ -50,22 +51,37 @@ export class ChunkManagerService {
     right: number,
     bottom: number,
   ): ChunkCoord[] {
-    // Convert world pixel bounds to approximate hex q,r bounds
-    // For flat-top hexes with size=HEX_SIZE, we need to figure out which chunks they fall in
-    // Since hex layout is: x = size * 3/2 * q, y = size * sqrt(3)/2 * q + size * sqrt(3) * r
-    // We use a conservative estimate: inverse transform of the corners
-    const hexSize = 30; // matches HEX_SIZE in viewport
-    const margin = CHUNK_SIZE * 2; // generous margin to avoid popping
+    const hexSize = 30;
 
-    const minQ = Math.floor(((2 / 3) * left) / hexSize) - margin;
-    const maxQ = Math.ceil(((2 / 3) * right) / hexSize) + margin;
-    const minR = Math.floor(((-1 / 3) * right + (SQRT3 / 3) * top) / hexSize / SQRT3) - margin;
-    const maxR = Math.ceil(((-1 / 3) * left + (SQRT3 / 3) * bottom) / hexSize / SQRT3) + margin;
+    // Convert all 4 viewport corners to hex (q, r) to handle the skewed grid.
+    // Flat-top inverse: q = (2/3)*x / size, r = ((-1/3)*x + (sqrt3/3)*y) / size
+    const corners = [
+      { x: left, y: top },
+      { x: right, y: top },
+      { x: left, y: bottom },
+      { x: right, y: bottom },
+    ];
 
-    const minCX = Math.floor(minQ / CHUNK_SIZE);
-    const maxCX = Math.floor(maxQ / CHUNK_SIZE);
-    const minCY = Math.floor(minR / CHUNK_SIZE);
-    const maxCY = Math.floor(maxR / CHUNK_SIZE);
+    let minCX = Infinity;
+    let maxCX = -Infinity;
+    let minCY = Infinity;
+    let maxCY = -Infinity;
+
+    for (const { x, y } of corners) {
+      const q = ((2 / 3) * x) / hexSize;
+      const r = ((-1 / 3) * x + (SQRT3 / 3) * y) / hexSize;
+      const cx = Math.floor(q / CHUNK_SIZE);
+      const cy = Math.floor(r / CHUNK_SIZE);
+      if (cx < minCX) minCX = cx;
+      if (cx > maxCX) maxCX = cx;
+      if (cy < minCY) minCY = cy;
+      if (cy > maxCY) maxCY = cy;
+    }
+
+    minCX -= VISIBLE_BUFFER;
+    maxCX += VISIBLE_BUFFER;
+    minCY -= VISIBLE_BUFFER;
+    maxCY += VISIBLE_BUFFER;
 
     const coords: ChunkCoord[] = [];
     for (let cx = minCX; cx <= maxCX; cx++) {
