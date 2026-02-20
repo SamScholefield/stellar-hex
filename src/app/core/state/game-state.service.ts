@@ -1,5 +1,7 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { GameState, PlayerState, Resources } from '../../models/game-state';
+import { HexData } from '../../models/hex-data';
+import { computeMiningDroneIncome } from '../economy/economy.service';
 import { GameAction } from './actions';
 import { gameReducer } from './game-reducer';
 
@@ -34,6 +36,20 @@ export class GameStateService {
 
   dispatch(action: GameAction): void {
     this._gameState.update((state) => gameReducer(state, action));
+  }
+
+  /**
+   * Computes mining drone income from hex data and dispatches END_TURN
+   * with the pre-computed yields. This bridges the gap between the pure
+   * reducer (which cannot access hex data) and the ChunkManager (which can).
+   */
+  dispatchEndTurn(hexLookup: (q: number, r: number) => HexData | null): void {
+    const state = this.getState();
+    const player = state.players[state.currentPlayerIndex];
+    const miningYields = player
+      ? computeMiningDroneIncome(state.units, player.id, hexLookup)
+      : undefined;
+    this.dispatch({ type: 'END_TURN', miningYields });
   }
 
   getState(): GameState {

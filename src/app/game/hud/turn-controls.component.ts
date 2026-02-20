@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AIService } from '../../core/ai/ai.service';
 
@@ -72,6 +73,7 @@ import { AIService } from '../../core/ai/ai.service';
 })
 export class TurnControlsComponent {
   private readonly gameState = inject(GameStateService);
+  private readonly chunkManager = inject(ChunkManagerService);
   private readonly ai = inject(AIService);
 
   readonly turn = this.gameState.turn;
@@ -79,6 +81,7 @@ export class TurnControlsComponent {
   readonly aiExecuting = this.ai.executing;
 
   endTurn(): void {
-    this.gameState.dispatch({ type: 'END_TURN' });
+    const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+    this.gameState.dispatchEndTurn(hexLookup);
   }
 }

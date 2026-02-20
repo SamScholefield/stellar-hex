@@ -173,7 +173,7 @@ export class AIService {
     }
 
     // End turn
-    this.gameState.dispatch({ type: 'END_TURN' });
+    this.gameState.dispatchEndTurn(hexLookup);
   }
 
   private findMoveTarget(

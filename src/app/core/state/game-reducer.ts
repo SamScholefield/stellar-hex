@@ -1,4 +1,4 @@
-import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType } from '../../models/game-state';
+import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
@@ -8,7 +8,7 @@ import { GameAction } from './actions';
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'END_TURN':
-      return endTurn(state);
+      return endTurn(state, action.miningYields);
     case 'MOVE_UNIT':
       return moveUnit(state, action.unitId, action.path);
     case 'BUILD':
@@ -176,7 +176,7 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   return { newState: { ...state, units }, combat };
 }
 
-function endTurn(state: GameState): GameState {
+function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState {
   const currentPlayerIndex = state.currentPlayerIndex;
   const currentPlayer = state.players[currentPlayerIndex];
   const nextPlayerIndex = (currentPlayerIndex + 1) % state.players.length;
@@ -195,6 +195,13 @@ function endTurn(state: GameState): GameState {
       income.alloys += stats.yield.alloys ?? 0;
       income.credits += stats.yield.credits ?? 0;
     }
+
+    // Add mining drone income from pre-computed yields
+    income.energy += miningYields?.energy ?? 0;
+    income.minerals += miningYields?.minerals ?? 0;
+    income.alloys += miningYields?.alloys ?? 0;
+    income.credits += miningYields?.credits ?? 0;
+
     players = state.players.map((p, i) =>
       i === currentPlayerIndex
         ? {

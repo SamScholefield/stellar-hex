@@ -1,8 +1,8 @@
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { BuildingType, UnitType } from '../../models/game-state';
+import { BuildingType, Resources, UnitType } from '../../models/game-state';
 
 export type GameAction =
-  | { type: 'END_TURN' }
+  | { type: 'END_TURN'; miningYields?: Partial<Resources> }
   | { type: 'MOVE_UNIT'; unitId: string; path: HexCoord[] }
   | { type: 'ATTACK'; attackerId: string; targetId: string }
   | { type: 'BUILD'; playerId: string; buildingType: BuildingType; hex: HexCoord; hexType: string }

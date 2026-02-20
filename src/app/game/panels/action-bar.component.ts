@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AIService } from '../../core/ai/ai.service';
@@ -61,6 +62,7 @@ import { AIService } from '../../core/ai/ai.service';
 export class ActionBarComponent {
   private readonly selection = inject(SelectionService);
   private readonly gameState = inject(GameStateService);
+  private readonly chunkManager = inject(ChunkManagerService);
   private readonly ai = inject(AIService);
 
   readonly aiExecuting = this.ai.executing;
@@ -101,7 +103,8 @@ export class ActionBarComponent {
   }
 
   endTurn(): void {
-    this.gameState.dispatch({ type: 'END_TURN' });
+    const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+    this.gameState.dispatchEndTurn(hexLookup);
     this.selection.deselectAll();
     this.showBuildMenu.set(false);
   }

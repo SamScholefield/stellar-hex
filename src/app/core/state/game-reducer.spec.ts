@@ -285,6 +285,46 @@ describe('gameReducer', () => {
       // p1 resources should be unchanged
       expect(next.players[0].resources.minerals).toBe(50);
     });
+
+    it('adds miningYields to current player resources', () => {
+      const state = makeState();
+      const next = gameReducer(state, { type: 'END_TURN', miningYields: { minerals: 5, energy: 2 } });
+      // p1 had: energy:100, minerals:50
+      expect(next.players[0].resources.minerals).toBe(55);
+      expect(next.players[0].resources.energy).toBe(102);
+    });
+
+    it('combines building income and miningYields', () => {
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
+      ]);
+      const state = makeState({ buildings });
+      // mining_station yields minerals:3, plus miningYields minerals:4
+      const next = gameReducer(state, { type: 'END_TURN', miningYields: { minerals: 4 } });
+      expect(next.players[0].resources.minerals).toBe(57); // 50 + 3 + 4
+    });
+
+    it('works without miningYields (backward compatible)', () => {
+      const state = makeState();
+      const next = gameReducer(state, { type: 'END_TURN' });
+      // No buildings, no mining yields — resources unchanged
+      expect(next.players[0].resources.energy).toBe(100);
+      expect(next.players[0].resources.minerals).toBe(50);
+      expect(next.players[0].resources.alloys).toBe(20);
+      expect(next.players[0].resources.credits).toBe(30);
+    });
+
+    it('handles miningYields with all resource types', () => {
+      const state = makeState();
+      const next = gameReducer(state, {
+        type: 'END_TURN',
+        miningYields: { energy: 1, minerals: 2, alloys: 3, credits: 4 },
+      });
+      expect(next.players[0].resources.energy).toBe(101);
+      expect(next.players[0].resources.minerals).toBe(52);
+      expect(next.players[0].resources.alloys).toBe(23);
+      expect(next.players[0].resources.credits).toBe(34);
+    });
   });
 
   describe('END_TURN production queue', () => {
