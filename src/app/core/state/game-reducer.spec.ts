@@ -145,11 +145,29 @@ describe('gameReducer', () => {
         { q: 1, r: 0, s: -1 },
         { q: 2, r: 0, s: -2 },
       ];
-      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path });
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 2 });
       const unit = next.units.get('u1')!;
       expect(unit.q).toBe(2);
       expect(unit.r).toBe(0);
       expect(unit.movementPoints).toBe(2);
+    });
+
+    it('deducts terrain-weighted cost for nebula movement', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', {
+          id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0,
+          movementPoints: 4, maxMovementPoints: 4,
+          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
+        }],
+      ]);
+      const state = makeState({ units });
+      const path = [
+        { q: 0, r: 0, s: 0 },
+        { q: 1, r: 0, s: -1 },
+      ];
+      // Moving onto a nebula hex costs 2 MP
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 2 });
+      expect(next.units.get('u1')!.movementPoints).toBe(2);
     });
 
     it('does not mutate original state', () => {
@@ -162,14 +180,14 @@ describe('gameReducer', () => {
       ]);
       const state = makeState({ units });
       const path = [{ q: 0, r: 0, s: 0 }, { q: 1, r: 0, s: -1 }];
-      gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path });
+      gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 1 });
       expect(state.units.get('u1')!.q).toBe(0);
     });
 
     it('returns same state for unknown unit', () => {
       const state = makeState();
       const path = [{ q: 0, r: 0, s: 0 }, { q: 1, r: 0, s: -1 }];
-      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'missing', path });
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'missing', path, cost: 1 });
       expect(next).toBe(state);
     });
 
@@ -188,7 +206,7 @@ describe('gameReducer', () => {
         { q: 2, r: 0, s: -2 },
         { q: 3, r: 0, s: -3 },
       ];
-      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path });
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 3 });
       expect(next).toBe(state);
     });
   });

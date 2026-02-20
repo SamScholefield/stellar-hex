@@ -1,13 +1,13 @@
 import { computed, Injectable, signal } from '@angular/core';
 
-const MIN_ZOOM = 0.3;
-const MAX_ZOOM = 3.0;
+const MIN_ZOOM = 0.6;
+const MAX_ZOOM = 2.0;
 
 @Injectable({ providedIn: 'root' })
 export class CameraService {
   private readonly _panX = signal(0);
   private readonly _panY = signal(0);
-  private readonly _zoom = signal(1);
+  private readonly _zoom = signal(2);
   private readonly _canvasWidth = signal(0);
   private readonly _canvasHeight = signal(0);
 

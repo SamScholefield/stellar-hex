@@ -15,8 +15,8 @@ import { GameStateService } from '../../core/state/game-state.service';
 import { HexCanvasRendererService } from '../renderer/hex-canvas-renderer.service';
 import { AnimationService } from '../renderer/animation.service';
 import { AIService } from '../../core/ai/ai.service';
-import { hexDistance, pixelToHex } from '../../shared/hex/hex-math';
-import { findPath, getReachableHexes, miningDroneCostOverride } from '../../core/pathfinding/hex-pathfinder';
+import { hexDistance, hexToPixel, pixelToHex } from '../../shared/hex/hex-math';
+import { findPath, getReachableHexes, miningDroneCostOverride, pathCost } from '../../core/pathfinding/hex-pathfinder';
 import { VisionService } from '../../core/vision/vision.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { attackWithResult } from '../../core/state/game-reducer';
@@ -34,6 +34,7 @@ const CLICK_THRESHOLD = 4;
     '(pointerup)': 'onPointerUp($event)',
     '(pointerleave)': 'onPointerLeave()',
     '(wheel)': 'onWheel($event)',
+    '(dblclick)': 'onDblClick($event)',
     '(contextmenu)': 'onContextMenu($event)',
   },
   template: `<canvas #gameCanvas></canvas>`,
@@ -162,7 +163,7 @@ export class GameViewportComponent implements OnDestroy {
   }
 
   protected onPointerDown(event: PointerEvent): void {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || this.ai.executing()) return;
     this.panning = true;
     this.lastX = event.clientX;
     this.lastY = event.clientY;
@@ -200,10 +201,18 @@ export class GameViewportComponent implements OnDestroy {
 
   protected onWheel(event: WheelEvent): void {
     event.preventDefault();
+    if (this.ai.executing()) return;
     const rect = this.canvasRef().nativeElement.getBoundingClientRect();
     const screenX = (event.clientX - rect.left) * devicePixelRatio;
     const screenY = (event.clientY - rect.top) * devicePixelRatio;
     this.camera.zoomAt(screenX, screenY, event.deltaY);
+  }
+
+  protected onDblClick(event: MouseEvent): void {
+    if (this.ai.executing()) return;
+    const hex = this.screenEventToHex(event as PointerEvent);
+    const { x, y } = hexToPixel(hex.q, hex.r, HEX_SIZE);
+    this.camera.centerOn(x, y);
   }
 
   protected onContextMenu(event: MouseEvent): void {
@@ -254,8 +263,9 @@ export class GameViewportComponent implements OnDestroy {
         const override = unit.type === 'mining_drone' ? miningDroneCostOverride : undefined;
         const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);
         if (path && path.length > 1) {
+          const cost = pathCost(path, hexLookup, override);
           this.animation.animateUnitMovement(selectedUnitId, path).then(() => {
-            this.gameState.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path });
+            this.gameState.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path, cost });
             this.selection.selectUnit(selectedUnitId);
           });
           return;

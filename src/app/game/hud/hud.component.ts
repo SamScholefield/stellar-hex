@@ -10,6 +10,7 @@ import { ProductionMenuComponent } from '../panels/production-menu.component';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { EventLogService } from '../../core/state/event-log.service';
+import { AIService } from '../../core/ai/ai.service';
 import { BuildingData, BuildingType, UnitType } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 
@@ -38,6 +39,14 @@ import { StellarObjectType } from '../../models/hex-data';
     <div class="hud-bottom-right">
       <app-event-log />
     </div>
+    @if (aiExecuting()) {
+      <div class="ai-overlay">
+        <div class="ai-popup">
+          <span class="ai-icon">&#9881;</span>
+          <span>Opponent is acting...</span>
+        </div>
+      </div>
+    }
   `,
   styles: `
     :host {
@@ -75,13 +84,48 @@ import { StellarObjectType } from '../../models/hex-data';
       align-self: end;
       pointer-events: auto;
     }
+    .ai-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .ai-popup {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: rgba(10, 10, 26, 0.9);
+      border: 1px solid #f59e0b;
+      border-radius: 0.75rem;
+      padding: 1rem 2rem;
+      color: #f59e0b;
+      font-size: 1.1rem;
+      font-weight: 600;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .ai-icon {
+      font-size: 1.4rem;
+      animation: spin 2s linear infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
   `,
 })
 export class HudComponent {
   private readonly selection = inject(SelectionService);
   private readonly gameState = inject(GameStateService);
   private readonly eventLog = inject(EventLogService);
+  private readonly ai = inject(AIService);
   readonly actionBar = viewChild(ActionBarComponent);
+  readonly aiExecuting = this.ai.executing;
 
   readonly selectedHexType = computed<StellarObjectType | null>(() => {
     const hexData = this.selection.selectedHexData();

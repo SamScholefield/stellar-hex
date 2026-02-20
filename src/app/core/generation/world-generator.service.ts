@@ -62,6 +62,12 @@ export class WorldGeneratorService {
     return systems;
   }
 
+  /** Query the stellar object at a single hex coordinate. */
+  getHexObject(q: number, r: number): StellarObject | null {
+    const systems = this.getNearbySystems(q, r);
+    return this.generateHex({ q, r, s: -q - r }, systems, this._seed());
+  }
+
   /** Generate a chunk at the given coordinate. */
   generate(coord: ChunkCoord): Chunk {
     const seed = this._seed();

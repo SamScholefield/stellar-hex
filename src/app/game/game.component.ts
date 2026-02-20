@@ -100,6 +100,7 @@ export class GameComponent {
   }
 
   protected onKeyDown(event: KeyboardEvent): void {
+    if (this.ai.executing()) return;
     switch (event.key) {
       case 'Escape':
         this.selection.deselectAll();

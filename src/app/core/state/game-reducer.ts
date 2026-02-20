@@ -10,7 +10,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'END_TURN':
       return endTurn(state, action.miningYields);
     case 'MOVE_UNIT':
-      return moveUnit(state, action.unitId, action.path);
+      return moveUnit(state, action.unitId, action.path, action.cost);
     case 'BUILD':
       return build(state, action.playerId, action.buildingType, action.hex, action.hexType as StellarObjectType);
     case 'PRODUCE_UNIT':
@@ -283,13 +283,11 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
   return result;
 }
 
-function moveUnit(state: GameState, unitId: string, path: HexCoord[]): GameState {
+function moveUnit(state: GameState, unitId: string, path: HexCoord[], cost: number): GameState {
   const unit = state.units.get(unitId);
   if (!unit || path.length === 0) return state;
 
   const dest = path[path.length - 1];
-  // Path cost = number of steps (each step costs at least 1 MP)
-  const cost = path.length - 1;
   const remaining = unit.movementPoints - cost;
   if (remaining < 0) return state;
 

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AIService } from './ai.service';
 import { GameStateService } from '../state/game-state.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
@@ -50,6 +50,7 @@ describe('AIService', () => {
   let eventLog: EventLogService;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     TestBed.configureTestingModule({});
     ai = TestBed.inject(AIService);
     gameState = TestBed.inject(GameStateService);
@@ -62,12 +63,18 @@ describe('AIService', () => {
     vi.spyOn(animation, 'animateCombat').mockResolvedValue();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('dispatches END_TURN after executing', async () => {
     const state = makeState();
     gameState.setState(state);
 
     const dispatchSpy = vi.spyOn(gameState, 'dispatch');
-    await ai.executeTurn('ai');
+    const turn = ai.executeTurn('ai');
+    await vi.advanceTimersByTimeAsync(6000);
+    await turn;
 
     const endTurnCalls = dispatchSpy.mock.calls.filter(c => c[0].type === 'END_TURN');
     expect(endTurnCalls.length).toBe(1);
@@ -76,12 +83,13 @@ describe('AIService', () => {
   it('moves scout units toward unexplored areas', async () => {
     const scout = makeUnit({ id: 'scout1', ownerId: 'ai', type: 'scout', q: 0, r: 0 });
     const state = makeState({ units: new Map([['scout1', scout]]) });
-    // Only center explored — scout should want to explore outward
     state.players[1].exploredHexes = new Set(['0,0']);
     gameState.setState(state);
 
     const dispatchSpy = vi.spyOn(gameState, 'dispatch');
-    await ai.executeTurn('ai');
+    const turn = ai.executeTurn('ai');
+    await vi.advanceTimersByTimeAsync(6000);
+    await turn;
 
     const moveCalls = dispatchSpy.mock.calls.filter(c => c[0].type === 'MOVE_UNIT');
     expect(moveCalls.length).toBeGreaterThanOrEqual(1);
@@ -99,7 +107,9 @@ describe('AIService', () => {
     gameState.setState(state);
 
     const dispatchSpy = vi.spyOn(gameState, 'dispatch');
-    await ai.executeTurn('ai');
+    const turn = ai.executeTurn('ai');
+    await vi.advanceTimersByTimeAsync(6000);
+    await turn;
 
     const attackCalls = dispatchSpy.mock.calls.filter(c => c[0].type === 'ATTACK');
     expect(attackCalls.length).toBe(1);
@@ -107,7 +117,6 @@ describe('AIService', () => {
   });
 
   it('does not attack when result would be unfavorable', async () => {
-    // Weak, nearly-dead scout vs full-health cruiser
     const scout = makeUnit({ id: 's1', ownerId: 'ai', type: 'scout', q: 0, r: 0, health: 1 });
     const cruiser = makeUnit({ id: 'c1', ownerId: 'human', type: 'cruiser', q: 1, r: 0 });
 
@@ -118,7 +127,9 @@ describe('AIService', () => {
     gameState.setState(state);
 
     const dispatchSpy = vi.spyOn(gameState, 'dispatch');
-    await ai.executeTurn('ai');
+    const turn = ai.executeTurn('ai');
+    await vi.advanceTimersByTimeAsync(6000);
+    await turn;
 
     const attackCalls = dispatchSpy.mock.calls.filter(c => c[0].type === 'ATTACK');
     expect(attackCalls.length).toBe(0);

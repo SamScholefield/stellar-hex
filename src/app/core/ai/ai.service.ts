@@ -6,7 +6,7 @@ import { EventLogService } from '../state/event-log.service';
 import { UnitData } from '../../models/game-state';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
-import { findPath, miningDroneCostOverride } from '../pathfinding/hex-pathfinder';
+import { findPath, miningDroneCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
 import { attackWithResult } from '../state/game-reducer';
 import { scoreExplore, scoreAttack, scoreBuild, scoreProduction } from './ai-scoring';
 
@@ -29,7 +29,9 @@ export class AIService {
   async executeTurn(playerId: string): Promise<void> {
     this._executing.set(true);
     try {
+      const minWait = delay(5000);
       await this.executeActions(playerId);
+      await minWait;
     } finally {
       this._executing.set(false);
     }
@@ -113,8 +115,9 @@ export class AIService {
             const override = freshUnit.type === 'mining_drone' ? miningDroneCostOverride : undefined;
             const path = findPath(from, moveTarget, freshUnit.movementPoints, hexLookup, isBlocked, override);
             if (path && path.length > 1) {
+              const cost = pathCost(path, hexLookup, override);
               await this.animation.animateUnitMovement(freshUnit.id, path);
-              this.gameState.dispatch({ type: 'MOVE_UNIT', unitId: freshUnit.id, path });
+              this.gameState.dispatch({ type: 'MOVE_UNIT', unitId: freshUnit.id, path, cost });
               await delay(ACTION_DELAY);
               acted = true;
             }
