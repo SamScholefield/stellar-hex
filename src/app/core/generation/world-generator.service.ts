@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance, hexToPixel } from '../../shared/hex/hex-math';
 import { Chunk, ChunkCoord } from '../../models/chunk';
-import { HexData, StellarObject } from '../../models/hex-data';
+import { AnomalyHexType, HexData, StellarObject } from '../../models/hex-data';
 import { StarClass, StarSystemAnchor } from '../../models/star-system';
 import { fbmNoise, hash3, hashCoord, seededRNG } from './noise';
 
@@ -83,7 +83,8 @@ export class WorldGeneratorService {
         const hexCoord: HexCoord = { q, r, s };
 
         const object = this.generateHex(hexCoord, systems, seed);
-        hexes.set(key, { q, r, object });
+        const anomaly = object === null ? this.generateAnomaly(q, r, seed) : undefined;
+        hexes.set(key, { q, r, object, ...(anomaly ? { anomaly } : {}) });
       }
     }
 
@@ -237,5 +238,14 @@ export class WorldGeneratorService {
       M: 2,
     };
     return energy[starClass];
+  }
+
+  private generateAnomaly(q: number, r: number, seed: number): AnomalyHexType | undefined {
+    const h = hash3(seed + 5000, q, r);
+    // ~1.5% chance on empty hexes
+    if ((h & 0x3ff) >= 15) return undefined;
+    const ANOMALY_TYPES: AnomalyHexType[] = ['derelict_ship', 'resource_cache', 'alien_signal', 'wormhole', 'ancient_ruins'];
+    const rng = seededRNG(h);
+    return ANOMALY_TYPES[Math.floor(rng.next() * ANOMALY_TYPES.length)];
   }
 }

@@ -11,13 +11,14 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     turn: 1,
     currentPlayerIndex: 0,
     players: [
-      { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources(), isAI: false },
-      { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true },
+      { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources(), isAI: false, exploredHexes: new Set<string>() },
+      { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set<string>() },
     ],
     units: new Map(),
     buildings: new Map(),
     dynamicObjects: new Map(),
     chunkOverrides: new Map(),
+    anomalies: new Map(),
     seed: 12345,
     ...overrides,
   };

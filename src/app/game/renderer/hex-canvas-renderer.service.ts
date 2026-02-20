@@ -35,12 +35,16 @@ export class HexCanvasRendererService {
     reachableHexes?: Map<string, number> | null,
     pathPreview?: HexCoord[] | null,
     unitAnimation?: UnitAnimation | null,
+    visibleHexes?: Set<string> | null,
+    exploredHexes?: Set<string> | null,
+    currentPlayerId?: string | null,
   ): void {
     const w = camera.canvasWidth();
     const h = camera.canvasHeight();
     const zoom = camera.zoom();
     const panX = camera.panX();
     const panY = camera.panY();
+    const hasFog = visibleHexes != null && exploredHexes != null;
 
     ctx.clearRect(0, 0, w, h);
     ctx.save();
@@ -52,11 +56,33 @@ export class HexCanvasRendererService {
       this.blitChunk(ctx, chunk);
     }
 
+    // Fog of war overlay — drawn per hex after chunk textures
+    if (hasFog) {
+      for (const chunk of chunks) {
+        for (const hex of chunk.hexes.values()) {
+          const key = `${hex.q},${hex.r}`;
+          if (visibleHexes!.has(key)) continue; // fully visible, no fog
+          const isReachable = reachableHexes?.has(key) ?? false;
+          if (exploredHexes!.has(key)) {
+            // Explored but not currently visible — lighter fog if reachable
+            const alpha = isReachable ? 0.35 : 0.6;
+            this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, `rgba(0, 0, 0, ${alpha})`, null);
+          } else {
+            // Unexplored — lighter fog if reachable so movement indicator shows
+            const alpha = isReachable ? 0.5 : 0.9;
+            this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, `rgba(0, 0, 0, ${alpha})`, null);
+          }
+        }
+      }
+    }
+
     // Movement range overlay
     if (reachableHexes) {
       for (const key of reachableHexes.keys()) {
         const [q, r] = key.split(',').map(Number);
-        this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, 'rgba(59, 130, 246, 0.15)', null);
+        const inFog = hasFog && !visibleHexes!.has(key);
+        const alpha = inFog ? 0.3 : 0.15;
+        this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, `rgba(59, 130, 246, ${alpha})`, null);
       }
     }
 
@@ -68,6 +94,12 @@ export class HexCanvasRendererService {
     // Draw units
     if (units) {
       for (const unit of units.values()) {
+        // Hide enemy units in fog
+        if (hasFog && unit.ownerId !== currentPlayerId) {
+          const unitKey = `${unit.q},${unit.r}`;
+          if (!visibleHexes!.has(unitKey)) continue;
+        }
+
         const color = playerColors?.get(unit.ownerId) ?? '#ffffff';
         const isSelected = unit.id === selectedUnitId;
 

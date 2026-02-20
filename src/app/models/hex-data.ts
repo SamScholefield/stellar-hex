@@ -27,8 +27,11 @@ export interface StellarObject {
   velocity?: HexCoord;
 }
 
+export type AnomalyHexType = 'derelict_ship' | 'resource_cache' | 'alien_signal' | 'wormhole' | 'ancient_ruins';
+
 export interface HexData {
   q: number;
   r: number;
   object: StellarObject | null;
+  anomaly?: AnomalyHexType;
 }

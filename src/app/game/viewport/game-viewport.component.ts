@@ -16,6 +16,7 @@ import { HexCanvasRendererService } from '../renderer/hex-canvas-renderer.servic
 import { AnimationService } from '../renderer/animation.service';
 import { pixelToHex } from '../../shared/hex/hex-math';
 import { findPath, getReachableHexes } from '../../core/pathfinding/hex-pathfinder';
+import { VisionService } from '../../core/vision/vision.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 
 const HEX_SIZE = 30;
@@ -53,6 +54,7 @@ export class GameViewportComponent implements OnDestroy {
   private readonly gameState = inject(GameStateService);
   private readonly renderer = inject(HexCanvasRendererService);
   readonly animation = inject(AnimationService);
+  private readonly vision = inject(VisionService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
   private panning = false;
@@ -111,11 +113,15 @@ export class GameViewportComponent implements OnDestroy {
       }
 
       const activeAnim = this.animation.activeAnimation();
+      const visibleHexes = this.vision.visibleHexes();
+      const exploredHexes = this.vision.exploredHexes();
+      const currentPlayer = this.gameState.currentPlayer();
+      const currentPlayerId = currentPlayer?.id ?? null;
 
       const canvas = this.canvasRef().nativeElement;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim);
+        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId);
       }
     });
   }

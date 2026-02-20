@@ -4,11 +4,12 @@ import { TurnControlsComponent } from './turn-controls.component';
 import { HexInfoPanelComponent } from '../panels/hex-info-panel.component';
 import { UnitInfoPanelComponent } from '../panels/unit-info-panel.component';
 import { ActionBarComponent } from '../panels/action-bar.component';
+import { EventLogComponent } from '../log/event-log.component';
 
 @Component({
   selector: 'app-hud',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, ActionBarComponent],
+  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, ActionBarComponent, EventLogComponent],
   template: `
     <div class="hud-top">
       <app-resource-bar />
@@ -21,7 +22,9 @@ import { ActionBarComponent } from '../panels/action-bar.component';
     <div class="hud-bottom-center">
       <app-action-bar />
     </div>
-    <div class="hud-bottom-right minimap-placeholder"></div>
+    <div class="hud-bottom-right">
+      <app-event-log />
+    </div>
   `,
   styles: `
     :host {
@@ -53,15 +56,11 @@ import { ActionBarComponent } from '../panels/action-bar.component';
       align-self: end;
       pointer-events: auto;
     }
-    .minimap-placeholder {
+    .hud-bottom-right {
       grid-row: 3;
       grid-column: 3;
-      width: 180px;
-      height: 180px;
-      background: rgba(10, 10, 26, 0.5);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
       align-self: end;
+      pointer-events: auto;
     }
   `,
 })

@@ -12,6 +12,7 @@ function createInitialState(): GameState {
     buildings: new Map(),
     dynamicObjects: new Map(),
     chunkOverrides: new Map(),
+    anomalies: new Map(),
     seed: Date.now(),
   };
 }
@@ -29,6 +30,7 @@ export class GameStateService {
   readonly units = computed(() => this._gameState().units);
   readonly buildings = computed(() => this._gameState().buildings);
   readonly players = computed(() => this._gameState().players);
+  readonly anomalies = computed(() => this._gameState().anomalies);
 
   dispatch(action: GameAction): void {
     this._gameState.update((state) => gameReducer(state, action));

@@ -5,30 +5,37 @@ import { SelectionService } from '../../core/selection/selection.service';
   selector: 'app-hex-info-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (hexData(); as data) {
+    @if (info(); as data) {
       <div class="panel">
-        <div class="coords">{{ data.q }}, {{ data.r }}</div>
-        @if (data.object; as obj) {
+        <div class="coords">{{ data.hex.q }}, {{ data.hex.r }}</div>
+        @if (data.visibility === 'unexplored') {
+          <div class="type unknown">Unknown</div>
+          <div class="hint">Unexplored region</div>
+        } @else if (data.hex.object; as obj) {
           <div class="type">{{ formatType(obj.type) }}</div>
           @if (obj.subtype) {
             <div class="subtype">{{ obj.subtype }}</div>
           }
-          <div class="size">Size: {{ obj.size }}</div>
-          @if (obj.resources) {
-            <div class="resources">
-              @if (obj.resources.energy) {
-                <span class="res">Energy: {{ obj.resources.energy }}</span>
-              }
-              @if (obj.resources.minerals) {
-                <span class="res">Minerals: {{ obj.resources.minerals }}</span>
-              }
-              @if (obj.resources.alloys) {
-                <span class="res">Alloys: {{ obj.resources.alloys }}</span>
-              }
-              @if (obj.resources.credits) {
-                <span class="res">Credits: {{ obj.resources.credits }}</span>
-              }
-            </div>
+          @if (data.visibility === 'visible') {
+            <div class="size">Size: {{ obj.size }}</div>
+            @if (obj.resources) {
+              <div class="resources">
+                @if (obj.resources.energy) {
+                  <span class="res">Energy: {{ obj.resources.energy }}</span>
+                }
+                @if (obj.resources.minerals) {
+                  <span class="res">Minerals: {{ obj.resources.minerals }}</span>
+                }
+                @if (obj.resources.alloys) {
+                  <span class="res">Alloys: {{ obj.resources.alloys }}</span>
+                }
+                @if (obj.resources.credits) {
+                  <span class="res">Credits: {{ obj.resources.credits }}</span>
+                }
+              </div>
+            }
+          } @else {
+            <div class="hint">Last seen — no current intel</div>
           }
         } @else {
           <div class="type">Empty Space</div>
@@ -75,12 +82,22 @@ import { SelectionService } from '../../core/selection/selection.service';
       font-size: 0.8rem;
       color: #5eead4;
     }
+    .unknown {
+      color: #6b7280;
+      font-style: italic;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: #4b5563;
+      font-style: italic;
+      margin-top: 0.25rem;
+    }
   `,
 })
 export class HexInfoPanelComponent {
   private readonly selection = inject(SelectionService);
 
-  readonly hexData = this.selection.selectedHexData;
+  readonly info = this.selection.selectedHexData;
 
   formatType(type: string): string {
     return type.replace(/_/g, ' ');

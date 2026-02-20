@@ -4,7 +4,7 @@ import { GameState, PlayerState, Resources, UnitData, UnitType, UNIT_STATS } fro
 import { GameStateService } from './game-state.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
-import { hexToPixel } from '../../shared/hex/hex-math';
+import { hexToPixel, hexesInRange } from '../../shared/hex/hex-math';
 
 export interface NewGameConfig {
   playerName: string;
@@ -61,6 +61,7 @@ export class GameInitService {
         color: PLAYER_COLORS[0],
         resources: makeStartResources(),
         isAI: false,
+        exploredHexes: new Set(),
       },
     ];
 
@@ -71,13 +72,21 @@ export class GameInitService {
         color: PLAYER_COLORS[(i + 1) % PLAYER_COLORS.length],
         resources: makeStartResources(),
         isAI: true,
+        exploredHexes: new Set(),
       });
     }
 
     const units = new Map<string, UnitData>();
     for (let i = 0; i < players.length; i++) {
       const pos = START_POSITIONS[i % START_POSITIONS.length];
-      units.set(`scout-${players[i].id}`, makeUnit(`scout-${players[i].id}`, players[i].id, 'scout', pos.q, pos.r));
+      const unit = makeUnit(`scout-${players[i].id}`, players[i].id, 'scout', pos.q, pos.r);
+      units.set(unit.id, unit);
+
+      // Reveal starting area
+      const visible = hexesInRange({ q: pos.q, r: pos.r, s: -pos.q - pos.r }, unit.sightRange);
+      for (const hex of visible) {
+        players[i].exploredHexes.add(`${hex.q},${hex.r}`);
+      }
     }
 
     const state: GameState = {
@@ -88,6 +97,7 @@ export class GameInitService {
       buildings: new Map(),
       dynamicObjects: new Map(),
       chunkOverrides: new Map(),
+      anomalies: new Map(),
       seed,
     };
 

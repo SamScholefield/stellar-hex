@@ -4,11 +4,20 @@ import { HexData } from '../../models/hex-data';
 import { UnitData } from '../../models/game-state';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { GameStateService } from '../state/game-state.service';
+import { VisionService } from '../vision/vision.service';
+
+export type HexVisibility = 'visible' | 'explored' | 'unexplored';
+
+export interface SelectedHexInfo {
+  hex: HexData;
+  visibility: HexVisibility;
+}
 
 @Injectable({ providedIn: 'root' })
 export class SelectionService {
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly gameState = inject(GameStateService);
+  private readonly vision = inject(VisionService);
 
   private readonly _selectedHexCoord = signal<HexCoord | null>(null);
   private readonly _hoveredHexCoord = signal<HexCoord | null>(null);
@@ -24,10 +33,23 @@ export class SelectionService {
     return this.gameState.units().get(id) ?? null;
   });
 
-  readonly selectedHexData = computed<HexData | null>(() => {
+  readonly selectedHexData = computed<SelectedHexInfo | null>(() => {
     const coord = this._selectedHexCoord();
     if (!coord) return null;
-    return this.chunkManager.getHex(coord.q, coord.r);
+    const hex = this.chunkManager.getHex(coord.q, coord.r);
+    if (!hex) return null;
+
+    const key = `${coord.q},${coord.r}`;
+    let visibility: HexVisibility;
+    if (this.vision.visibleHexes().has(key)) {
+      visibility = 'visible';
+    } else if (this.vision.exploredHexes().has(key)) {
+      visibility = 'explored';
+    } else {
+      visibility = 'unexplored';
+    }
+
+    return { hex, visibility };
   });
 
   /** Select a hex, auto-detecting units. Returns true if a move command should be issued. */

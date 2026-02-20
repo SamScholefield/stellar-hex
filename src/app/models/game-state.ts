@@ -13,6 +13,7 @@ export interface PlayerState {
   color: string;
   resources: Resources;
   isAI: boolean;
+  exploredHexes: Set<string>;
 }
 
 export type UnitType = 'scout' | 'fighter' | 'cruiser' | 'colony_ship' | 'mining_drone';
@@ -75,6 +76,17 @@ export interface HexOverride {
   change: string;
 }
 
+export type AnomalyType = 'derelict_ship' | 'resource_cache' | 'alien_signal' | 'wormhole' | 'ancient_ruins';
+
+export interface Anomaly {
+  id: string;
+  type: AnomalyType;
+  q: number;
+  r: number;
+  reward?: Partial<Resources>;
+  discovered: boolean;
+}
+
 export interface GameState {
   turn: number;
   currentPlayerIndex: number;
@@ -83,5 +95,6 @@ export interface GameState {
   buildings: Map<string, BuildingData>;
   dynamicObjects: Map<string, DynamicObject>;
   chunkOverrides: Map<string, HexOverride[]>;
+  anomalies: Map<string, Anomaly>;
   seed: number;
 }
