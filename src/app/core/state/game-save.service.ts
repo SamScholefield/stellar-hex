@@ -39,6 +39,7 @@ interface SerializedPlayer {
   resources: PlayerState['resources'];
   isAI: boolean;
   exploredHexes: string[];
+  homeBaseId?: string;
 }
 
 export function serialize(
@@ -56,6 +57,7 @@ export function serialize(
         resources: { ...p.resources },
         isAI: p.isAI,
         exploredHexes: [...p.exploredHexes],
+        homeBaseId: p.homeBaseId,
       })),
       units: [...state.units.entries()],
       buildings: [...state.buildings.entries()],
@@ -86,6 +88,7 @@ export function deserialize(json: string): {
       resources: p.resources,
       isAI: p.isAI,
       exploredHexes: new Set(p.exploredHexes),
+      homeBaseId: p.homeBaseId,
     })),
     units: new Map(s.units),
     buildings: new Map(s.buildings),

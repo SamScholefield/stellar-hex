@@ -9,6 +9,8 @@ import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { AIService } from '../../core/ai/ai.service';
+import { CameraService } from '../../core/camera/camera.service';
+import { hexToPixel } from '../../shared/hex/hex-math';
 import { BuildingData, UnitType } from '../../models/game-state';
 
 @Component({
@@ -18,13 +20,16 @@ import { BuildingData, UnitType } from '../../models/game-state';
   template: `
     <div class="hud-top">
       <app-resource-bar />
+      @if (homeBase(); as hb) {
+        <button class="home-btn" (click)="focusHome(hb)">&#8962; Home</button>
+      }
       <app-turn-controls />
     </div>
     <div class="hud-bottom-left">
       <app-unit-info-panel />
       <app-hex-info-panel />
       @if (selectedStarbase(); as sb) {
-        <app-production-menu [building]="sb" (produceSelected)="onProduce($event)" />
+        <app-production-menu [building]="sb" [homeBaseId]="gameState.homeBaseId()" (produceSelected)="onProduce($event)" (setHomeSelected)="onSetHome(sb)" />
       }
     </div>
     <div class="hud-bottom-right">
@@ -68,6 +73,20 @@ import { BuildingData, UnitType } from '../../models/game-state';
       align-self: end;
       pointer-events: auto;
     }
+    .home-btn {
+      background: rgba(10, 10, 26, 0.85);
+      border: 1px solid #2a4a5a;
+      border-radius: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      color: #e0e0e0;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .home-btn:hover {
+      background: rgba(30, 40, 60, 0.95);
+    }
     .ai-overlay {
       position: absolute;
       inset: 0;
@@ -105,10 +124,17 @@ import { BuildingData, UnitType } from '../../models/game-state';
 })
 export class HudComponent {
   private readonly selection = inject(SelectionService);
-  private readonly gameState = inject(GameStateService);
+  readonly gameState = inject(GameStateService);
   private readonly eventLog = inject(EventLogService);
   private readonly ai = inject(AIService);
+  private readonly camera = inject(CameraService);
   readonly aiExecuting = this.ai.executing;
+
+  readonly homeBase = computed<BuildingData | null>(() => {
+    const id = this.gameState.homeBaseId();
+    if (!id) return null;
+    return this.gameState.buildings().get(id) ?? null;
+  });
 
   readonly selectedStarbase = computed<BuildingData | null>(() => {
     const coord = this.selection.selectedHexCoord();
@@ -120,6 +146,19 @@ export class HudComponent {
     }
     return null;
   });
+
+  focusHome(building: BuildingData): void {
+    const { x, y } = hexToPixel(building.q, building.r, 30);
+    this.camera.centerOn(x, y);
+    this.selection.selectHex({ q: building.q, r: building.r, s: -building.q - building.r });
+  }
+
+  onSetHome(building: BuildingData): void {
+    const player = this.gameState.currentPlayer();
+    if (!player) return;
+    this.gameState.dispatch({ type: 'SET_HOME_BASE', playerId: player.id, buildingId: building.id });
+    this.eventLog.push({ turn: this.gameState.turn(), message: 'Home base reassigned' });
+  }
 
   onProduce(unitType: UnitType): void {
     const starbase = this.selectedStarbase();

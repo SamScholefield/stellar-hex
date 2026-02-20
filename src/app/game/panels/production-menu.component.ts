@@ -15,6 +15,11 @@ interface ProductionOption {
     @if (building(); as b) {
       <div class="menu">
         <div class="title">Production — {{ formatName(b.type) }}</div>
+        @if (isHome()) {
+          <div class="home-label">&#9733; Home Base</div>
+        } @else {
+          <button class="set-home-btn" (click)="setHomeSelected.emit()">Set as Home</button>
+        }
 
         @if (queue().length > 0) {
           <div class="queue-section">
@@ -128,13 +133,42 @@ interface ProductionOption {
       font-size: 0.7rem;
       color: #f87171;
     }
+    .home-label {
+      font-size: 0.75rem;
+      color: #fbbf24;
+      padding: 0.2rem 0.25rem;
+      margin-bottom: 0.25rem;
+    }
+    .set-home-btn {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      margin-bottom: 0.25rem;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 0.375rem;
+      color: #9ca3af;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .set-home-btn:hover {
+      background: #374151;
+      color: #e0e0e0;
+    }
   `,
 })
 export class ProductionMenuComponent {
   private readonly gameState = inject(GameStateService);
 
   readonly building = input.required<BuildingData | null>();
+  readonly homeBaseId = input<string | null>(null);
   readonly produceSelected = output<UnitType>();
+  readonly setHomeSelected = output<void>();
+
+  readonly isHome = computed(() => {
+    const b = this.building();
+    const hid = this.homeBaseId();
+    return b != null && hid != null && b.id === hid;
+  });
 
   readonly queue = computed(() => {
     const b = this.building();

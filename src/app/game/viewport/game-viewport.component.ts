@@ -17,7 +17,7 @@ import { AnimationService } from '../renderer/animation.service';
 import { AIService } from '../../core/ai/ai.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { hexToPixel, pixelToHex } from '../../shared/hex/hex-math';
-import { findPath, getReachableHexes, miningDroneCostOverride, pathCost } from '../../core/pathfinding/hex-pathfinder';
+import { findPath, getReachableHexes, getUnitCostOverride, pathCost } from '../../core/pathfinding/hex-pathfinder';
 import { VisionService } from '../../core/vision/vision.service';
 import { SpriteAtlasService } from '../../core/sprites/sprite-atlas.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
@@ -114,7 +114,7 @@ export class GameViewportComponent implements OnDestroy {
             return false;
           };
           const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
-          const override = unit.type === 'mining_drone' ? miningDroneCostOverride : undefined;
+          const override = getUnitCostOverride(unit.type);
           reachable = getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked, override);
 
           if (hoveredHex && reachable.has(`${hoveredHex.q},${hoveredHex.r}`)) {
@@ -125,10 +125,11 @@ export class GameViewportComponent implements OnDestroy {
 
       const activeAnim = this.animation.activeAnimation();
       const combatAnim = this.animation.combatAnimation();
-      const visibleHexes = this.vision.visibleHexes();
-      const exploredHexes = this.vision.exploredHexes();
-      const currentPlayer = this.gameState.currentPlayer();
-      const currentPlayerId = currentPlayer?.id ?? null;
+      // Always render fog from the human player's perspective
+      const visibleHexes = this.vision.humanVisibleHexes();
+      const exploredHexes = this.vision.humanExploredHexes();
+      const humanPlayer = this.gameState.players().find(p => !p.isAI);
+      const currentPlayerId = humanPlayer?.id ?? null;
       const buildings = this.gameState.buildings();
 
       const canvas = this.canvasRef().nativeElement;
@@ -219,7 +220,7 @@ export class GameViewportComponent implements OnDestroy {
           return false;
         };
 
-        const override = unit.type === 'mining_drone' ? miningDroneCostOverride : undefined;
+        const override = getUnitCostOverride(unit.type);
         const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);
         if (path && path.length > 1) {
           const cost = pathCost(path, hexLookup, override);

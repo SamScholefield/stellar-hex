@@ -19,6 +19,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return attack(state, action.attackerId, action.targetId);
     case 'ADVANCE_COMETS':
       return advanceComets(state);
+    case 'SET_HOME_BASE':
+      return setHomeBase(state, action.playerId, action.buildingId);
     default:
       return state;
   }
@@ -102,7 +104,34 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
   };
   buildings.set(id, building);
 
-  return { ...state, players, buildings, units };
+  let result = { ...state, players, buildings, units };
+
+  // Auto-set home base on first starbase build
+  if (buildingType === 'starbase' && !players[playerIndex].homeBaseId) {
+    result = {
+      ...result,
+      players: result.players.map((p, i) =>
+        i === playerIndex ? { ...p, homeBaseId: id } : p
+      ),
+    };
+  }
+
+  return result;
+}
+
+function setHomeBase(state: GameState, playerId: string, buildingId: string): GameState {
+  const building = state.buildings.get(buildingId);
+  if (!building || building.type !== 'starbase' || building.ownerId !== playerId) return state;
+
+  const playerIndex = state.players.findIndex(p => p.id === playerId);
+  if (playerIndex === -1) return state;
+
+  return {
+    ...state,
+    players: state.players.map((p, i) =>
+      i === playerIndex ? { ...p, homeBaseId: buildingId } : p
+    ),
+  };
 }
 
 function produceUnit(state: GameState, buildingId: string, unitType: UnitType): GameState {

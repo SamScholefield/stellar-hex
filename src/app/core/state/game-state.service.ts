@@ -33,6 +33,7 @@ export class GameStateService {
   readonly buildings = computed(() => this._gameState().buildings);
   readonly players = computed(() => this._gameState().players);
   readonly anomalies = computed(() => this._gameState().anomalies);
+  readonly homeBaseId = computed(() => this.currentPlayer()?.homeBaseId ?? null);
 
   dispatch(action: GameAction): void {
     this._gameState.update((state) => gameReducer(state, action));

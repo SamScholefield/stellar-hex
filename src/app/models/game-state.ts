@@ -39,6 +39,7 @@ export interface PlayerState {
   resources: Resources;
   isAI: boolean;
   exploredHexes: Set<string>;
+  homeBaseId?: string;
 }
 
 export type UnitType = 'scout' | 'fighter' | 'cruiser' | 'colony_ship' | 'mining_drone';

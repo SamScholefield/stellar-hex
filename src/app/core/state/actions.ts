@@ -8,4 +8,5 @@ export type GameAction =
   | { type: 'BUILD'; playerId: string; buildingType: BuildingType; hex: HexCoord; hexType: string }
   | { type: 'PRODUCE_UNIT'; buildingId: string; unitType: UnitType }
   | { type: 'HARVEST'; unitId: string }
-  | { type: 'ADVANCE_COMETS' };
+  | { type: 'ADVANCE_COMETS' }
+  | { type: 'SET_HOME_BASE'; playerId: string; buildingId: string };
