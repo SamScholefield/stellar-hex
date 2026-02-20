@@ -14,7 +14,6 @@ A turn-based, top-down hex-based space RTS built in Angular (zoneless, OnPush, s
 - Chunk size: 16×16 hexes
 - Seed-based deterministic world generation
 - Canvas for game board rendering, Angular HTML/SVG for UI overlays
-- Later phases migrate canvas to PixiJS for WebGL-accelerated rendering
 
 ## Module Structure
 
@@ -33,7 +32,7 @@ src/
 │   │   ├── combat/            # Combat resolution
 │   │   └── ai/               # AI opponent logic
 │   ├── game/                  # Game view components
-│   │   ├── viewport/          # Canvas/PixiJS viewport component
+│   │   ├── viewport/          # Canvas viewport component
 │   │   ├── renderer/          # HexCanvasRenderer, StellarRenderer, chunk texture cache
 │   │   ├── hud/               # ResourceBar, TurnControls, Minimap
 │   │   ├── panels/            # HexInfoPanel, UnitInfoPanel, BuildMenu
@@ -741,107 +740,15 @@ src/
 
 ---
 
-## Phase 10 — Visual Polish with PixiJS
+## Phase 10 — Audio
 
-### 10.1 PixiJS Integration
-
-- [ ] Install `pixi.js` (v7+)
-- [ ] Replace raw canvas in `GameViewportComponent` with a PixiJS `Application`
-- [ ] Create the PixiJS app inside the component, attach its canvas to the DOM
-- [ ] Migrate camera transforms to PixiJS container transform (pan = container position, zoom = container scale)
-- [ ] Verify all existing interactions (click, pan, zoom) still work with PixiJS event system
-
-### 10.2 Layer Setup
-
-- [ ] Create PixiJS Containers for each render layer (bottom to top):
-  1. `deepStarfieldLayer` — parallax background
-  2. `nebulaLayer` — parallax nebula clouds
-  3. `hexGridLayer` — hex outlines
-  4. `stellarObjectLayer` — stars, planets, asteroids etc.
-  5. `buildingLayer` — player buildings
-  6. `unitLayer` — ships and fleets
-  7. `effectsLayer` — glow, comet tails, explosions
-  8. `overlayLayer` — selection highlights, movement range, attack range
-  9. `fogLayer` — fog of war mask
-
-### 10.3 Parallax Starfield
-
-- [ ] Generate a tileable starfield texture: random white dots of varying brightness and size
-- [ ] Tile it across the viewport as a `TilingSprite`
-- [ ] Update tile offset based on camera position × 0.3 (parallax factor)
-- [ ] Second layer of brighter, sparser stars at 0.5× parallax
-
-### 10.4 Nebula Clouds
-
-- [ ] Create or source 3-4 large semi-transparent cloud textures
-- [ ] Place them at nebula-region world coordinates
-- [ ] Use additive or screen blending mode
-- [ ] Parallax scroll at 0.6× camera speed
-- [ ] Tint based on nebula color (purple, blue, green, orange)
-
-### 10.5 Stellar Object Sprites
-
-- [ ] Create or source a texture atlas with all stellar object variants
-- [ ] **Stars**: bright core sprite + larger glow sprite (additive blend), tinted by star class:
-  - O/B = blue-white, A = white, F = yellow-white, G = yellow, K = orange, M = red
-- [ ] **Planets**: circular sprite variants (rocky=brown/grey, gas_giant=banded orange/brown, ice=white/blue, lava=red/orange)
-  - Shadow on one side (fixed light direction or toward nearest star)
-  - Optional ring system for some gas giants (stretched ellipse sprite)
-- [ ] **Moons**: smaller planet sprites, offset from hex center toward `orbitAnchor`
-- [ ] **Asteroids**: cluster of 3-5 small irregular rock sprites scattered within the hex, random rotation
-- [ ] **Asteroid fields**: denser asteroid scatter, slight color variation
-- [ ] **Comets**: small bright core + stretched alpha tail sprite, tail direction opposite to velocity
-- [ ] **Black holes**: dark central circle + glowing accretion ring + subtle distortion effect
-- [ ] Implement `StellarSpriteFactory` that creates the appropriate PixiJS DisplayObject for each stellar type
-
-### 10.6 Hex Grid Lines
-
-- [ ] Draw hex outlines as thin semi-transparent lines (PixiJS Graphics or pre-rendered texture)
-- [ ] Faint color: #1a3a4a or similar subtle blue-grey
-- [ ] Slightly brighter near stellar objects
-
-### 10.7 Fog of War (PixiJS)
-
-- [ ] Implement fog as a full-screen dark texture with circular cutouts at vision source positions
-- [ ] Use PixiJS masking or a custom shader
-- [ ] Soft-edge circles (gradient falloff) for a polished look
-- [ ] Explored-but-not-visible: partial transparency (dark overlay, not fully black)
-
-### 10.8 Unit Sprites
-
-- [ ] Design or source ship sprites per unit type (scout=small sleek, fighter=armed, cruiser=large, colony_ship=bulky transport)
-- [ ] Tint by player color
-- [ ] Shield/health bar overlay below each unit
-- [ ] Selected unit: glowing ring
-
-### 10.9 Animations & Effects
-
-- [ ] Movement: smooth interpolation between hex centers using PixiJS ticker during animation only
-- [ ] Combat: muzzle flash, projectile travel, hit flash, explosion particles
-- [ ] Building placement: construction shimmer effect
-- [ ] Star glow: slow pulsing alpha on glow sprites
-- [ ] Comet tail: subtle shimmer or particle trail
-- [ ] Turn transition: brief screen-wide sweep or fade
-
-### 10.10 Chunk Texture Migration
-
-- [ ] Migrate offscreen chunk rendering to PixiJS `RenderTexture`:
-  - Each chunk renders its stellar objects to a `RenderTexture` once
-  - Blit the texture to a `Sprite` positioned in the world
-  - Only re-render when chunk is dirty
-- [ ] Verify performance with many visible chunks at low zoom levels
-
----
-
-## Phase 11 — Audio
-
-### 11.1 Audio Setup
+### 10.1 Audio Setup
 
 - [ ] Install `howler` (`npm install howler`)
 - [ ] Create `src/app/core/audio/audio.service.ts`
 - [ ] Manage two audio categories: music and SFX, with independent volume controls
 
-### 11.2 Sound Effects
+### 10.2 Sound Effects
 
 - [ ] Source or create sound effects for:
   - Hex selection click
@@ -856,7 +763,7 @@ src/
   - Error/invalid action: soft buzz
 - [ ] Play sounds via `audioService.play('selection')` called from relevant services/components
 
-### 11.3 Music
+### 10.3 Music
 
 - [ ] Source or create ambient space music tracks:
   - Exploration theme: calm, atmospheric
@@ -864,7 +771,7 @@ src/
 - [ ] Implement music state machine: exploration ↔ combat, with crossfade transitions
 - [ ] Trigger combat music when attack action is initiated, return to exploration after combat resolves
 
-### 11.4 Settings
+### 10.4 Settings
 
 - [ ] Create audio settings panel with:
   - Master volume slider
@@ -875,9 +782,9 @@ src/
 
 ---
 
-## Phase 12 — Minimap & Quality of Life
+## Phase 11 — Minimap & Quality of Life
 
-### 12.1 Minimap
+### 11.1 Minimap
 
 - [ ] Create `src/app/game/hud/minimap.component.ts`
 - [ ] Render on a small `<canvas>` (200×200 or similar)
@@ -887,7 +794,7 @@ src/
 - [ ] Click on minimap → `cameraService.centerOn()` to jump camera to that location
 - [ ] Update minimap when explored area or unit positions change
 
-### 12.2 Unit List
+### 11.2 Unit List
 
 - [ ] Create `src/app/game/panels/unit-list.component.ts`
 - [ ] Scrollable list of all owned units, grouped by type
@@ -895,14 +802,14 @@ src/
 - [ ] Click entry → select unit and center camera on it
 - [ ] Highlight units with remaining movement points
 
-### 12.3 Building List
+### 11.3 Building List
 
 - [ ] Create `src/app/game/panels/building-list.component.ts`
 - [ ] List all owned buildings with type, location, per-turn yield
 - [ ] Click entry → center camera on building
 - [ ] Show total income summary at top
 
-### 12.4 Keyboard Shortcuts
+### 11.4 Keyboard Shortcuts
 
 - [ ] M → enter Move mode for selected unit
 - [ ] A → enter Attack mode for selected unit
@@ -913,7 +820,7 @@ src/
 - [ ] Home → center camera on starting position / capital
 - [ ] Create a keyboard shortcut reference panel accessible via "?" key
 
-### 12.5 Notifications
+### 11.5 Notifications
 
 - [ ] Create `src/app/game/overlays/notification.service.ts`
 - [ ] Toast notifications that appear briefly then fade:
@@ -924,20 +831,20 @@ src/
 - [ ] Clicking a notification centers camera on the relevant location
 - [ ] Queue multiple notifications with stagger
 
-### 12.6 Undo (Within Turn)
+### 11.6 Undo (Within Turn)
 
 - [ ] Store state snapshots at the start of each turn and after each action
 - [ ] "Undo" button (Ctrl+Z) reverts to the previous snapshot
 - [ ] Only available for actions within the current turn — can't undo past "End Turn"
 - [ ] Clear undo stack on turn end
 
-### 12.7 Auto-Save
+### 11.7 Auto-Save
 
 - [ ] Trigger save to `localStorage` every 5 turns and on manual save
 - [ ] On app load, check for auto-save and offer "Continue" option on menu
 - [ ] Store max 3 auto-save slots, rotating
 
-### 12.8 Performance
+### 11.8 Performance
 
 - [ ] Profile with Chrome DevTools: ensure 60fps during camera pan
 - [ ] If chunk generation causes stutter, move `WorldGeneratorService.generate()` to a Web Worker:
@@ -949,16 +856,16 @@ src/
 
 ---
 
-## Phase 13 — Multiplayer (Optional)
+## Phase 12 — Multiplayer (Optional)
 
-### 13.1 Server Setup
+### 12.1 Server Setup
 
 - [ ] Create a Node.js server project (separate repo or `server/` directory)
 - [ ] Install `socket.io` or `colyseus`
 - [ ] Server holds authoritative `GameState` and runs the same `gameReducer`
 - [ ] Server validates all incoming actions before applying
 
-### 13.2 Networking Service
+### 12.2 Networking Service
 
 - [ ] Create `src/app/core/network/network.service.ts`
 - [ ] Connect to server via WebSocket
@@ -966,7 +873,7 @@ src/
 - [ ] Receive state updates from server → replace local `_gameState` signal
 - [ ] Handle connection, disconnection, reconnection
 
-### 13.3 Lobby
+### 12.3 Lobby
 
 - [ ] Create `/lobby` route with `LobbyComponent`
 - [ ] Create game: set name, max players, seed, game settings
@@ -974,25 +881,25 @@ src/
 - [ ] Lobby chat
 - [ ] Ready up → game starts when all players ready
 
-### 13.4 Turn Synchronization
+### 12.4 Turn Synchronization
 
 - [ ] Server enforces turn order: only accepts actions from the current player
 - [ ] Other players see "Waiting for [PlayerName]..." during opponent's turn
 - [ ] Optional: add a turn timer (configurable)
 
-### 13.5 Fog of War (Server-Enforced)
+### 12.5 Fog of War (Server-Enforced)
 
 - [ ] Server only sends each client hex data and enemy unit positions they're allowed to see
 - [ ] Client renders fog based on what the server has revealed
 - [ ] Prevents cheating via client modification
 
-### 13.6 Reconnection
+### 12.6 Reconnection
 
 - [ ] On disconnect, server keeps player slot open for N minutes
 - [ ] On reconnect: server sends full current state to the reconnecting client
 - [ ] Other players see "Player disconnected" / "Player reconnected" messages
 
-### 13.7 Simultaneous Turns (Optional Variant)
+### 12.7 Simultaneous Turns (Optional Variant)
 
 - [ ] All players submit orders during the same phase
 - [ ] Server collects all orders, resolves simultaneously (movement, then combat)
