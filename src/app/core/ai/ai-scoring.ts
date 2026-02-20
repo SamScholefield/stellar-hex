@@ -164,6 +164,16 @@ export function scoreBuild(
       if (!player.exploredHexes.has(key)) continue;
       if (buildingPositions.has(key)) continue;
 
+      // Require friendly unit at hex
+      let hasUnitAtHex = false;
+      for (const u of units.values()) {
+        if (u.ownerId === player.id && u.q === hex.q && u.r === hex.r) {
+          hasUnitAtHex = true;
+          break;
+        }
+      }
+      if (!hasUnitAtHex) continue;
+
       const hexData = hexLookup(hex.q, hex.r);
       if (!hexData) continue;
       const hexType = hexData.object?.type ?? 'empty';

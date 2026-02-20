@@ -22,12 +22,10 @@ export class SelectionService {
   private readonly _selectedHexCoord = signal<HexCoord | null>(null);
   private readonly _hoveredHexCoord = signal<HexCoord | null>(null);
   private readonly _selectedUnit = signal<string | null>(null);
-  private readonly _attackMode = signal(false);
 
   readonly selectedHexCoord = this._selectedHexCoord.asReadonly();
   readonly hoveredHexCoord = this._hoveredHexCoord.asReadonly();
   readonly selectedUnit = this._selectedUnit.asReadonly();
-  readonly attackMode = this._attackMode.asReadonly();
 
   readonly selectedUnitData = computed<UnitData | null>(() => {
     const id = this._selectedUnit();
@@ -91,18 +89,9 @@ export class SelectionService {
     this._hoveredHexCoord.set(coord);
   }
 
-  enterAttackMode(): void {
-    this._attackMode.set(true);
-  }
-
-  exitAttackMode(): void {
-    this._attackMode.set(false);
-  }
-
   deselectAll(): void {
     this._selectedHexCoord.set(null);
     this._selectedUnit.set(null);
-    this._attackMode.set(false);
   }
 
   private findUnitAt(q: number, r: number): UnitData | null {

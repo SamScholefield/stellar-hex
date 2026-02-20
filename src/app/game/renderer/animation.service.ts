@@ -71,6 +71,7 @@ export class AnimationService {
       this._inputLocked.set(true);
       const totalDuration = 400;
       const startTime = performance.now();
+      let lastPhase: CombatAnimation['phase'] | null = null;
 
       const tick = (now: number) => {
         const elapsed = now - startTime;
@@ -83,6 +84,10 @@ export class AnimationService {
           phase = 'flash_defender';
         } else {
           phase = 'done';
+        }
+
+        if (phase !== lastPhase) {
+          lastPhase = phase;
         }
 
         this._combatAnimation.set({ attackerId, defenderId, phase, t });

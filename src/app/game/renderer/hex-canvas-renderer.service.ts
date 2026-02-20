@@ -39,7 +39,7 @@ export class HexCanvasRendererService {
     exploredHexes?: Set<string> | null,
     currentPlayerId?: string | null,
     buildings?: Map<string, BuildingData>,
-    attackTargetHexes?: Set<string> | null,
+    _attackTargets?: unknown,
     combatAnimation?: CombatAnimation | null,
   ): void {
     const w = camera.canvasWidth();
@@ -98,16 +98,6 @@ export class HexCanvasRendererService {
         const inFog = hasFog && !visibleHexes!.has(key);
         const alpha = inFog ? 0.3 : 0.15;
         this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, `rgba(59, 130, 246, ${alpha})`, null);
-      }
-    }
-
-    // Attack target overlay
-    if (attackTargetHexes && attackTargetHexes.size > 0 && units) {
-      for (const unit of units.values()) {
-        const key = `${unit.q},${unit.r}`;
-        if (attackTargetHexes.has(unit.id)) {
-          this.drawHexOverlay(ctx, { q: unit.q, r: unit.r, s: -unit.q - unit.r }, hexSize, 'rgba(239, 68, 68, 0.2)', '#ef4444');
-        }
       }
     }
 

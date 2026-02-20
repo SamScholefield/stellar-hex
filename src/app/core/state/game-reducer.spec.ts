@@ -213,7 +213,14 @@ describe('gameReducer', () => {
 
   describe('BUILD', () => {
     it('places building and deducts resources', () => {
-      const state = makeState();
+      const units = new Map<string, UnitData>([
+        ['u1', {
+          id: 'u1', ownerId: 'p1', type: 'scout', q: 5, r: 3,
+          movementPoints: 3, maxMovementPoints: 3,
+          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
+        }],
+      ]);
+      const state = makeState({ units });
       const hex = { q: 5, r: 3, s: -8 };
       const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'mining_station', hex, hexType: 'asteroid' });
       const buildings = [...next.buildings.values()];
@@ -228,7 +235,15 @@ describe('gameReducer', () => {
     });
 
     it('rejects placement with insufficient resources', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', {
+          id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0,
+          movementPoints: 3, maxMovementPoints: 3,
+          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
+        }],
+      ]);
       const state = makeState({
+        units,
         players: [
           { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 5 }), isAI: false, exploredHexes: new Set() },
           { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set() },
@@ -240,17 +255,31 @@ describe('gameReducer', () => {
     });
 
     it('rejects placement on wrong hex type', () => {
-      const state = makeState();
+      const units = new Map<string, UnitData>([
+        ['u1', {
+          id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0,
+          movementPoints: 3, maxMovementPoints: 3,
+          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
+        }],
+      ]);
+      const state = makeState({ units });
       const hex = { q: 0, r: 0, s: 0 };
       const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'mining_station', hex, hexType: 'planet' });
       expect(next.buildings.size).toBe(0);
     });
 
     it('rejects duplicate building at same hex', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', {
+          id: 'u1', ownerId: 'p1', type: 'scout', q: 5, r: 3,
+          movementPoints: 3, maxMovementPoints: 3,
+          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
+        }],
+      ]);
       const buildings = new Map<string, BuildingData>([
         ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 5, r: 3, health: 15, maxHealth: 15 }],
       ]);
-      const state = makeState({ buildings });
+      const state = makeState({ units, buildings });
       const hex = { q: 5, r: 3, s: -8 };
       const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'colony', hex, hexType: 'planet' });
       expect(next.buildings.size).toBe(1);
@@ -275,6 +304,13 @@ describe('gameReducer', () => {
       const state = makeState();
       const hex = { q: 2, r: 4, s: -6 };
       const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'colony', hex, hexType: 'planet' });
+      expect(next.buildings.size).toBe(0);
+    });
+
+    it('rejects building without friendly unit at hex', () => {
+      const state = makeState();
+      const hex = { q: 5, r: 3, s: -8 };
+      const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'mining_station', hex, hexType: 'asteroid' });
       expect(next.buildings.size).toBe(0);
     });
   });

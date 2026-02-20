@@ -52,6 +52,16 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
     if (b.q === hex.q && b.r === hex.r) return state;
   }
 
+  // Validate friendly unit at hex
+  let hasUnit = false;
+  for (const unit of state.units.values()) {
+    if (unit.ownerId === playerId && unit.q === hex.q && unit.r === hex.r) {
+      hasUnit = true;
+      break;
+    }
+  }
+  if (!hasUnit) return state;
+
   // Validate player and resources
   const playerIndex = state.players.findIndex(p => p.id === playerId);
   if (playerIndex === -1) return state;

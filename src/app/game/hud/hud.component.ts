@@ -1,23 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ResourceBarComponent } from './resource-bar.component';
 import { TurnControlsComponent } from './turn-controls.component';
 import { HexInfoPanelComponent } from '../panels/hex-info-panel.component';
 import { UnitInfoPanelComponent } from '../panels/unit-info-panel.component';
-import { ActionBarComponent } from '../panels/action-bar.component';
 import { EventLogComponent } from '../log/event-log.component';
-import { BuildMenuComponent } from '../panels/build-menu.component';
 import { ProductionMenuComponent } from '../panels/production-menu.component';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { AIService } from '../../core/ai/ai.service';
-import { BuildingData, BuildingType, UnitType } from '../../models/game-state';
-import { StellarObjectType } from '../../models/hex-data';
+import { BuildingData, UnitType } from '../../models/game-state';
 
 @Component({
   selector: 'app-hud',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, ActionBarComponent, EventLogComponent, BuildMenuComponent, ProductionMenuComponent],
+  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, ProductionMenuComponent],
   template: `
     <div class="hud-top">
       <app-resource-bar />
@@ -26,15 +23,9 @@ import { StellarObjectType } from '../../models/hex-data';
     <div class="hud-bottom-left">
       <app-unit-info-panel />
       <app-hex-info-panel />
-      @if (actionBar()?.showBuildMenu() && selectedHexType()) {
-        <app-build-menu [hexType]="selectedHexType()!" (buildSelected)="onBuild($event)" />
-      }
       @if (selectedStarbase(); as sb) {
         <app-production-menu [building]="sb" (produceSelected)="onProduce($event)" />
       }
-    </div>
-    <div class="hud-bottom-center">
-      <app-action-bar />
     </div>
     <div class="hud-bottom-right">
       <app-event-log />
@@ -70,13 +61,6 @@ import { StellarObjectType } from '../../models/hex-data';
       grid-column: 1;
       pointer-events: auto;
       align-self: end;
-    }
-    .hud-bottom-center {
-      grid-row: 3;
-      grid-column: 2;
-      justify-self: center;
-      align-self: end;
-      pointer-events: auto;
     }
     .hud-bottom-right {
       grid-row: 3;
@@ -124,14 +108,7 @@ export class HudComponent {
   private readonly gameState = inject(GameStateService);
   private readonly eventLog = inject(EventLogService);
   private readonly ai = inject(AIService);
-  readonly actionBar = viewChild(ActionBarComponent);
   readonly aiExecuting = this.ai.executing;
-
-  readonly selectedHexType = computed<StellarObjectType | null>(() => {
-    const hexData = this.selection.selectedHexData();
-    if (!hexData || hexData.visibility !== 'visible') return null;
-    return hexData.hex.object?.type ?? 'empty';
-  });
 
   readonly selectedStarbase = computed<BuildingData | null>(() => {
     const coord = this.selection.selectedHexCoord();
@@ -143,17 +120,6 @@ export class HudComponent {
     }
     return null;
   });
-
-  onBuild(buildingType: BuildingType): void {
-    const coord = this.selection.selectedHexCoord();
-    const player = this.gameState.currentPlayer();
-    const hexType = this.selectedHexType();
-    if (!coord || !player || !hexType) return;
-    this.gameState.dispatch({ type: 'BUILD', playerId: player.id, buildingType, hex: coord, hexType });
-    this.actionBar()?.showBuildMenu.set(false);
-    const turn = this.gameState.turn();
-    this.eventLog.push({ turn, message: `Built ${buildingType.replace(/_/g, ' ')} at (${coord.q}, ${coord.r})`, q: coord.q, r: coord.r });
-  }
 
   onProduce(unitType: UnitType): void {
     const starbase = this.selectedStarbase();

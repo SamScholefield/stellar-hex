@@ -72,7 +72,7 @@ describe('scoreAttack', () => {
 });
 
 describe('scoreBuild', () => {
-  it('picks mining_station on asteroid hex', () => {
+  it('picks mining_station on asteroid hex with friendly unit', () => {
     const player = makePlayer({
       id: 'p1',
       exploredHexes: new Set(['1,0', '0,0']),
@@ -82,7 +82,8 @@ describe('scoreBuild', () => {
     hexes.set('1,0', { q: 1, r: 0, object: { type: 'asteroid', size: 1 } });
     hexes.set('0,0', { q: 0, r: 0, object: { type: 'empty', size: 0 } });
 
-    const units = new Map([['u1', makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })]]);
+    // Unit at the candidate build hex (1,0)
+    const units = new Map([['u1', makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0 })]]);
     const buildings = new Map<string, BuildingData>();
 
     const result = scoreBuild(player, buildings, units, makeHexLookup(hexes));
@@ -90,6 +91,23 @@ describe('scoreBuild', () => {
     expect(result!.buildingType).toBe('mining_station');
     expect(result!.hex.q).toBe(1);
     expect(result!.hex.r).toBe(0);
+  });
+
+  it('returns null when no friendly unit at candidate hex', () => {
+    const player = makePlayer({
+      id: 'p1',
+      exploredHexes: new Set(['1,0', '0,0']),
+    });
+
+    const hexes = new Map<string, HexData>();
+    hexes.set('1,0', { q: 1, r: 0, object: { type: 'asteroid', size: 1 } });
+    // No hex data for (0,0) — so no building can be placed there
+    // Unit at (0,0) but candidate asteroid hex is (1,0) — no unit there
+    const units = new Map([['u1', makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })]]);
+    const buildings = new Map<string, BuildingData>();
+
+    const result = scoreBuild(player, buildings, units, makeHexLookup(hexes));
+    expect(result).toBeNull();
   });
 
   it('returns null when insufficient resources', () => {
@@ -102,7 +120,8 @@ describe('scoreBuild', () => {
     const hexes = new Map<string, HexData>();
     hexes.set('1,0', { q: 1, r: 0, object: { type: 'asteroid', size: 1 } });
 
-    const units = new Map([['u1', makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })]]);
+    // Unit at the candidate hex
+    const units = new Map([['u1', makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0 })]]);
     const buildings = new Map<string, BuildingData>();
 
     const result = scoreBuild(player, buildings, units, makeHexLookup(hexes));

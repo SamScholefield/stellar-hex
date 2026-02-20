@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GameInitService } from '../core/state/game-init.service';
+import { AudioService } from '../core/audio/audio.service';
 
 @Component({
   selector: 'app-menu',
@@ -101,11 +102,13 @@ import { GameInitService } from '../core/state/game-init.service';
 })
 export class MenuComponent {
   private readonly gameInit = inject(GameInitService);
+  private readonly audio = inject(AudioService);
 
   playerName = 'Commander';
   aiOpponents = 1;
 
-  startGame(): void {
+  async startGame(): Promise<void> {
+    await this.audio.ensureContext();
     this.gameInit.newGame({
       playerName: this.playerName || 'Commander',
       aiOpponents: this.aiOpponents,
