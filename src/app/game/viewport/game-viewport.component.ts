@@ -14,6 +14,7 @@ import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { HexCanvasRendererService } from '../renderer/hex-canvas-renderer.service';
 import { AnimationService } from '../renderer/animation.service';
+import { AIService } from '../../core/ai/ai.service';
 import { hexDistance, pixelToHex } from '../../shared/hex/hex-math';
 import { findPath, getReachableHexes } from '../../core/pathfinding/hex-pathfinder';
 import { VisionService } from '../../core/vision/vision.service';
@@ -56,6 +57,7 @@ export class GameViewportComponent implements OnDestroy {
   private readonly gameState = inject(GameStateService);
   private readonly renderer = inject(HexCanvasRendererService);
   readonly animation = inject(AnimationService);
+  private readonly ai = inject(AIService);
   private readonly vision = inject(VisionService);
   private readonly eventLog = inject(EventLogService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
@@ -208,7 +210,7 @@ export class GameViewportComponent implements OnDestroy {
   }
 
   private handleClick(event: PointerEvent): void {
-    if (this.animation.inputLocked()) return;
+    if (this.animation.inputLocked() || this.ai.executing()) return;
 
     const hex = this.screenEventToHex(event);
     const selectedUnitId = this.selection.selectedUnit();

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { GameStateService } from '../../core/state/game-state.service';
+import { AIService } from '../../core/ai/ai.service';
 
 @Component({
   selector: 'app-turn-controls',
@@ -11,7 +12,11 @@ import { GameStateService } from '../../core/state/game-state.service';
         <span class="player-name">{{ player.name }}</span>
       }
       <span class="turn">Turn {{ turn() }}</span>
-      <button class="end-turn" (click)="endTurn()">End Turn</button>
+      @if (aiExecuting()) {
+        <span class="ai-thinking">AI thinking...</span>
+      } @else {
+        <button class="end-turn" (click)="endTurn()">End Turn</button>
+      }
     </div>
   `,
   styles: `
@@ -53,13 +58,25 @@ import { GameStateService } from '../../core/state/game-state.service';
     .end-turn:hover {
       background: #374151;
     }
+    .ai-thinking {
+      font-size: 0.8rem;
+      color: #f59e0b;
+      font-weight: 600;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
   `,
 })
 export class TurnControlsComponent {
   private readonly gameState = inject(GameStateService);
+  private readonly ai = inject(AIService);
 
   readonly turn = this.gameState.turn;
   readonly currentPlayer = this.gameState.currentPlayer;
+  readonly aiExecuting = this.ai.executing;
 
   endTurn(): void {
     this.gameState.dispatch({ type: 'END_TURN' });

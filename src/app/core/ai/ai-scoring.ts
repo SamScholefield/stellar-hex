@@ -1,0 +1,269 @@
+import { HexCoord } from '../../shared/hex/hex-coord.type';
+import { HexData, StellarObjectType } from '../../models/hex-data';
+import {
+  UnitData,
+  BuildingData,
+  BuildingType,
+  UnitType,
+  Resources,
+  BUILDING_STATS,
+  UNIT_STATS,
+  PlayerState,
+  GameState,
+} from '../../models/game-state';
+import { hexDistance, hexNeighbors, hexesInRange } from '../../shared/hex/hex-math';
+import { resolveCombat } from '../combat/combat-resolver';
+import { findPath } from '../pathfinding/hex-pathfinder';
+import { HexLookup } from '../pathfinding/hex-pathfinder';
+
+export interface ExploreResult {
+  target: HexCoord;
+  score: number;
+}
+
+export interface AttackScoreResult {
+  targetId: string;
+  score: number;
+}
+
+export interface BuildScoreResult {
+  buildingType: BuildingType;
+  hex: HexCoord;
+  hexType: StellarObjectType;
+  score: number;
+}
+
+export interface ProductionScoreResult {
+  buildingId: string;
+  unitType: UnitType;
+  score: number;
+}
+
+/**
+ * Score exploration targets for a unit.
+ * Finds the nearest unexplored hex reachable in ~2 turns, preferring
+ * directions with clusters of unexplored hexes.
+ */
+export function scoreExplore(
+  unit: UnitData,
+  exploredHexes: Set<string>,
+  hexLookup: HexLookup,
+): ExploreResult | null {
+  const unitCoord: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+  const searchRadius = unit.maxMovementPoints * 2;
+
+  let bestTarget: HexCoord | null = null;
+  let bestScore = -Infinity;
+
+  // Scan outward in rings to find unexplored frontier hexes
+  for (let radius = 1; radius <= searchRadius; radius++) {
+    const ring = hexesInRange(unitCoord, radius);
+    for (const hex of ring) {
+      const key = `${hex.q},${hex.r}`;
+      if (exploredHexes.has(key)) continue;
+
+      // Score by number of unexplored neighbors (cluster bonus) and closeness
+      let clusterCount = 0;
+      for (const neighbor of hexNeighbors(hex.q, hex.r)) {
+        if (!exploredHexes.has(`${neighbor.q},${neighbor.r}`)) {
+          clusterCount++;
+        }
+      }
+
+      const dist = hexDistance(unitCoord, hex);
+      // Prefer close hexes with many unexplored neighbors
+      const score = clusterCount * 2 - dist;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestTarget = hex;
+      }
+    }
+  }
+
+  if (!bestTarget) return null;
+  return { target: bestTarget, score: bestScore };
+}
+
+/**
+ * Score attack targets for a unit.
+ * Previews combat and returns the best favorable target.
+ */
+export function scoreAttack(
+  attacker: UnitData,
+  enemies: UnitData[],
+  seed: number,
+): AttackScoreResult | null {
+  if (attacker.attack <= 0 || attacker.movementPoints <= 0) return null;
+
+  const attackerCoord: HexCoord = { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r };
+  let bestResult: AttackScoreResult | null = null;
+
+  for (const enemy of enemies) {
+    const enemyCoord: HexCoord = { q: enemy.q, r: enemy.r, s: -enemy.q - enemy.r };
+    const dist = hexDistance(attackerCoord, enemyCoord);
+    if (dist > attacker.range) continue;
+
+    const combat = resolveCombat(attacker, enemy, dist, seed);
+
+    // Score: positive means favorable, negative means unfavorable
+    // Prioritize kills, penalize self-destruction
+    let score = combat.defenderDamage - combat.attackerDamage;
+    if (combat.defenderDestroyed) score += 20;
+    if (combat.attackerDestroyed) score -= 30;
+
+    // Skip unfavorable attacks (would die or deal less damage than taking)
+    if (combat.attackerDestroyed) continue;
+    if (score < 0) continue;
+
+    if (!bestResult || score > bestResult.score) {
+      bestResult = { targetId: enemy.id, score };
+    }
+  }
+
+  return bestResult;
+}
+
+/**
+ * Score building placements for the AI player.
+ * Checks explored hexes near units/buildings for buildable locations.
+ */
+export function scoreBuild(
+  player: PlayerState,
+  buildings: Map<string, BuildingData>,
+  units: Map<string, UnitData>,
+  hexLookup: HexLookup,
+): BuildScoreResult | null {
+  const ownedPositions: HexCoord[] = [];
+
+  // Collect positions of owned units and buildings
+  for (const unit of units.values()) {
+    if (unit.ownerId === player.id) {
+      ownedPositions.push({ q: unit.q, r: unit.r, s: -unit.q - unit.r });
+    }
+  }
+  for (const building of buildings.values()) {
+    if (building.ownerId === player.id) {
+      ownedPositions.push({ q: building.q, r: building.r, s: -building.q - building.r });
+    }
+  }
+
+  // Occupied building positions
+  const buildingPositions = new Set<string>();
+  for (const b of buildings.values()) {
+    buildingPositions.add(`${b.q},${b.r}`);
+  }
+
+  let bestResult: BuildScoreResult | null = null;
+
+  // Search hexes near owned positions
+  for (const pos of ownedPositions) {
+    const nearby = hexesInRange(pos, 2);
+    for (const hex of nearby) {
+      const key = `${hex.q},${hex.r}`;
+      if (!player.exploredHexes.has(key)) continue;
+      if (buildingPositions.has(key)) continue;
+
+      const hexData = hexLookup(hex.q, hex.r);
+      if (!hexData) continue;
+      const hexType = hexData.object?.type ?? 'empty';
+
+      // Try each building type
+      for (const [btStr, stats] of Object.entries(BUILDING_STATS)) {
+        const bt = btStr as BuildingType;
+        if (!stats.allowedHexTypes.includes(hexType as StellarObjectType)) continue;
+        if (!hasResources(player.resources, stats.cost)) continue;
+
+        // Colony requires colony_ship at location
+        if (bt === 'colony') {
+          let hasColonyShip = false;
+          for (const u of units.values()) {
+            if (u.ownerId === player.id && u.type === 'colony_ship' && u.q === hex.q && u.r === hex.r) {
+              hasColonyShip = true;
+              break;
+            }
+          }
+          if (!hasColonyShip) continue;
+        }
+
+        // Score: yield per cost ratio
+        const totalYield = (stats.yield.energy ?? 0) + (stats.yield.minerals ?? 0)
+          + (stats.yield.alloys ?? 0) + (stats.yield.credits ?? 0);
+        const totalCost = (stats.cost.energy ?? 0) + (stats.cost.minerals ?? 0)
+          + (stats.cost.alloys ?? 0) + (stats.cost.credits ?? 0);
+        const score = totalCost > 0 ? (totalYield / totalCost) * 100 : 0;
+
+        if (!bestResult || score > bestResult.score) {
+          bestResult = {
+            buildingType: bt,
+            hex,
+            hexType: hexType as StellarObjectType,
+            score,
+          };
+        }
+      }
+    }
+  }
+
+  return bestResult;
+}
+
+/**
+ * Score unit production for starbases.
+ */
+export function scoreProduction(
+  player: PlayerState,
+  buildings: Map<string, BuildingData>,
+  units: Map<string, UnitData>,
+  enemyNearby: boolean,
+): ProductionScoreResult | null {
+  let bestResult: ProductionScoreResult | null = null;
+
+  for (const [bId, building] of buildings) {
+    if (building.ownerId !== player.id) continue;
+    if (building.type !== 'starbase') continue;
+    // Skip starbases already producing
+    if (building.productionQueue && building.productionQueue.length > 0) continue;
+
+    // Count owned units by type
+    let scoutCount = 0;
+    let combatCount = 0;
+    for (const u of units.values()) {
+      if (u.ownerId !== player.id) continue;
+      if (u.type === 'scout') scoutCount++;
+      if (u.type === 'fighter' || u.type === 'cruiser') combatCount++;
+    }
+
+    let unitType: UnitType;
+    let score: number;
+
+    if (enemyNearby && hasResources(player.resources, UNIT_STATS.fighter.cost)) {
+      unitType = 'fighter';
+      score = 80;
+    } else if (scoutCount < 2 && hasResources(player.resources, UNIT_STATS.scout.cost)) {
+      unitType = 'scout';
+      score = 60;
+    } else if (combatCount < 2 && hasResources(player.resources, UNIT_STATS.fighter.cost)) {
+      unitType = 'fighter';
+      score = 50;
+    } else if (hasResources(player.resources, UNIT_STATS.scout.cost)) {
+      unitType = 'scout';
+      score = 30;
+    } else {
+      continue;
+    }
+
+    if (!bestResult || score > bestResult.score) {
+      bestResult = { buildingId: bId, unitType, score };
+    }
+  }
+
+  return bestResult;
+}
+
+function hasResources(resources: Resources, cost: Partial<Resources>): boolean {
+  return (resources.energy >= (cost.energy ?? 0))
+    && (resources.minerals >= (cost.minerals ?? 0))
+    && (resources.alloys >= (cost.alloys ?? 0))
+    && (resources.credits >= (cost.credits ?? 0));
+}

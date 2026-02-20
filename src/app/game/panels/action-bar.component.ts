@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
+import { AIService } from '../../core/ai/ai.service';
 
 @Component({
   selector: 'app-action-bar',
@@ -14,7 +15,7 @@ import { GameStateService } from '../../core/state/game-state.service';
       @if (canBuild()) {
         <button class="action build" [class.active]="showBuildMenu()" (click)="toggleBuildMenu()">Build</button>
       }
-      <button class="action end-turn" (click)="endTurn()">End Turn</button>
+      <button class="action end-turn" [disabled]="aiExecuting()" (click)="endTurn()">End Turn</button>
     </div>
   `,
   styles: `
@@ -60,6 +61,9 @@ import { GameStateService } from '../../core/state/game-state.service';
 export class ActionBarComponent {
   private readonly selection = inject(SelectionService);
   private readonly gameState = inject(GameStateService);
+  private readonly ai = inject(AIService);
+
+  readonly aiExecuting = this.ai.executing;
 
   readonly hasUnit = computed(() => this.selection.selectedUnit() !== null);
   readonly showBuildMenu = signal(false);

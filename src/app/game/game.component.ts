@@ -8,6 +8,7 @@ import { VisionService } from '../core/vision/vision.service';
 import { EventLogService } from '../core/state/event-log.service';
 import { GameStateService } from '../core/state/game-state.service';
 import { ChunkManagerService } from '../core/chunks/chunk-manager.service';
+import { AIService } from '../core/ai/ai.service';
 
 const PAN_STEP = 80;
 const ZOOM_STEP = 50;
@@ -43,6 +44,7 @@ export class GameComponent {
   private readonly eventLog = inject(EventLogService);
   private readonly gameState = inject(GameStateService);
   private readonly chunkManager = inject(ChunkManagerService);
+  private readonly ai = inject(AIService);
   private readonly contextMenu = viewChild(ContextMenuComponent);
   private lastTurnKey = '';
   private lastDiscoveryId = 0;
@@ -60,6 +62,7 @@ export class GameComponent {
 
       if (player.isAI) {
         this.eventLog.push({ turn, message: `[AI] ${player.name} is thinking...` });
+        untracked(() => this.ai.executeTurn(player.id));
       } else {
         this.eventLog.push({ turn, message: `${player.name}'s turn begins` });
       }
