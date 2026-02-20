@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { CameraService } from '../../core/camera/camera.service';
 import { Chunk } from '../../models/chunk';
 import { StellarObjectType } from '../../models/hex-data';
+import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexToPixel } from '../../shared/hex/hex-math';
 import { CHUNK_SIZE } from '../../core/generation/world-generator.service';
 
@@ -24,6 +25,8 @@ export class HexCanvasRendererService {
     camera: CameraService,
     hexSize: number,
     chunks: Chunk[],
+    hoveredHex: HexCoord | null,
+    selectedHex: HexCoord | null,
   ): void {
     const w = camera.canvasWidth();
     const h = camera.canvasHeight();
@@ -38,16 +41,54 @@ export class HexCanvasRendererService {
 
     for (const chunk of chunks) {
       this.renderChunkTexture(chunk, hexSize);
-      this.blitChunk(ctx, chunk, hexSize);
+      this.blitChunk(ctx, chunk);
+    }
+
+    // Overlays drawn on main canvas, not chunk textures
+    if (hoveredHex) {
+      this.drawHexOverlay(ctx, hoveredHex, hexSize, 'rgba(255, 255, 255, 0.1)', null);
+    }
+    if (selectedHex) {
+      this.drawHexOverlay(ctx, selectedHex, hexSize, 'rgba(0, 255, 255, 0.15)', '#00e5ff');
     }
 
     ctx.restore();
   }
 
+  private drawHexOverlay(
+    ctx: CanvasRenderingContext2D,
+    hex: HexCoord,
+    hexSize: number,
+    fillColor: string | null,
+    strokeColor: string | null,
+  ): void {
+    const { x, y } = hexToPixel(hex.q, hex.r, hexSize);
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      const vx = x + hexSize * Math.cos(angle);
+      const vy = y + hexSize * Math.sin(angle);
+      if (i === 0) {
+        ctx.moveTo(vx, vy);
+      } else {
+        ctx.lineTo(vx, vy);
+      }
+    }
+    ctx.closePath();
+    if (fillColor) {
+      ctx.fillStyle = fillColor;
+      ctx.fill();
+    }
+    if (strokeColor) {
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
   private renderChunkTexture(chunk: Chunk, hexSize: number): void {
     if (!chunk.dirty && chunk.texture) return;
 
-    // Compute chunk pixel dimensions with generous padding
     const padding = hexSize * 2;
     const sampleHexes = [
       { dq: 0, dr: 0 },
@@ -58,7 +99,10 @@ export class HexCanvasRendererService {
     const baseQ = chunk.coord.cx * CHUNK_SIZE;
     const baseR = chunk.coord.cy * CHUNK_SIZE;
 
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const s of sampleHexes) {
       const { x, y } = hexToPixel(baseQ + s.dq, baseR + s.dr, hexSize);
       if (x < minX) minX = x;
@@ -93,16 +137,11 @@ export class HexCanvasRendererService {
     }
 
     chunk.dirty = false;
-    // Store offset for blitting
     (chunk as any)._texOffsetX = offsetX;
     (chunk as any)._texOffsetY = offsetY;
   }
 
-  private blitChunk(
-    ctx: CanvasRenderingContext2D,
-    chunk: Chunk,
-    _hexSize: number,
-  ): void {
+  private blitChunk(ctx: CanvasRenderingContext2D, chunk: Chunk): void {
     if (!chunk.texture) return;
     const offsetX = (chunk as any)._texOffsetX ?? 0;
     const offsetY = (chunk as any)._texOffsetY ?? 0;
