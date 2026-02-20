@@ -6,7 +6,7 @@ import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexToPixel } from '../../shared/hex/hex-math';
 import { CHUNK_SIZE } from '../../core/generation/world-generator.service';
-import { UnitAnimation } from './animation.service';
+import { CombatAnimation, UnitAnimation } from './animation.service';
 
 const FILL_COLORS: Record<StellarObjectType, string> = {
   star: '#f0c040',
@@ -39,6 +39,8 @@ export class HexCanvasRendererService {
     exploredHexes?: Set<string> | null,
     currentPlayerId?: string | null,
     buildings?: Map<string, BuildingData>,
+    attackTargetHexes?: Set<string> | null,
+    combatAnimation?: CombatAnimation | null,
   ): void {
     const w = camera.canvasWidth();
     const h = camera.canvasHeight();
@@ -99,6 +101,16 @@ export class HexCanvasRendererService {
       }
     }
 
+    // Attack target overlay
+    if (attackTargetHexes && attackTargetHexes.size > 0 && units) {
+      for (const unit of units.values()) {
+        const key = `${unit.q},${unit.r}`;
+        if (attackTargetHexes.has(unit.id)) {
+          this.drawHexOverlay(ctx, { q: unit.q, r: unit.r, s: -unit.q - unit.r }, hexSize, 'rgba(239, 68, 68, 0.2)', '#ef4444');
+        }
+      }
+    }
+
     // Path preview
     if (pathPreview && pathPreview.length > 1) {
       this.drawPathLine(ctx, pathPreview, hexSize);
@@ -131,6 +143,25 @@ export class HexCanvasRendererService {
         }
 
         this.drawUnit(ctx, unit, hexSize, color, isSelected);
+      }
+    }
+
+    // Combat animation flash
+    if (combatAnimation && units) {
+      const flashUnit = combatAnimation.phase === 'flash_attacker'
+        ? units.get(combatAnimation.attackerId)
+        : combatAnimation.phase === 'flash_defender'
+          ? units.get(combatAnimation.defenderId)
+          : null;
+      if (flashUnit) {
+        const { x, y } = hexToPixel(flashUnit.q, flashUnit.r, hexSize);
+        const flashColor = combatAnimation.phase === 'flash_attacker'
+          ? 'rgba(255, 255, 255, 0.6)'
+          : 'rgba(239, 68, 68, 0.6)';
+        ctx.beginPath();
+        ctx.arc(x, y, hexSize * 0.45, 0, Math.PI * 2);
+        ctx.fillStyle = flashColor;
+        ctx.fill();
       }
     }
 

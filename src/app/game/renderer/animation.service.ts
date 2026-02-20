@@ -9,13 +9,22 @@ export interface UnitAnimation {
   t: number;
 }
 
+export interface CombatAnimation {
+  attackerId: string;
+  defenderId: string;
+  phase: 'flash_attacker' | 'flash_defender' | 'done';
+  t: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AnimationService {
   private readonly _activeAnimation = signal<UnitAnimation | null>(null);
+  private readonly _combatAnimation = signal<CombatAnimation | null>(null);
   private readonly _inputLocked = signal(false);
   private animFrameId = 0;
 
   readonly activeAnimation = this._activeAnimation.asReadonly();
+  readonly combatAnimation = this._combatAnimation.asReadonly();
   readonly inputLocked = this._inputLocked.asReadonly();
 
   animateUnitMovement(unitId: string, path: HexCoord[]): Promise<void> {
@@ -57,12 +66,48 @@ export class AnimationService {
     });
   }
 
+  animateCombat(attackerId: string, defenderId: string): Promise<void> {
+    return new Promise<void>((resolve) => {
+      this._inputLocked.set(true);
+      const totalDuration = 400;
+      const startTime = performance.now();
+
+      const tick = (now: number) => {
+        const elapsed = now - startTime;
+        const t = Math.min(elapsed / totalDuration, 1);
+
+        let phase: CombatAnimation['phase'];
+        if (t < 0.5) {
+          phase = 'flash_attacker';
+        } else if (t < 1) {
+          phase = 'flash_defender';
+        } else {
+          phase = 'done';
+        }
+
+        this._combatAnimation.set({ attackerId, defenderId, phase, t });
+
+        if (t >= 1) {
+          this._combatAnimation.set(null);
+          this._inputLocked.set(false);
+          resolve();
+          return;
+        }
+
+        this.animFrameId = requestAnimationFrame(tick);
+      };
+
+      this.animFrameId = requestAnimationFrame(tick);
+    });
+  }
+
   cancel(): void {
     if (this.animFrameId) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = 0;
     }
     this._activeAnimation.set(null);
+    this._combatAnimation.set(null);
     this._inputLocked.set(false);
   }
 }

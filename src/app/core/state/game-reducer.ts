@@ -1,6 +1,8 @@
 import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
+import { hexDistance } from '../../shared/hex/hex-math';
+import { resolveCombat, CombatResult } from '../combat/combat-resolver';
 import { GameAction } from './actions';
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -13,6 +15,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return build(state, action.playerId, action.buildingType, action.hex, action.hexType as StellarObjectType);
     case 'PRODUCE_UNIT':
       return produceUnit(state, action.buildingId, action.unitType);
+    case 'ATTACK':
+      return attack(state, action.attackerId, action.targetId);
     case 'ADVANCE_COMETS':
       return advanceComets(state);
     default:
@@ -115,6 +119,61 @@ function produceUnit(state: GameState, buildingId: string, unitType: UnitType): 
   buildings.set(buildingId, { ...building, productionQueue: queue });
 
   return { ...state, players, buildings };
+}
+
+export interface AttackResult {
+  newState: GameState;
+  combat: CombatResult | null;
+}
+
+function attack(state: GameState, attackerId: string, targetId: string): GameState {
+  return attackWithResult(state, attackerId, targetId).newState;
+}
+
+export function attackWithResult(state: GameState, attackerId: string, targetId: string): AttackResult {
+  const attacker = state.units.get(attackerId);
+  const defender = state.units.get(targetId);
+  if (!attacker || !defender) return { newState: state, combat: null };
+
+  // Cannot attack own units
+  if (attacker.ownerId === defender.ownerId) return { newState: state, combat: null };
+
+  // Must have movement points
+  if (attacker.movementPoints <= 0) return { newState: state, combat: null };
+
+  // Check range
+  const dist = hexDistance(
+    { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
+    { q: defender.q, r: defender.r, s: -defender.q - defender.r },
+  );
+  if (dist > attacker.range) return { newState: state, combat: null };
+
+  // Resolve combat
+  const combat = resolveCombat(attacker, defender, dist, state.seed + state.turn);
+
+  const units = new Map(state.units);
+
+  // Apply damage and set attacker MP to 0
+  if (combat.attackerDestroyed) {
+    units.delete(attackerId);
+  } else {
+    units.set(attackerId, {
+      ...attacker,
+      health: attacker.health - combat.attackerDamage,
+      movementPoints: 0,
+    });
+  }
+
+  if (combat.defenderDestroyed) {
+    units.delete(targetId);
+  } else {
+    units.set(targetId, {
+      ...defender,
+      health: defender.health - combat.defenderDamage,
+    });
+  }
+
+  return { newState: { ...state, units }, combat };
 }
 
 function endTurn(state: GameState): GameState {

@@ -8,8 +8,8 @@ import { GameStateService } from '../../core/state/game-state.service';
   template: `
     <div class="bar">
       @if (hasUnit()) {
-        <button class="action move" [class.active]="true">Move</button>
-        <button class="action attack" disabled>Attack</button>
+        <button class="action move" [class.active]="!attackMode()">Move</button>
+        <button class="action attack" [class.active]="attackMode()" [disabled]="!canAttack()" (click)="toggleAttackMode()">Attack</button>
       }
       @if (canBuild()) {
         <button class="action build" [class.active]="showBuildMenu()" (click)="toggleBuildMenu()">Build</button>
@@ -48,6 +48,10 @@ import { GameStateService } from '../../core/state/game-state.service';
       border-color: #3b82f6;
       background: #1e3a5f;
     }
+    .action.attack.active {
+      border-color: #ef4444;
+      background: #5f1e1e;
+    }
     .end-turn {
       margin-left: auto;
     }
@@ -60,6 +64,14 @@ export class ActionBarComponent {
   readonly hasUnit = computed(() => this.selection.selectedUnit() !== null);
   readonly showBuildMenu = signal(false);
 
+  readonly canAttack = computed(() => {
+    const unitData = this.selection.selectedUnitData();
+    if (!unitData) return false;
+    return unitData.movementPoints > 0 && unitData.attack > 0;
+  });
+
+  readonly attackMode = this.selection.attackMode;
+
   readonly canBuild = computed(() => {
     const hexData = this.selection.selectedHexData();
     if (!hexData || hexData.visibility !== 'visible') return false;
@@ -71,6 +83,14 @@ export class ActionBarComponent {
     }
     return true;
   });
+
+  toggleAttackMode(): void {
+    if (this.selection.attackMode()) {
+      this.selection.exitAttackMode();
+    } else {
+      this.selection.enterAttackMode();
+    }
+  }
 
   toggleBuildMenu(): void {
     this.showBuildMenu.update(v => !v);

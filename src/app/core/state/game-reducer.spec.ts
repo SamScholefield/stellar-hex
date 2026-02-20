@@ -366,6 +366,71 @@ describe('gameReducer', () => {
     });
   });
 
+  describe('ATTACK', () => {
+    function makeAttackerDefender(opts: { attackerMp?: number; distance?: number; attackerRange?: number; defenderRange?: number; attackerHealth?: number; defenderHealth?: number; sameOwner?: boolean } = {}) {
+      const dist = opts.distance ?? 1;
+      const units = new Map<string, UnitData>([
+        ['attacker', {
+          id: 'attacker', ownerId: 'p1', type: 'fighter', q: 0, r: 0,
+          movementPoints: opts.attackerMp ?? 3, maxMovementPoints: 3,
+          health: opts.attackerHealth ?? 15, maxHealth: 15,
+          attack: 6, defense: 3, range: opts.attackerRange ?? 1, sightRange: 2,
+        }],
+        ['defender', {
+          id: 'defender', ownerId: opts.sameOwner ? 'p1' : 'p2', type: 'fighter', q: dist, r: 0,
+          movementPoints: 3, maxMovementPoints: 3,
+          health: opts.defenderHealth ?? 15, maxHealth: 15,
+          attack: 6, defense: 3, range: opts.defenderRange ?? 1, sightRange: 2,
+        }],
+      ]);
+      return makeState({ units });
+    }
+
+    it('applies damage to both units and sets attacker MP to 0', () => {
+      const state = makeAttackerDefender();
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      const attacker = next.units.get('attacker');
+      const defender = next.units.get('defender');
+      // Both should exist (not destroyed in one hit with these stats)
+      expect(attacker).toBeDefined();
+      expect(defender).toBeDefined();
+      expect(attacker!.movementPoints).toBe(0);
+      expect(defender!.health).toBeLessThan(15);
+    });
+
+    it('rejects out-of-range attack', () => {
+      const state = makeAttackerDefender({ distance: 3, attackerRange: 1 });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      expect(next).toBe(state);
+    });
+
+    it('cannot attack own units', () => {
+      const state = makeAttackerDefender({ sameOwner: true });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      expect(next).toBe(state);
+    });
+
+    it('removes destroyed defender', () => {
+      const state = makeAttackerDefender({ defenderHealth: 1 });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      expect(next.units.has('defender')).toBe(false);
+      expect(next.units.has('attacker')).toBe(true);
+    });
+
+    it('removes destroyed attacker from retaliation', () => {
+      const state = makeAttackerDefender({ attackerHealth: 1 });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      // Attacker has 1 HP and defender retaliates — attacker should be destroyed
+      expect(next.units.has('attacker')).toBe(false);
+    });
+
+    it('rejects attack with 0 movement points', () => {
+      const state = makeAttackerDefender({ attackerMp: 0 });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      expect(next).toBe(state);
+    });
+  });
+
   it('returns same state for unknown action', () => {
     const state = makeState();
     const next = gameReducer(state, { type: 'HARVEST', unitId: 'u1' });
