@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 
@@ -10,6 +10,9 @@ import { GameStateService } from '../../core/state/game-state.service';
       @if (hasUnit()) {
         <button class="action move" [class.active]="true">Move</button>
         <button class="action attack" disabled>Attack</button>
+      }
+      @if (canBuild()) {
+        <button class="action build" [class.active]="showBuildMenu()" (click)="toggleBuildMenu()">Build</button>
       }
       <button class="action end-turn" (click)="endTurn()">End Turn</button>
     </div>
@@ -55,9 +58,27 @@ export class ActionBarComponent {
   private readonly gameState = inject(GameStateService);
 
   readonly hasUnit = computed(() => this.selection.selectedUnit() !== null);
+  readonly showBuildMenu = signal(false);
+
+  readonly canBuild = computed(() => {
+    const hexData = this.selection.selectedHexData();
+    if (!hexData || hexData.visibility !== 'visible') return false;
+    // Check no building already exists at this hex
+    const coord = this.selection.selectedHexCoord();
+    if (!coord) return false;
+    for (const b of this.gameState.buildings().values()) {
+      if (b.q === coord.q && b.r === coord.r) return false;
+    }
+    return true;
+  });
+
+  toggleBuildMenu(): void {
+    this.showBuildMenu.update(v => !v);
+  }
 
   endTurn(): void {
     this.gameState.dispatch({ type: 'END_TURN' });
     this.selection.deselectAll();
+    this.showBuildMenu.set(false);
   }
 }

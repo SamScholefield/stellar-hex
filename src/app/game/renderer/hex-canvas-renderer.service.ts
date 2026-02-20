@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CameraService } from '../../core/camera/camera.service';
 import { Chunk } from '../../models/chunk';
-import { UnitData, UnitType } from '../../models/game-state';
+import { BuildingData, BuildingType, UnitData, UnitType } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexToPixel } from '../../shared/hex/hex-math';
@@ -38,6 +38,7 @@ export class HexCanvasRendererService {
     visibleHexes?: Set<string> | null,
     exploredHexes?: Set<string> | null,
     currentPlayerId?: string | null,
+    buildings?: Map<string, BuildingData>,
   ): void {
     const w = camera.canvasWidth();
     const h = camera.canvasHeight();
@@ -73,6 +74,18 @@ export class HexCanvasRendererService {
             this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, `rgba(0, 0, 0, ${alpha})`, null);
           }
         }
+      }
+    }
+
+    // Draw buildings after fog, before units
+    if (buildings) {
+      for (const building of buildings.values()) {
+        if (hasFog) {
+          const bKey = `${building.q},${building.r}`;
+          if (!visibleHexes!.has(bKey) && !exploredHexes!.has(bKey)) continue;
+        }
+        const color = playerColors?.get(building.ownerId) ?? '#ffffff';
+        this.drawBuilding(ctx, building, hexSize, color);
       }
     }
 
@@ -346,6 +359,84 @@ export class HexCanvasRendererService {
       case 'mining_drone':
         // Small circle
         ctx.arc(x, y, r * 0.65, 0, Math.PI * 2);
+        break;
+    }
+  }
+
+  private drawBuilding(
+    ctx: CanvasRenderingContext2D,
+    building: BuildingData,
+    hexSize: number,
+    color: string,
+  ): void {
+    const { x, y } = hexToPixel(building.q, building.r, hexSize);
+    const r = hexSize * 0.3;
+    // Offset building to bottom-left of hex so it doesn't overlap units
+    const bx = x - hexSize * 0.25;
+    const by = y + hexSize * 0.2;
+
+    ctx.beginPath();
+    this.traceBuildingShape(ctx, bx, by, r, building.type);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.8;
+    ctx.fill();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+
+    // Health bar when damaged
+    if (building.health < building.maxHealth) {
+      const barW = r * 2;
+      const barH = 2;
+      const barX = bx - r;
+      const barY = by + r + 3;
+      const ratio = building.health / building.maxHealth;
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = ratio > 0.5 ? '#22c55e' : ratio > 0.25 ? '#eab308' : '#ef4444';
+      ctx.fillRect(barX, barY, barW * ratio, barH);
+    }
+  }
+
+  private traceBuildingShape(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    r: number,
+    type: BuildingType,
+  ): void {
+    switch (type) {
+      case 'colony':
+        // Square
+        ctx.rect(x - r * 0.7, y - r * 0.7, r * 1.4, r * 1.4);
+        break;
+      case 'mining_station':
+        // Circle
+        ctx.arc(x, y, r * 0.7, 0, Math.PI * 2);
+        break;
+      case 'starbase':
+        // Hexagon
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i - Math.PI / 6;
+          const px = x + r * 0.8 * Math.cos(angle);
+          const py = y + r * 0.8 * Math.sin(angle);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        break;
+      case 'solar_collector':
+        // Triangle pointing up
+        ctx.moveTo(x, y - r * 0.8);
+        ctx.lineTo(x + r * 0.7, y + r * 0.5);
+        ctx.lineTo(x - r * 0.7, y + r * 0.5);
+        break;
+      case 'research_lab':
+        // Diamond
+        ctx.moveTo(x, y - r * 0.8);
+        ctx.lineTo(x + r * 0.7, y);
+        ctx.lineTo(x, y + r * 0.8);
+        ctx.lineTo(x - r * 0.7, y);
         break;
     }
   }

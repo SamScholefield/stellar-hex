@@ -1,10 +1,35 @@
 import { HexCoord } from '../shared/hex/hex-coord.type';
+import { StellarObjectType } from './hex-data';
 
 export interface Resources {
   energy: number;
   minerals: number;
   alloys: number;
   credits: number;
+}
+
+export type BuildingType = 'mining_station' | 'colony' | 'solar_collector' | 'starbase' | 'research_lab';
+
+export interface BuildingStats {
+  cost: Partial<Resources>;
+  maxHealth: number;
+  buildTurns: number;
+  yield: Partial<Resources>;
+  allowedHexTypes: StellarObjectType[];
+  sightRange: number;
+}
+
+export const BUILDING_STATS: Record<BuildingType, BuildingStats> = {
+  mining_station:  { cost: { energy: 20, minerals: 5 },  maxHealth: 15, buildTurns: 1, yield: { minerals: 3 },              allowedHexTypes: ['asteroid', 'asteroid_field'], sightRange: 2 },
+  colony:          { cost: { energy: 30, alloys: 10 },    maxHealth: 30, buildTurns: 2, yield: { alloys: 2, credits: 2 },    allowedHexTypes: ['planet'],                      sightRange: 3 },
+  solar_collector: { cost: { energy: 10, credits: 15 },   maxHealth: 10, buildTurns: 1, yield: { energy: 4 },                allowedHexTypes: ['star'],                        sightRange: 1 },
+  starbase:        { cost: { energy: 40, alloys: 20, credits: 20 }, maxHealth: 50, buildTurns: 3, yield: { credits: 1 },     allowedHexTypes: ['empty', 'planet'],              sightRange: 3 },
+  research_lab:    { cost: { energy: 25, alloys: 10 },    maxHealth: 12, buildTurns: 2, yield: { energy: 1, credits: 1 },    allowedHexTypes: ['nebula'],                       sightRange: 2 },
+};
+
+export interface ProductionItem {
+  unitType: UnitType;
+  turnsRemaining: number;
 }
 
 export interface PlayerState {
@@ -55,11 +80,12 @@ export interface UnitData {
 export interface BuildingData {
   id: string;
   ownerId: string;
-  type: string;
+  type: BuildingType;
   q: number;
   r: number;
   health: number;
   maxHealth: number;
+  productionQueue?: ProductionItem[];
 }
 
 export interface DynamicObject {

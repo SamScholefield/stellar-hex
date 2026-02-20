@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { SelectionService } from '../../core/selection/selection.service';
+import { GameStateService } from '../../core/state/game-state.service';
+import { BuildingData, BUILDING_STATS } from '../../models/game-state';
 
 @Component({
   selector: 'app-hex-info-panel',
@@ -39,6 +41,25 @@ import { SelectionService } from '../../core/selection/selection.service';
           }
         } @else {
           <div class="type">Empty Space</div>
+        }
+        @if (buildingAtHex(); as b) {
+          <div class="building-info">
+            <div class="building-type">{{ formatType(b.type) }}</div>
+            <div class="building-owner">Owner: {{ b.ownerId }}</div>
+            <div class="building-yield">
+              @for (entry of buildingYield(b); track entry.key) {
+                <span class="res">+{{ entry.value }} {{ entry.key }}/turn</span>
+              }
+            </div>
+            @if (b.productionQueue && b.productionQueue.length > 0) {
+              <div class="building-queue">
+                Producing:
+                @for (item of b.productionQueue; track $index) {
+                  <span class="queue-entry">{{ formatType(item.unitType) }} ({{ item.turnsRemaining }}t)</span>
+                }
+              </div>
+            }
+          </div>
         }
       </div>
     }
@@ -92,14 +113,63 @@ import { SelectionService } from '../../core/selection/selection.service';
       font-style: italic;
       margin-top: 0.25rem;
     }
+    .building-info {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid #374151;
+    }
+    .building-type {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #fbbf24;
+      text-transform: capitalize;
+    }
+    .building-owner {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    .building-yield {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      margin-top: 0.25rem;
+    }
+    .building-queue {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 0.25rem;
+    }
+    .queue-entry {
+      display: block;
+      color: #fbbf24;
+      text-transform: capitalize;
+    }
   `,
 })
 export class HexInfoPanelComponent {
   private readonly selection = inject(SelectionService);
+  private readonly gameState = inject(GameStateService);
 
   readonly info = this.selection.selectedHexData;
 
+  readonly buildingAtHex = computed<BuildingData | null>(() => {
+    const coord = this.selection.selectedHexCoord();
+    if (!coord) return null;
+    for (const b of this.gameState.buildings().values()) {
+      if (b.q === coord.q && b.r === coord.r) return b;
+    }
+    return null;
+  });
+
   formatType(type: string): string {
     return type.replace(/_/g, ' ');
+  }
+
+  buildingYield(b: BuildingData): { key: string; value: number }[] {
+    const stats = BUILDING_STATS[b.type];
+    if (!stats) return [];
+    return Object.entries(stats.yield)
+      .filter(([, v]) => v != null && v > 0)
+      .map(([k, v]) => ({ key: k, value: v! }));
   }
 }

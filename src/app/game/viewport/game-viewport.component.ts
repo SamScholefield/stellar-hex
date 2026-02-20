@@ -117,11 +117,12 @@ export class GameViewportComponent implements OnDestroy {
       const exploredHexes = this.vision.exploredHexes();
       const currentPlayer = this.gameState.currentPlayer();
       const currentPlayerId = currentPlayer?.id ?? null;
+      const buildings = this.gameState.buildings();
 
       const canvas = this.canvasRef().nativeElement;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId);
+        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId, buildings);
       }
     });
   }
