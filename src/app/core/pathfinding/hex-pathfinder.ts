@@ -5,6 +5,12 @@ import { HexData, StellarObjectType } from '../../models/hex-data';
 export type HexLookup = (q: number, r: number) => HexData | null;
 export type UnitBlockCheck = (q: number, r: number) => boolean;
 
+/**
+ * Optional callback to override movement cost for specific hexes.
+ * Return a number to override the default cost, or undefined to use the default.
+ */
+export type MoveCostOverride = (hex: HexData | null) => number | undefined;
+
 const MOVEMENT_COSTS: Partial<Record<StellarObjectType, number>> = {
   star: Infinity,
   black_hole: Infinity,
@@ -18,6 +24,14 @@ function moveCost(hex: HexData | null): number {
   const type = hex.object?.type;
   if (!type || type === 'empty') return 1;
   return MOVEMENT_COSTS[type] ?? 1;
+}
+
+/**
+ * Cost override for mining drones: stars cost 2 MP instead of being impassable.
+ */
+export function miningDroneCostOverride(hex: HexData | null): number | undefined {
+  if (hex?.object?.type === 'star') return 2;
+  return undefined;
 }
 
 function hexKey(q: number, r: number): string {
@@ -34,6 +48,7 @@ export function findPath(
   movementPoints: number,
   hexLookup: HexLookup,
   isBlocked?: UnitBlockCheck,
+  costOverride?: MoveCostOverride,
 ): HexCoord[] | null {
   const maxSearch = movementPoints * 3;
   if (hexDistance(from, to) > maxSearch) return null;
@@ -89,7 +104,7 @@ export function findPath(
 
       // Check passability
       const hex = hexLookup(neighbor.q, neighbor.r);
-      const cost = moveCost(hex);
+      const cost = costOverride?.(hex) ?? moveCost(hex);
       if (!isFinite(cost)) continue;
       if (isBlocked && isBlocked(neighbor.q, neighbor.r)) continue;
 
@@ -120,6 +135,7 @@ export function getReachableHexes(
   movementPoints: number,
   hexLookup: HexLookup,
   isBlocked?: UnitBlockCheck,
+  costOverride?: MoveCostOverride,
 ): Map<string, number> {
   const reachable = new Map<string, number>();
   const startKey = hexKey(from.q, from.r);
@@ -141,7 +157,7 @@ export function getReachableHexes(
       const nKey = hexKey(neighbor.q, neighbor.r);
 
       const hex = hexLookup(neighbor.q, neighbor.r);
-      const cost = moveCost(hex);
+      const cost = costOverride?.(hex) ?? moveCost(hex);
       if (!isFinite(cost)) continue;
       if (isBlocked && isBlocked(neighbor.q, neighbor.r)) continue;
 
@@ -161,11 +177,11 @@ export function getReachableHexes(
 /**
  * Compute the total movement cost for a path.
  */
-export function pathCost(path: HexCoord[], hexLookup: HexLookup): number {
+export function pathCost(path: HexCoord[], hexLookup: HexLookup, costOverride?: MoveCostOverride): number {
   let total = 0;
   for (let i = 1; i < path.length; i++) {
     const hex = hexLookup(path[i].q, path[i].r);
-    total += moveCost(hex);
+    total += costOverride?.(hex) ?? moveCost(hex);
   }
   return total;
 }

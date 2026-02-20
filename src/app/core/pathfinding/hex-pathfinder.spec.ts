@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findPath, getReachableHexes, pathCost, HexLookup, UnitBlockCheck } from './hex-pathfinder';
+import { findPath, getReachableHexes, pathCost, HexLookup, UnitBlockCheck, miningDroneCostOverride } from './hex-pathfinder';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { HexData } from '../../models/hex-data';
 
@@ -16,6 +16,28 @@ function blockedAt(...coords: [number, number][]): HexLookup {
   return (q, r) => {
     if (blocked.has(`${q},${r}`)) {
       return { q, r, object: { type: 'star', size: 3, resources: { energy: 5 } } };
+    }
+    return { q, r, object: null };
+  };
+}
+
+/** Lookup with a star at specific coords (returns proper star HexData). */
+function starAt(...coords: [number, number][]): HexLookup {
+  const stars = new Set(coords.map(([q, r]) => `${q},${r}`));
+  return (q, r) => {
+    if (stars.has(`${q},${r}`)) {
+      return { q, r, object: { type: 'star', size: 3, resources: { energy: 5 } } };
+    }
+    return { q, r, object: null };
+  };
+}
+
+/** Lookup with a black hole at specific coords. */
+function blackHoleAt(...coords: [number, number][]): HexLookup {
+  const holes = new Set(coords.map(([q, r]) => `${q},${r}`));
+  return (q, r) => {
+    if (holes.has(`${q},${r}`)) {
+      return { q, r, object: { type: 'black_hole', size: 5 } };
     }
     return { q, r, object: null };
   };
@@ -146,6 +168,114 @@ describe('hex-pathfinder', () => {
 
     it('returns 0 for single-hex path', () => {
       expect(pathCost([coord(0, 0)], openSpace)).toBe(0);
+    });
+
+    it('uses costOverride when provided', () => {
+      const lookup = starAt([1, 0]);
+      const path = [coord(0, 0), coord(1, 0), coord(2, 0)];
+      // Without override, star is Infinity
+      expect(pathCost(path, lookup)).toBe(Infinity);
+      // With mining drone override, star costs 2
+      expect(pathCost(path, lookup, miningDroneCostOverride)).toBe(3); // 2 (star) + 1 (open)
+    });
+  });
+
+  describe('miningDroneCostOverride', () => {
+    it('returns 2 for star hexes', () => {
+      const starHex = { q: 0, r: 0, object: { type: 'star' as const, size: 3, resources: { energy: 5 } } };
+      expect(miningDroneCostOverride(starHex)).toBe(2);
+    });
+
+    it('returns undefined for non-star hexes', () => {
+      const emptyHex = { q: 0, r: 0, object: null };
+      expect(miningDroneCostOverride(emptyHex)).toBeUndefined();
+    });
+
+    it('returns undefined for null hex', () => {
+      expect(miningDroneCostOverride(null)).toBeUndefined();
+    });
+
+    it('returns undefined for nebula hexes', () => {
+      const nebulaHex = { q: 0, r: 0, object: { type: 'nebula' as const, subtype: 'dense', size: 1 } };
+      expect(miningDroneCostOverride(nebulaHex)).toBeUndefined();
+    });
+
+    it('returns undefined for black hole hexes', () => {
+      const bhHex = { q: 0, r: 0, object: { type: 'black_hole' as const, size: 5 } };
+      expect(miningDroneCostOverride(bhHex)).toBeUndefined();
+    });
+  });
+
+  describe('costOverride integration', () => {
+    it('findPath with miningDroneCostOverride can path through stars', () => {
+      const lookup = starAt([1, 0]);
+      // Without override: star is impassable, must route around
+      const pathWithout = findPath(coord(0, 0), coord(2, 0), 10, lookup);
+      if (pathWithout) {
+        expect(pathWithout.some(h => h.q === 1 && h.r === 0)).toBe(false);
+      }
+
+      // With override: star costs 2, can path through
+      const pathWith = findPath(coord(0, 0), coord(2, 0), 10, lookup, undefined, miningDroneCostOverride);
+      expect(pathWith).not.toBeNull();
+      expect(pathWith!.some(h => h.q === 1 && h.r === 0)).toBe(true);
+      expect(pathWith![pathWith!.length - 1]).toEqual(coord(2, 0));
+    });
+
+    it('findPath without override cannot path through stars (when surrounded)', () => {
+      // Surround (2,0) so only path goes through a star at (1,0)
+      const lookup = blockedAt([1, -1], [0, 1], [1, 1], [2, -1], [2, 1], [3, -1], [3, 0]);
+      // Add star at (1,0) too via a combined lookup
+      const combinedLookup: HexLookup = (q, r) => {
+        if (q === 1 && r === 0) return { q, r, object: { type: 'star', size: 3, resources: { energy: 5 } } };
+        return lookup(q, r);
+      };
+      const path = findPath(coord(0, 0), coord(2, 0), 10, combinedLookup);
+      expect(path).toBeNull();
+    });
+
+    it('findPath with override still blocks black holes', () => {
+      const lookup = blackHoleAt([1, 0]);
+      // miningDroneCostOverride does not override black holes
+      const path = findPath(coord(0, 0), coord(2, 0), 10, lookup, undefined, miningDroneCostOverride);
+      expect(path).not.toBeNull();
+      // Path should route around the black hole
+      expect(path!.some(h => h.q === 1 && h.r === 0)).toBe(false);
+    });
+
+    it('findPath with override respects MP limits for star traversal', () => {
+      const lookup = starAt([1, 0]);
+      // Star costs 2 with override, so total to reach (2,0) is 2+1=3
+      const path = findPath(coord(0, 0), coord(2, 0), 2, lookup, undefined, miningDroneCostOverride);
+      expect(path).toBeNull(); // Not enough MP
+
+      const path2 = findPath(coord(0, 0), coord(2, 0), 3, lookup, undefined, miningDroneCostOverride);
+      expect(path2).not.toBeNull();
+    });
+
+    it('getReachableHexes with miningDroneCostOverride includes star hexes', () => {
+      const lookup = starAt([1, 0]);
+      // Without override: star excluded
+      const reachableWithout = getReachableHexes(coord(0, 0), 3, lookup);
+      expect(reachableWithout.has('1,0')).toBe(false);
+
+      // With override: star included at cost 2
+      const reachableWith = getReachableHexes(coord(0, 0), 3, lookup, undefined, miningDroneCostOverride);
+      expect(reachableWith.has('1,0')).toBe(true);
+      expect(reachableWith.get('1,0')).toBe(1); // 3 MP - 2 cost = 1 remaining
+    });
+
+    it('getReachableHexes with override excludes star when insufficient MP', () => {
+      const lookup = starAt([1, 0]);
+      // Star costs 2 with override, but only 1 MP available
+      const reachable = getReachableHexes(coord(0, 0), 1, lookup, undefined, miningDroneCostOverride);
+      expect(reachable.has('1,0')).toBe(false);
+    });
+
+    it('getReachableHexes with override still excludes black holes', () => {
+      const lookup = blackHoleAt([1, 0]);
+      const reachable = getReachableHexes(coord(0, 0), 5, lookup, undefined, miningDroneCostOverride);
+      expect(reachable.has('1,0')).toBe(false);
     });
   });
 });

@@ -16,7 +16,7 @@ import { HexCanvasRendererService } from '../renderer/hex-canvas-renderer.servic
 import { AnimationService } from '../renderer/animation.service';
 import { AIService } from '../../core/ai/ai.service';
 import { hexDistance, pixelToHex } from '../../shared/hex/hex-math';
-import { findPath, getReachableHexes } from '../../core/pathfinding/hex-pathfinder';
+import { findPath, getReachableHexes, miningDroneCostOverride } from '../../core/pathfinding/hex-pathfinder';
 import { VisionService } from '../../core/vision/vision.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { attackWithResult } from '../../core/state/game-reducer';
@@ -109,10 +109,11 @@ export class GameViewportComponent implements OnDestroy {
             return false;
           };
           const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
-          reachable = getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked);
+          const override = unit.type === 'mining_drone' ? miningDroneCostOverride : undefined;
+          reachable = getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked, override);
 
           if (hoveredHex && reachable.has(`${hoveredHex.q},${hoveredHex.r}`)) {
-            pathPreview = findPath(from, hoveredHex, unit.movementPoints, hexLookup, isBlocked);
+            pathPreview = findPath(from, hoveredHex, unit.movementPoints, hexLookup, isBlocked, override);
           }
         }
       }
@@ -250,7 +251,8 @@ export class GameViewportComponent implements OnDestroy {
           return false;
         };
 
-        const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked);
+        const override = unit.type === 'mining_drone' ? miningDroneCostOverride : undefined;
+        const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);
         if (path && path.length > 1) {
           this.animation.animateUnitMovement(selectedUnitId, path).then(() => {
             this.gameState.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path });
