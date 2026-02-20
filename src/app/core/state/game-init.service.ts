@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { GameState, PlayerState, Resources, UnitData, UnitType, UNIT_STATS } from '../../models/game-state';
 import { GameStateService } from './game-state.service';
+import { GameSaveService } from './game-save.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
 import { hexToPixel, hexDistance, hexesInRange } from '../../shared/hex/hex-math';
@@ -50,11 +51,13 @@ function makeUnit(id: string, ownerId: string, type: UnitType, q: number, r: num
 @Injectable({ providedIn: 'root' })
 export class GameInitService {
   private readonly gameState = inject(GameStateService);
+  private readonly gameSave = inject(GameSaveService);
   private readonly worldGenerator = inject(WorldGeneratorService);
   private readonly camera = inject(CameraService);
   private readonly router = inject(Router);
 
   newGame(config: NewGameConfig): void {
+    this.gameSave.deleteSave();
     const seed = config.seed ?? Date.now();
     this.worldGenerator.setSeed(seed);
 

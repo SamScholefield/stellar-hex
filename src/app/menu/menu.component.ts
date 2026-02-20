@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GameInitService } from '../core/state/game-init.service';
 import { AudioService } from '../core/audio/audio.service';
+import { GameSaveService } from '../core/state/game-save.service';
 
 @Component({
   selector: 'app-menu',
@@ -27,6 +28,9 @@ import { AudioService } from '../core/audio/audio.service';
           </select>
         </label>
       </div>
+      @if (saveSvc.hasSave()) {
+        <button class="continue" (click)="loadGame()">Continue Game</button>
+      }
       <button (click)="startGame()">Start Game</button>
     </div>
   `,
@@ -98,11 +102,19 @@ import { AudioService } from '../core/audio/audio.service';
     button:hover {
       opacity: 0.85;
     }
+    button.continue {
+      display: block;
+      margin: 0 auto 0.75rem;
+      background: transparent;
+      border: 1px solid #5eead4;
+      color: #5eead4;
+    }
   `,
 })
 export class MenuComponent {
   private readonly gameInit = inject(GameInitService);
   private readonly audio = inject(AudioService);
+  protected readonly saveSvc = inject(GameSaveService);
 
   playerName = 'Commander';
   aiOpponents = 1;
@@ -113,5 +125,10 @@ export class MenuComponent {
       playerName: this.playerName || 'Commander',
       aiOpponents: this.aiOpponents,
     });
+  }
+
+  async loadGame(): Promise<void> {
+    await this.audio.ensureContext();
+    this.saveSvc.load();
   }
 }
