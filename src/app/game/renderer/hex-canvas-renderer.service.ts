@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { CameraService } from '../../core/camera/camera.service';
 import { Chunk } from '../../models/chunk';
 import { BuildingData, BuildingType, UnitData, UnitType } from '../../models/game-state';
@@ -7,6 +7,7 @@ import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexToPixel } from '../../shared/hex/hex-math';
 import { CHUNK_SIZE } from '../../core/generation/world-generator.service';
 import { CombatAnimation, UnitAnimation } from './animation.service';
+import { SpriteAtlasService } from '../../core/sprites/sprite-atlas.service';
 
 const FILL_COLORS: Record<StellarObjectType, string> = {
   star: '#f0c040',
@@ -22,6 +23,7 @@ const FILL_COLORS: Record<StellarObjectType, string> = {
 
 @Injectable({ providedIn: 'root' })
 export class HexCanvasRendererService {
+  private readonly sprites = inject(SpriteAtlasService);
   draw(
     ctx: CanvasRenderingContext2D,
     camera: CameraService,
@@ -311,15 +313,17 @@ export class HexCanvasRendererService {
       ctx.stroke();
     }
 
-    // Type-specific shape
-    ctx.beginPath();
-    this.traceUnitShape(ctx, x, y, r, unit.type);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    // Try sprite first, fall back to geometric shape
+    if (!this.sprites.drawUnit(ctx, unit.type, color, x, y, r)) {
+      ctx.beginPath();
+      this.traceUnitShape(ctx, x, y, r, unit.type);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
 
     // Health bar (only when damaged)
     if (unit.health < unit.maxHealth) {
@@ -396,16 +400,19 @@ export class HexCanvasRendererService {
     const bx = x - hexSize * 0.25;
     const by = y + hexSize * 0.2;
 
-    ctx.beginPath();
-    this.traceBuildingShape(ctx, bx, by, r, building.type);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.8;
-    ctx.fill();
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.globalAlpha = 1.0;
+    // Try sprite first, fall back to geometric shape
+    if (!this.sprites.drawBuilding(ctx, building.type, color, bx, by, r)) {
+      ctx.beginPath();
+      this.traceBuildingShape(ctx, bx, by, r, building.type);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.8;
+      ctx.fill();
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+    }
 
     // Health bar when damaged
     if (building.health < building.maxHealth) {

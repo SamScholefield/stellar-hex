@@ -19,6 +19,7 @@ import { AudioService } from '../../core/audio/audio.service';
 import { hexToPixel, pixelToHex } from '../../shared/hex/hex-math';
 import { findPath, getReachableHexes, miningDroneCostOverride, pathCost } from '../../core/pathfinding/hex-pathfinder';
 import { VisionService } from '../../core/vision/vision.service';
+import { SpriteAtlasService } from '../../core/sprites/sprite-atlas.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 
 const HEX_SIZE = 30;
@@ -60,6 +61,7 @@ export class GameViewportComponent implements OnDestroy {
   private readonly ai = inject(AIService);
   private readonly audio = inject(AudioService);
   private readonly vision = inject(VisionService);
+  private readonly spriteAtlas = inject(SpriteAtlasService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
   private panning = false;
@@ -80,9 +82,12 @@ export class GameViewportComponent implements OnDestroy {
         this.camera.setCanvasSize(canvas.width, canvas.height);
       });
       this.resizeObserver.observe(canvas);
+      this.spriteAtlas.load();
     });
 
     effect(() => {
+      // Reading ready() here causes a redraw when the sprite atlas finishes loading
+      this.spriteAtlas.ready();
       const chunks = this.chunkManager.visibleChunks();
       const hoveredHex = this.selection.hoveredHexCoord();
       const selectedHex = this.selection.selectedHexCoord();
