@@ -1,14 +1,19 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { GameStateService } from '../../core/state/game-state.service';
 
 @Component({
   selector: 'app-resource-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
-      <span class="res">Energy: --</span>
-      <span class="res">Minerals: --</span>
-      <span class="res">Alloys: --</span>
-      <span class="res">Credits: --</span>
+      @if (resources(); as r) {
+        <span class="res"><span class="label">Energy</span> {{ r.energy }}</span>
+        <span class="res"><span class="label">Minerals</span> {{ r.minerals }}</span>
+        <span class="res"><span class="label">Alloys</span> {{ r.alloys }}</span>
+        <span class="res"><span class="label">Credits</span> {{ r.credits }}</span>
+      } @else {
+        <span class="res">--</span>
+      }
     </div>
   `,
   styles: `
@@ -22,8 +27,16 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     }
     .res {
       font-size: 0.8rem;
+      color: #e0e0e0;
+      font-variant-numeric: tabular-nums;
+    }
+    .label {
       color: #9ca3af;
+      margin-right: 0.25rem;
     }
   `,
 })
-export class ResourceBarComponent {}
+export class ResourceBarComponent {
+  private readonly gameState = inject(GameStateService);
+  readonly resources = this.gameState.resources;
+}

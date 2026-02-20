@@ -11,8 +11,12 @@ import {
 import { CameraService } from '../../core/camera/camera.service';
 import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
 import { SelectionService } from '../../core/selection/selection.service';
+import { GameStateService } from '../../core/state/game-state.service';
 import { HexCanvasRendererService } from '../renderer/hex-canvas-renderer.service';
+import { AnimationService } from '../renderer/animation.service';
 import { pixelToHex } from '../../shared/hex/hex-math';
+import { findPath, getReachableHexes } from '../../core/pathfinding/hex-pathfinder';
+import { HexCoord } from '../../shared/hex/hex-coord.type';
 
 const HEX_SIZE = 30;
 const CLICK_THRESHOLD = 4;
@@ -46,7 +50,9 @@ export class GameViewportComponent implements OnDestroy {
   private readonly camera = inject(CameraService);
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly selection = inject(SelectionService);
+  private readonly gameState = inject(GameStateService);
   private readonly renderer = inject(HexCanvasRendererService);
+  readonly animation = inject(AnimationService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
   private panning = false;
@@ -73,11 +79,43 @@ export class GameViewportComponent implements OnDestroy {
       const chunks = this.chunkManager.visibleChunks();
       const hoveredHex = this.selection.hoveredHexCoord();
       const selectedHex = this.selection.selectedHexCoord();
+      const selectedUnitId = this.selection.selectedUnit();
+      const units = this.gameState.units();
+      const players = this.gameState.players();
+
+      const playerColors = new Map<string, string>();
+      for (const p of players) {
+        playerColors.set(p.id, p.color);
+      }
+
+      // Compute movement range and path preview for selected unit
+      let reachable: Map<string, number> | null = null;
+      let pathPreview: HexCoord[] | null = null;
+      if (selectedUnitId) {
+        const unit = units.get(selectedUnitId);
+        if (unit && unit.movementPoints > 0) {
+          const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+          const isBlocked = (q: number, r: number) => {
+            for (const u of units.values()) {
+              if (u.q === q && u.r === r && u.id !== selectedUnitId) return true;
+            }
+            return false;
+          };
+          const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+          reachable = getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked);
+
+          if (hoveredHex && reachable.has(`${hoveredHex.q},${hoveredHex.r}`)) {
+            pathPreview = findPath(from, hoveredHex, unit.movementPoints, hexLookup, isBlocked);
+          }
+        }
+      }
+
+      const activeAnim = this.animation.activeAnimation();
 
       const canvas = this.canvasRef().nativeElement;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex);
+        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim);
       }
     });
   }
@@ -136,7 +174,35 @@ export class GameViewportComponent implements OnDestroy {
   }
 
   private handleClick(event: PointerEvent): void {
+    if (this.animation.inputLocked()) return;
+
     const hex = this.screenEventToHex(event);
+    const selectedUnitId = this.selection.selectedUnit();
+
+    // If a unit is selected, try to move it to the clicked hex
+    if (selectedUnitId) {
+      const unit = this.gameState.units().get(selectedUnitId);
+      if (unit && unit.movementPoints > 0) {
+        const from = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+        const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+        const isBlocked = (q: number, r: number) => {
+          for (const u of this.gameState.units().values()) {
+            if (u.q === q && u.r === r && u.id !== selectedUnitId) return true;
+          }
+          return false;
+        };
+
+        const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked);
+        if (path && path.length > 1) {
+          this.animation.animateUnitMovement(selectedUnitId, path).then(() => {
+            this.gameState.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path });
+            this.selection.selectUnit(selectedUnitId);
+          });
+          return;
+        }
+      }
+    }
+
     this.selection.selectHex(hex);
   }
 

@@ -1,11 +1,14 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { HexData } from '../../models/hex-data';
+import { UnitData } from '../../models/game-state';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
+import { GameStateService } from '../state/game-state.service';
 
 @Injectable({ providedIn: 'root' })
 export class SelectionService {
   private readonly chunkManager = inject(ChunkManagerService);
+  private readonly gameState = inject(GameStateService);
 
   private readonly _selectedHexCoord = signal<HexCoord | null>(null);
   private readonly _hoveredHexCoord = signal<HexCoord | null>(null);
@@ -15,15 +18,49 @@ export class SelectionService {
   readonly hoveredHexCoord = this._hoveredHexCoord.asReadonly();
   readonly selectedUnit = this._selectedUnit.asReadonly();
 
+  readonly selectedUnitData = computed<UnitData | null>(() => {
+    const id = this._selectedUnit();
+    if (!id) return null;
+    return this.gameState.units().get(id) ?? null;
+  });
+
   readonly selectedHexData = computed<HexData | null>(() => {
     const coord = this._selectedHexCoord();
     if (!coord) return null;
     return this.chunkManager.getHex(coord.q, coord.r);
   });
 
-  selectHex(coord: HexCoord): void {
+  /** Select a hex, auto-detecting units. Returns true if a move command should be issued. */
+  selectHex(coord: HexCoord): boolean {
+    const unitAtHex = this.findUnitAt(coord.q, coord.r);
+    const currentlySelected = this._selectedUnit();
+    const currentPlayer = this.gameState.currentPlayer();
+
+    // If a friendly unit is at the clicked hex, select it
+    if (unitAtHex && currentPlayer && unitAtHex.ownerId === currentPlayer.id) {
+      this._selectedUnit.set(unitAtHex.id);
+      this._selectedHexCoord.set(coord);
+      return false;
+    }
+
+    // If we have a unit selected and clicked an empty/enemy hex, signal a move
+    if (currentlySelected && !unitAtHex) {
+      this._selectedHexCoord.set(coord);
+      return true;
+    }
+
+    // Otherwise, plain hex selection
     this._selectedHexCoord.set(coord);
     this._selectedUnit.set(null);
+    return false;
+  }
+
+  selectUnit(unitId: string): void {
+    const unit = this.gameState.units().get(unitId);
+    if (unit) {
+      this._selectedUnit.set(unitId);
+      this._selectedHexCoord.set({ q: unit.q, r: unit.r, s: -unit.q - unit.r });
+    }
   }
 
   hoverHex(coord: HexCoord | null): void {
@@ -33,5 +70,12 @@ export class SelectionService {
   deselectAll(): void {
     this._selectedHexCoord.set(null);
     this._selectedUnit.set(null);
+  }
+
+  private findUnitAt(q: number, r: number): UnitData | null {
+    for (const unit of this.gameState.units().values()) {
+      if (unit.q === q && unit.r === r) return unit;
+    }
+    return null;
   }
 }

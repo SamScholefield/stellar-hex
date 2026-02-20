@@ -1,13 +1,31 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { GameInitService } from '../core/state/game-init.service';
 
 @Component({
   selector: 'app-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormsModule],
   template: `
     <div class="menu-container">
       <h1>Stellar Hex</h1>
       <p class="subtitle">A hex-based real-time strategy game</p>
+      <div class="form">
+        <label>
+          <span>Player Name</span>
+          <input [(ngModel)]="playerName" placeholder="Commander" />
+        </label>
+        <label>
+          <span>AI Opponents</span>
+          <select [(ngModel)]="aiOpponents">
+            <option [ngValue]="1">1</option>
+            <option [ngValue]="2">2</option>
+            <option [ngValue]="3">3</option>
+            <option [ngValue]="4">4</option>
+            <option [ngValue]="5">5</option>
+          </select>
+        </label>
+      </div>
       <button (click)="startGame()">Start Game</button>
     </div>
   `,
@@ -36,7 +54,34 @@ import { Router } from '@angular/router';
     .subtitle {
       font-size: 1rem;
       color: #6b7280;
-      margin-bottom: 2.5rem;
+      margin-bottom: 2rem;
+    }
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+    input, select {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.9rem;
+      color: #e0e0e0;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 0.375rem;
+      outline: none;
+      width: 160px;
+    }
+    input:focus, select:focus {
+      border-color: #5eead4;
     }
     button {
       padding: 0.75rem 2.5rem;
@@ -55,9 +100,15 @@ import { Router } from '@angular/router';
   `,
 })
 export class MenuComponent {
-  private readonly router = inject(Router);
+  private readonly gameInit = inject(GameInitService);
+
+  playerName = 'Commander';
+  aiOpponents = 1;
 
   startGame(): void {
-    this.router.navigate(['/game']);
+    this.gameInit.newGame({
+      playerName: this.playerName || 'Commander',
+      aiOpponents: this.aiOpponents,
+    });
   }
 }
