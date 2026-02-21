@@ -67,10 +67,12 @@ export class WaypointService {
 
     const units = this.gameState.units();
     const unit = units.get(unitId);
-    if (!unit || unit.movementPoints <= 0) {
+    if (!unit) {
       this.clearWaypoint(unitId);
       return;
     }
+    // No MP yet — keep waypoint, will execute next turn
+    if (unit.movementPoints <= 0) return;
 
     // Already at target?
     if (unit.q === wp.target.q && unit.r === wp.target.r && !wp.attackTargetId) {

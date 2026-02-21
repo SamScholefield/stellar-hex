@@ -166,7 +166,7 @@ export class ClickPopupComponent {
       // Friendly only — offer move + select
       const isSameHex = selectedUnit.q === hex.q && selectedUnit.r === hex.r;
 
-      if (!isSameHex && selectedUnit.movementPoints > 0) {
+      if (!isSameHex) {
         // Check if hex is in reachable range
         const from: HexCoord = { q: selectedUnit.q, r: selectedUnit.r, s: -selectedUnit.q - selectedUnit.r };
         const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
@@ -178,7 +178,9 @@ export class ClickPopupComponent {
         }
         const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
         const override = getUnitCostOverride(selectedUnit.type);
-        const reachable = getReachableHexes(from, selectedUnit.movementPoints, hexLookup, isBlocked, override);
+        const reachable = selectedUnit.movementPoints > 0
+          ? getReachableHexes(from, selectedUnit.movementPoints, hexLookup, isBlocked, override)
+          : new Map<string, number>();
         const inRange = reachable.has(hexKey);
 
         options.push({

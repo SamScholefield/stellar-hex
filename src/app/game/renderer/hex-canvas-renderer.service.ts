@@ -299,7 +299,7 @@ export class HexCanvasRendererService {
     const tctx = chunk.texture.getContext('2d')!;
     tctx.clearRect(0, 0, texW, texH);
 
-    tctx.strokeStyle = '#2a4a5a';
+    tctx.strokeStyle = 'rgba(42, 74, 90, 0.35)';
     tctx.lineWidth = 1;
 
     for (const hex of chunk.hexes.values()) {

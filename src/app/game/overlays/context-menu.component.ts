@@ -247,7 +247,7 @@ export class ContextMenuComponent {
 
     if (selectedUnitId && !canAttack) {
       const attacker = units.get(selectedUnitId);
-      if (attacker && attacker.ownerId === currentPlayer.id && attacker.movementPoints > 0) {
+      if (attacker && attacker.ownerId === currentPlayer.id) {
         const from: HexCoord = { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r };
         const isSameHex = attacker.q === hex.q && attacker.r === hex.r;
 
@@ -262,7 +262,9 @@ export class ContextMenuComponent {
           }
           const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
           const override = getUnitCostOverride(attacker.type);
-          const reachable = getReachableHexes(from, attacker.movementPoints, hexLookup, isBlocked, override);
+          const reachable = attacker.movementPoints > 0
+            ? getReachableHexes(from, attacker.movementPoints, hexLookup, isBlocked, override)
+            : new Map<string, number>();
           const hexKeyTarget = `${hex.q},${hex.r}`;
 
           if (!reachable.has(hexKeyTarget)) {
