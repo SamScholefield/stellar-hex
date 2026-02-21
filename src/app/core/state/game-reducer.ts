@@ -21,6 +21,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return advanceComets(state);
     case 'SET_HOME_BASE':
       return setHomeBase(state, action.playerId, action.buildingId);
+    case 'UPDATE_EXPLORED':
+      return updateExplored(state, action.playerId, action.hexKeys);
     default:
       return state;
   }
@@ -85,11 +87,6 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
     units.delete(colonyShipId);
   }
 
-  // Deduct resources
-  const players = state.players.map((p, i) =>
-    i === playerIndex ? { ...p, resources: deductResources(p.resources, stats.cost) } : p
-  );
-
   // Add building
   const buildings = new Map(state.buildings);
   const id = `b_${hex.q}_${hex.r}_${Date.now()}`;
@@ -104,19 +101,16 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
   };
   buildings.set(id, building);
 
-  let result = { ...state, players, buildings, units };
+  // Deduct resources + auto-set home base in a single pass
+  const autoHome = buildingType === 'starbase' && !player.homeBaseId;
+  const players = state.players.map((p, i) => {
+    if (i !== playerIndex) return p;
+    const updated = { ...p, resources: deductResources(p.resources, stats.cost) };
+    if (autoHome) updated.homeBaseId = id;
+    return updated;
+  });
 
-  // Auto-set home base on first starbase build
-  if (buildingType === 'starbase' && !players[playerIndex].homeBaseId) {
-    result = {
-      ...result,
-      players: result.players.map((p, i) =>
-        i === playerIndex ? { ...p, homeBaseId: id } : p
-      ),
-    };
-  }
-
-  return result;
+  return { ...state, players, buildings, units };
 }
 
 function setHomeBase(state: GameState, playerId: string, buildingId: string): GameState {
@@ -130,6 +124,24 @@ function setHomeBase(state: GameState, playerId: string, buildingId: string): Ga
     ...state,
     players: state.players.map((p, i) =>
       i === playerIndex ? { ...p, homeBaseId: buildingId } : p
+    ),
+  };
+}
+
+function updateExplored(state: GameState, playerId: string, hexKeys: string[]): GameState {
+  const playerIndex = state.players.findIndex(p => p.id === playerId);
+  if (playerIndex === -1) return state;
+
+  const player = state.players[playerIndex];
+  const explored = new Set(player.exploredHexes);
+  for (const key of hexKeys) {
+    explored.add(key);
+  }
+
+  return {
+    ...state,
+    players: state.players.map((p, i) =>
+      i === playerIndex ? { ...p, exploredHexes: explored } : p
     ),
   };
 }

@@ -7,13 +7,18 @@ export interface GameEvent {
   r?: number;
 }
 
+const MAX_EVENTS = 100;
+
 @Injectable({ providedIn: 'root' })
 export class EventLogService {
   private readonly _events = signal<GameEvent[]>([]);
   readonly events = this._events.asReadonly();
 
   push(event: GameEvent): void {
-    this._events.update((list) => [...list, event]);
+    this._events.update((list) => {
+      const updated = [...list, event];
+      return updated.length > MAX_EVENTS ? updated.slice(-MAX_EVENTS) : updated;
+    });
   }
 
   clear(): void {

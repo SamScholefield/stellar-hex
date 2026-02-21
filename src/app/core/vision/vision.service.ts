@@ -1,6 +1,20 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { GameStateService } from '../state/game-state.service';
-import { hexesInRange } from '../../shared/hex/hex-math';
+
+// Cache hex offsets by sight range to avoid repeated allocations in hexesInRange()
+const rangeOffsetCache = new Map<number, ReadonlyArray<{ dq: number; dr: number }>>();
+function getOffsetsForRange(range: number): ReadonlyArray<{ dq: number; dr: number }> {
+  let offsets = rangeOffsetCache.get(range);
+  if (offsets) return offsets;
+  const result: { dq: number; dr: number }[] = [];
+  for (let q = -range; q <= range; q++) {
+    for (let r = Math.max(-range, -q - range); r <= Math.min(range, -q + range); r++) {
+      result.push({ dq: q, dr: r });
+    }
+  }
+  rangeOffsetCache.set(range, result);
+  return result;
+}
 
 interface VisionSource {
   q: number;
@@ -64,15 +78,17 @@ export class VisionService {
       if (!player) return;
 
       const discoveries: DiscoveryEvent[] = [];
+      const newKeys: string[] = [];
       for (const key of visible) {
         if (!player.exploredHexes.has(key)) {
-          player.exploredHexes.add(key);
+          newKeys.push(key);
           const [q, r] = key.split(',').map(Number);
           discoveries.push({ hexKey: key, q, r });
         }
       }
 
       if (discoveries.length > 0) {
+        this.gameState.dispatch({ type: 'UPDATE_EXPLORED', playerId: player.id, hexKeys: newKeys });
         this._lastDiscoveries.set(discoveries);
         this._discoveryBatchId.update((id) => id + 1);
       }
@@ -105,12 +121,9 @@ export class VisionService {
   private computeVisible(sources: VisionSource[]): Set<string> {
     const visible = new Set<string>();
     for (const source of sources) {
-      const hexes = hexesInRange(
-        { q: source.q, r: source.r, s: -source.q - source.r },
-        source.sightRange,
-      );
-      for (const hex of hexes) {
-        visible.add(`${hex.q},${hex.r}`);
+      const offsets = getOffsetsForRange(source.sightRange);
+      for (const { dq, dr } of offsets) {
+        visible.add(`${source.q + dq},${source.r + dr}`);
       }
     }
     return visible;
