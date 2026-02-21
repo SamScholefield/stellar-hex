@@ -9,6 +9,7 @@ import { CHUNK_SIZE } from '../../core/generation/world-generator.service';
 import { CombatAnimation, UnitAnimation } from './animation.service';
 import { SpriteAtlasService } from '../../core/sprites/sprite-atlas.service';
 import { Waypoint } from '../../core/state/waypoint.service';
+import { hashCoord, seededRNG } from '../../core/generation/noise';
 
 // Pre-computed hex vertex offsets (cos/sin for 6 angles at 60° intervals)
 const HEX_VERTICES: ReadonlyArray<{ dx: number; dy: number }> = Array.from({ length: 6 }, (_, i) => {
@@ -24,6 +25,12 @@ const FOG_UNEXPLORED = 'rgba(0, 0, 0, 0.9)';
 const RANGE_VISIBLE = 'rgba(59, 130, 246, 0.15)';
 const RANGE_FOG = 'rgba(59, 130, 246, 0.3)';
 
+// Starfield parallax background
+const STAR_TILE_SIZE = 256;       // virtual tile size in screen pixels
+const STARS_PER_TILE = 12;        // density
+const STAR_SEED = 0xbada55;
+const PARALLAX_FACTOR = 0.15;     // stars move at 15% of camera speed
+
 const FILL_COLORS: Record<StellarObjectType, string> = {
   star: '#f0c040',
   planet: '#4080d0',
@@ -33,7 +40,7 @@ const FILL_COLORS: Record<StellarObjectType, string> = {
   comet: '#40e0d0',
   nebula: '#6a0dad',
   black_hole: '#8b0000',
-  empty: '#0d1117',
+  empty: 'rgba(13, 17, 23, 0.35)',
 };
 
 @Injectable({ providedIn: 'root' })
@@ -69,6 +76,7 @@ export class HexCanvasRendererService {
     const hasFog = visibleHexes != null && exploredHexes != null;
 
     ctx.clearRect(0, 0, w, h);
+    this.drawStarfield(ctx, w, h, panX, panY, zoom);
     ctx.save();
     ctx.translate(w / 2 - panX * zoom, h / 2 - panY * zoom);
     ctx.scale(zoom, zoom);
@@ -618,6 +626,46 @@ export class HexCanvasRendererService {
     ctx.strokeStyle = solidColor;
     ctx.lineWidth = 1.5;
     ctx.stroke();
+  }
+
+  private drawStarfield(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    panX: number,
+    panY: number,
+    zoom: number,
+  ): void {
+    // Parallax offset in screen pixels
+    const offsetX = panX * zoom * PARALLAX_FACTOR;
+    const offsetY = panY * zoom * PARALLAX_FACTOR;
+
+    // Determine which tiles cover the screen
+    const startCol = Math.floor(offsetX / STAR_TILE_SIZE) - 1;
+    const endCol = Math.floor((offsetX + w) / STAR_TILE_SIZE) + 1;
+    const startRow = Math.floor(offsetY / STAR_TILE_SIZE) - 1;
+    const endRow = Math.floor((offsetY + h) / STAR_TILE_SIZE) + 1;
+
+    for (let col = startCol; col <= endCol; col++) {
+      for (let row = startRow; row <= endRow; row++) {
+        const rng = seededRNG(hashCoord(STAR_SEED, col, row));
+        for (let i = 0; i < STARS_PER_TILE; i++) {
+          const lx = rng.next() * STAR_TILE_SIZE;
+          const ly = rng.next() * STAR_TILE_SIZE;
+          const brightness = 0.3 + rng.next() * 0.7;
+          const radius = 0.4 + rng.next() * 0.8;
+
+          const sx = col * STAR_TILE_SIZE + lx - offsetX;
+          const sy = row * STAR_TILE_SIZE + ly - offsetY;
+
+          if (sx < -2 || sx > w + 2 || sy < -2 || sy > h + 2) continue;
+
+          const alpha = Math.round(brightness * 255);
+          ctx.fillStyle = `rgba(255,255,255,${(alpha / 255).toFixed(2)})`;
+          ctx.fillRect(Math.round(sx), Math.round(sy), radius < 0.9 ? 1 : 2, radius < 0.9 ? 1 : 2);
+        }
+      }
+    }
   }
 
   private drawHex(

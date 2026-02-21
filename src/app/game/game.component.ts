@@ -1,6 +1,7 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, OnDestroy, signal, untracked, viewChild } from '@angular/core';
 import { GameViewportComponent } from './viewport/game-viewport.component';
 import { HudComponent } from './hud/hud.component';
+import { ClickPopupComponent } from './overlays/click-popup.component';
 import { ContextMenuComponent } from './overlays/context-menu.component';
 import { SaveModalComponent } from './overlays/save-modal.component';
 import { HelpPanelComponent } from './overlays/help-panel.component';
@@ -25,7 +26,7 @@ const ZOOM_STEP = 50;
 @Component({
   selector: 'app-game',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GameViewportComponent, HudComponent, ContextMenuComponent, SaveModalComponent, HelpPanelComponent],
+  imports: [GameViewportComponent, HudComponent, ClickPopupComponent, ContextMenuComponent, SaveModalComponent, HelpPanelComponent],
   host: {
     '(contextmenu)': 'onContextMenu($event)',
     '(keydown)': 'onKeyDown($event)',
@@ -34,8 +35,9 @@ const ZOOM_STEP = 50;
   },
   template: `
     @if (ready()) {
-      <app-game-viewport />
+      <app-game-viewport (showClickPopup)="onShowClickPopup($event)" />
       <app-hud [(helpVisible)]="helpVisible" />
+      <app-click-popup />
       <app-context-menu />
       <app-save-modal />
       <app-help-panel [(visible)]="helpVisible" />
@@ -92,6 +94,7 @@ export class GameComponent implements OnDestroy {
   private readonly audio = inject(AudioService);
   private readonly waypointSvc = inject(WaypointService);
   private readonly el = inject(ElementRef);
+  private readonly clickPopup = viewChild(ClickPopupComponent);
   private readonly contextMenu = viewChild(ContextMenuComponent);
   readonly saveModal = viewChild(SaveModalComponent);
   readonly helpVisible = signal(false);
@@ -177,7 +180,16 @@ export class GameComponent implements OnDestroy {
 
   protected onContextMenu(event: MouseEvent): void {
     event.preventDefault();
+    this.clickPopup()?.close();
     this.contextMenu()?.open(event.clientX, event.clientY);
+  }
+
+  protected onShowClickPopup(event: { clientX: number; clientY: number }): void {
+    this.contextMenu()?.close();
+    const shown = this.clickPopup()?.open(event.clientX, event.clientY);
+    if (!shown) {
+      // No valid options — fallback to hex select (viewport already played click SFX)
+    }
   }
 
   protected onKeyDown(event: KeyboardEvent): void {
@@ -201,6 +213,8 @@ export class GameComponent implements OnDestroy {
       case 'Escape':
         if (this.helpVisible()) {
           this.helpVisible.set(false);
+        } else if (this.clickPopup()?.state()) {
+          this.clickPopup()!.close();
         } else {
           // Cancel waypoint if selected unit has one
           const selectedId = this.selection.selectedUnit();

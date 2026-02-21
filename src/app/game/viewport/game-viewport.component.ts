@@ -7,6 +7,7 @@ import {
   ElementRef,
   inject,
   OnDestroy,
+  output,
   viewChild,
 } from '@angular/core';
 import { CameraService } from '../../core/camera/camera.service';
@@ -70,6 +71,8 @@ export class GameViewportComponent implements OnDestroy {
   private readonly spriteAtlas = inject(SpriteAtlasService);
   private readonly waypointSvc = inject(WaypointService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
+
+  readonly showClickPopup = output<{ clientX: number; clientY: number }>();
 
   private panning = false;
   private spaceHeld = false;
@@ -284,24 +287,35 @@ export class GameViewportComponent implements OnDestroy {
     const hex = this.screenEventToHex(event);
     const selectedUnitId = this.selection.selectedUnit();
 
-    // If a unit is selected and shift is not held, try to move it to the clicked hex
+    // If a unit is selected and shift is not held, try to move or delegate to popup
     if (selectedUnitId && !event.shiftKey) {
       const unit = this.gameState.units().get(selectedUnitId);
-      if (unit && unit.movementPoints > 0) {
-        const from = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
-        const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-        const blocked = this.blockedHexSet();
-        const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
+      if (unit && unit.ownerId === this.gameState.currentPlayer()?.id && unit.movementPoints > 0) {
+        const hexKey = `${hex.q},${hex.r}`;
+        const unitsAtHex = this.gameState.unitsAtHex().get(hexKey) ?? [];
 
-        const override = getUnitCostOverride(unit.type);
-        const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);
-        if (path && path.length > 1) {
+        if (unitsAtHex.length === 0) {
+          // Empty hex — try direct movement
+          const from = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+          const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+          const blocked = this.blockedHexSet();
+          const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
+
+          const override = getUnitCostOverride(unit.type);
+          const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);
+          if (path && path.length > 1) {
+            this.audio.playClick();
+            const cost = pathCost(path, hexLookup, override);
+            this.animation.animateUnitMovement(selectedUnitId, path).then(() => {
+              this.undo.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path, cost });
+              this.selection.selectUnit(selectedUnitId);
+            });
+            return;
+          }
+        } else {
+          // Occupied hex — delegate to click popup
+          this.showClickPopup.emit({ clientX: event.clientX, clientY: event.clientY });
           this.audio.playClick();
-          const cost = pathCost(path, hexLookup, override);
-          this.animation.animateUnitMovement(selectedUnitId, path).then(() => {
-            this.undo.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path, cost });
-            this.selection.selectUnit(selectedUnitId);
-          });
           return;
         }
       }
