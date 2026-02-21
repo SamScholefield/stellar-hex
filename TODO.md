@@ -815,7 +815,8 @@ src/
 - [ ] A → enter Attack mode for selected unit
 - [ ] B → open Build menu
 - [ ] Space → End Turn
-- [ ] Tab → cycle through owned units with remaining movement
+- [ ] Tab → cycle through owned units with remaining movement or attack capability (enemy in range)
+
 - [ ] Shift+Tab → cycle backward
 - [ ] Home → center camera on starting position / capital
 - [ ] Create a keyboard shortcut reference panel accessible via "?" key
