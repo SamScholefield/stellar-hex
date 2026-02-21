@@ -20,6 +20,15 @@ function mockOscillatorNode(): any {
   };
 }
 
+function mockBufferSourceNode(): any {
+  return {
+    buffer: null,
+    connect: vi.fn().mockReturnThis(),
+    start: vi.fn(),
+    stop: vi.fn(),
+  };
+}
+
 function createMockAudioContext(): any {
   return {
     currentTime: 0,
@@ -29,6 +38,8 @@ function createMockAudioContext(): any {
     resume: vi.fn(() => Promise.resolve()),
     createGain: vi.fn(() => mockGainNode()),
     createOscillator: vi.fn(() => mockOscillatorNode()),
+    createBufferSource: vi.fn(() => mockBufferSourceNode()),
+    decodeAudioData: vi.fn(() => Promise.resolve({ duration: 0.1 })),
   };
 }
 
@@ -42,6 +53,9 @@ describe('AudioService', () => {
     vi.stubGlobal('AudioContext', function(this: any) {
       Object.assign(this, mockCtx);
     });
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+    })));
 
     TestBed.configureTestingModule({});
     service = TestBed.inject(AudioService);
@@ -74,13 +88,15 @@ describe('AudioService', () => {
   describe('playClick', () => {
     it('should no-op before ensureContext', () => {
       service.playClick();
-      expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+      expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
     });
 
-    it('should create oscillator after ensureContext', async () => {
+    it('should create buffer source after ensureContext', async () => {
       await service.ensureContext();
+      // Wait for loadClickBuffer to complete
+      await vi.waitFor(() => expect(mockCtx.decodeAudioData).toHaveBeenCalled());
       service.playClick();
-      expect(mockCtx.createOscillator).toHaveBeenCalled();
+      expect(mockCtx.createBufferSource).toHaveBeenCalled();
     });
   });
 

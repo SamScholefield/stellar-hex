@@ -105,13 +105,24 @@ export interface HexOverride {
 
 export type AnomalyType = 'derelict_ship' | 'resource_cache' | 'alien_signal' | 'wormhole' | 'ancient_ruins';
 
+export interface AnomalyInfo {
+  name: string;
+  reward: Partial<Resources>;
+}
+
+export const ANOMALY_REWARDS: Record<AnomalyType, AnomalyInfo> = {
+  derelict_ship:  { name: 'Derelict Ship',  reward: { alloys: 15, credits: 10 } },
+  resource_cache: { name: 'Resource Cache',  reward: { minerals: 20, energy: 10 } },
+  alien_signal:   { name: 'Alien Signal',    reward: { credits: 25 } },
+  wormhole:       { name: 'Wormhole',        reward: { energy: 30 } },
+  ancient_ruins:  { name: 'Ancient Ruins',   reward: { alloys: 10, minerals: 10, credits: 10 } },
+};
+
 export interface Anomaly {
   id: string;
   type: AnomalyType;
   q: number;
   r: number;
-  reward?: Partial<Resources>;
-  discovered: boolean;
 }
 
 export interface GameState {

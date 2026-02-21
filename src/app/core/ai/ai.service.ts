@@ -3,7 +3,7 @@ import { GameStateService } from '../state/game-state.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { AnimationService } from '../../game/renderer/animation.service';
 import { EventLogService } from '../state/event-log.service';
-import { PlayerState, UnitData } from '../../models/game-state';
+import { ANOMALY_REWARDS, PlayerState, UnitData } from '../../models/game-state';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
 import { findPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
@@ -124,6 +124,10 @@ export class AIService {
               const cost = pathCost(path, hexLookup, override);
               await this.animation.animateUnitMovement(freshUnit.id, path);
               this.gameState.dispatch({ type: 'MOVE_UNIT', unitId: freshUnit.id, path, cost });
+
+              // After moving, try to collect anomaly at destination
+              this.tryCollectAnomaly(freshUnit.id, playerId);
+
               await delay(ACTION_DELAY);
               acted = true;
             }
@@ -214,9 +218,51 @@ export class AIService {
       }
     }
 
-    // For scouts and units with no enemy target: explore
+    // For scouts: prefer moving toward visible anomalies
+    if (unit.type === 'scout') {
+      const anomalyTarget = this.findNearestAnomaly(unit, state);
+      if (anomalyTarget) return anomalyTarget;
+    }
+
+    // Explore
     const exploreResult = scoreExplore(unit, player.exploredHexes, hexLookup);
     return exploreResult?.target ?? null;
+  }
+
+  private findNearestAnomaly(
+    unit: UnitData,
+    state: import('../../models/game-state').GameState,
+  ): HexCoord | null {
+    const unitCoord: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+    let nearest: HexCoord | null = null;
+    let nearestDist = Infinity;
+
+    for (const anomaly of state.anomalies.values()) {
+      const coord: HexCoord = { q: anomaly.q, r: anomaly.r, s: -anomaly.q - anomaly.r };
+      const dist = hexDistance(unitCoord, coord);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = coord;
+      }
+    }
+
+    return nearest;
+  }
+
+  private tryCollectAnomaly(unitId: string, playerId: string): void {
+    const state = this.gameState.getState();
+    const unit = state.units.get(unitId);
+    if (!unit || unit.type !== 'scout') return;
+
+    for (const anomaly of state.anomalies.values()) {
+      if (anomaly.q === unit.q && anomaly.r === unit.r) {
+        const info = ANOMALY_REWARDS[anomaly.type];
+        this.gameState.dispatch({ type: 'COLLECT_ANOMALY', anomalyId: anomaly.id, unitId });
+        const turn = state.turn;
+        this.eventLog.push({ turn, message: `[AI] Scout collected ${info?.name ?? anomaly.type}`, q: anomaly.q, r: anomaly.r });
+        break;
+      }
+    }
   }
 
   private hasEnemyNearby(playerId: string, state: import('../../models/game-state').GameState): boolean {

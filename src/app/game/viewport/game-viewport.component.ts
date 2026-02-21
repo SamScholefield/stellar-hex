@@ -17,6 +17,7 @@ import { HexCanvasRendererService } from '../renderer/hex-canvas-renderer.servic
 import { AnimationService } from '../renderer/animation.service';
 import { AIService } from '../../core/ai/ai.service';
 import { AudioService } from '../../core/audio/audio.service';
+import { UndoService } from '../../core/state/undo.service';
 import { hexToPixel, pixelToHex } from '../../shared/hex/hex-math';
 import { findPath, getReachableHexes, getUnitCostOverride, pathCost } from '../../core/pathfinding/hex-pathfinder';
 import { VisionService } from '../../core/vision/vision.service';
@@ -64,6 +65,7 @@ export class GameViewportComponent implements OnDestroy {
   private readonly ai = inject(AIService);
   private readonly audio = inject(AudioService);
   private readonly vision = inject(VisionService);
+  private readonly undo = inject(UndoService);
   private readonly spriteAtlas = inject(SpriteAtlasService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
@@ -168,11 +170,12 @@ export class GameViewportComponent implements OnDestroy {
       const exploredHexes = this.vision.humanExploredHexes();
       const currentPlayerId = this.gameState.humanPlayer()?.id ?? null;
       const buildings = this.gameState.buildings();
+      const anomalies = this.gameState.anomalies();
 
       const canvas = this.canvasRef().nativeElement;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId, buildings, null, combatAnim);
+        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId, buildings, null, combatAnim, anomalies);
       }
     });
   }
@@ -290,9 +293,10 @@ export class GameViewportComponent implements OnDestroy {
         const override = getUnitCostOverride(unit.type);
         const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);
         if (path && path.length > 1) {
+          this.audio.playClick();
           const cost = pathCost(path, hexLookup, override);
           this.animation.animateUnitMovement(selectedUnitId, path).then(() => {
-            this.gameState.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path, cost });
+            this.undo.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path, cost });
             this.selection.selectUnit(selectedUnitId);
           });
           return;

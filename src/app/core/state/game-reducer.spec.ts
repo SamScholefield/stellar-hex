@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { gameReducer } from './game-reducer';
-import { GameState, DynamicObject, Resources, UnitData, BuildingData, BUILDING_STATS } from '../../models/game-state';
+import { GameState, DynamicObject, Resources, UnitData, BuildingData, BUILDING_STATS, Anomaly } from '../../models/game-state';
 
 function makeResources(overrides: Partial<Resources> = {}): Resources {
   return { energy: 100, minerals: 50, alloys: 20, credits: 30, ...overrides };
@@ -525,9 +525,82 @@ describe('gameReducer', () => {
     });
   });
 
-  it('returns same state for unknown action', () => {
-    const state = makeState();
-    const next = gameReducer(state, { type: 'HARVEST', unitId: 'u1' });
-    expect(next).toBe(state);
+  describe('DISCOVER_ANOMALY', () => {
+    it('adds anomaly to state', () => {
+      const state = makeState();
+      const anomaly: Anomaly = { id: 'a1', type: 'derelict_ship', q: 5, r: 3 };
+      const next = gameReducer(state, { type: 'DISCOVER_ANOMALY', anomaly });
+      expect(next.anomalies.size).toBe(1);
+      expect(next.anomalies.get('a1')).toEqual(anomaly);
+    });
+
+    it('does not duplicate existing anomaly', () => {
+      const anomaly: Anomaly = { id: 'a1', type: 'derelict_ship', q: 5, r: 3 };
+      const anomalies = new Map([['a1', anomaly]]);
+      const state = makeState({ anomalies });
+      const next = gameReducer(state, { type: 'DISCOVER_ANOMALY', anomaly });
+      expect(next).toBe(state);
+    });
+  });
+
+  describe('COLLECT_ANOMALY', () => {
+    function makeCollectState(opts: { unitType?: string; mp?: number; unitQ?: number; unitR?: number } = {}) {
+      const anomaly: Anomaly = { id: 'a1', type: 'resource_cache', q: 3, r: 2 };
+      const units = new Map<string, UnitData>([
+        ['u1', {
+          id: 'u1', ownerId: 'p1', type: (opts.unitType ?? 'scout') as any, q: opts.unitQ ?? 3, r: opts.unitR ?? 2,
+          movementPoints: opts.mp ?? 4, maxMovementPoints: 4,
+          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
+        }],
+      ]);
+      return makeState({ units, anomalies: new Map([['a1', anomaly]]) });
+    }
+
+    it('grants resources and removes anomaly', () => {
+      const state = makeCollectState();
+      const next = gameReducer(state, { type: 'COLLECT_ANOMALY', anomalyId: 'a1', unitId: 'u1' });
+      // resource_cache rewards: minerals:20, energy:10
+      expect(next.players[0].resources.minerals).toBe(70);
+      expect(next.players[0].resources.energy).toBe(110);
+      expect(next.anomalies.size).toBe(0);
+    });
+
+    it('does not consume MP', () => {
+      const state = makeCollectState({ mp: 2 });
+      const next = gameReducer(state, { type: 'COLLECT_ANOMALY', anomalyId: 'a1', unitId: 'u1' });
+      expect(next.units.get('u1')!.movementPoints).toBe(2);
+    });
+
+    it('allows collection with 0 MP', () => {
+      const state = makeCollectState({ mp: 0 });
+      const next = gameReducer(state, { type: 'COLLECT_ANOMALY', anomalyId: 'a1', unitId: 'u1' });
+      expect(next.anomalies.size).toBe(0);
+      expect(next.players[0].resources.minerals).toBe(70);
+    });
+
+    it('rejects non-scout units', () => {
+      const state = makeCollectState({ unitType: 'fighter' });
+      const next = gameReducer(state, { type: 'COLLECT_ANOMALY', anomalyId: 'a1', unitId: 'u1' });
+      expect(next).toBe(state);
+    });
+
+    it('rejects scout not at anomaly hex', () => {
+      const state = makeCollectState({ unitQ: 0, unitR: 0 });
+      const next = gameReducer(state, { type: 'COLLECT_ANOMALY', anomalyId: 'a1', unitId: 'u1' });
+      expect(next).toBe(state);
+    });
+
+    it('rejects unknown anomaly', () => {
+      const state = makeCollectState();
+      const next = gameReducer(state, { type: 'COLLECT_ANOMALY', anomalyId: 'missing', unitId: 'u1' });
+      expect(next).toBe(state);
+    });
+
+    it('does not mutate original state', () => {
+      const state = makeCollectState();
+      gameReducer(state, { type: 'COLLECT_ANOMALY', anomalyId: 'a1', unitId: 'u1' });
+      expect(state.anomalies.size).toBe(1);
+      expect(state.players[0].resources.minerals).toBe(50);
+    });
   });
 });

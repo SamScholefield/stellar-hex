@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output } f
 import { BuildingType, BUILDING_STATS, BuildingStats, Resources } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { GameStateService } from '../../core/state/game-state.service';
+import { AudioService } from '../../core/audio/audio.service';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 
 interface BuildOption {
@@ -106,6 +107,7 @@ interface BuildOption {
 })
 export class BuildMenuComponent {
   private readonly gameState = inject(GameStateService);
+  private readonly audio = inject(AudioService);
 
   readonly hexType = input.required<StellarObjectType>();
   readonly buildSelected = output<BuildingType>();
@@ -135,6 +137,7 @@ export class BuildMenuComponent {
   }
 
   onBuild(type: BuildingType): void {
+    this.audio.playClick();
     this.buildSelected.emit(type);
   }
 }

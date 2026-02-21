@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { CameraService } from '../../core/camera/camera.service';
 import { Chunk } from '../../models/chunk';
-import { BuildingData, BuildingType, UnitData, UnitType } from '../../models/game-state';
+import { Anomaly, AnomalyType, BuildingData, BuildingType, UnitData, UnitType } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexToPixel } from '../../shared/hex/hex-math';
@@ -57,6 +57,7 @@ export class HexCanvasRendererService {
     buildings?: Map<string, BuildingData>,
     _attackTargets?: unknown,
     combatAnimation?: CombatAnimation | null,
+    anomalies?: Map<string, Anomaly>,
   ): void {
     const w = camera.canvasWidth();
     const h = camera.canvasHeight();
@@ -102,6 +103,17 @@ export class HexCanvasRendererService {
         }
         const color = playerColors?.get(building.ownerId) ?? '#ffffff';
         this.drawBuilding(ctx, building, hexSize, color);
+      }
+    }
+
+    // Draw anomalies after buildings, before units
+    if (anomalies) {
+      for (const anomaly of anomalies.values()) {
+        if (hasFog) {
+          const aKey = `${anomaly.q},${anomaly.r}`;
+          if (!visibleHexes!.has(aKey) && !exploredHexes!.has(aKey)) continue;
+        }
+        this.drawAnomaly(ctx, anomaly, hexSize);
       }
     }
 
@@ -475,6 +487,78 @@ export class HexCanvasRendererService {
         ctx.lineTo(x + r * 0.7, y);
         ctx.lineTo(x, y + r * 0.8);
         ctx.lineTo(x - r * 0.7, y);
+        break;
+    }
+  }
+
+  private drawAnomaly(
+    ctx: CanvasRenderingContext2D,
+    anomaly: Anomaly,
+    hexSize: number,
+  ): void {
+    const { x, y } = hexToPixel(anomaly.q, anomaly.r, hexSize);
+    // Offset to top-right to avoid overlap with buildings
+    const ax = x + hexSize * 0.25;
+    const ay = y - hexSize * 0.2;
+    const r = hexSize * 0.22;
+    const color = '#f59e0b';
+
+    // Glow
+    ctx.save();
+    ctx.shadowColor = '#f59e0b';
+    ctx.shadowBlur = 6;
+
+    ctx.beginPath();
+    this.traceAnomalyShape(ctx, ax, ay, r, anomaly.type);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.9;
+    ctx.fill();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.globalAlpha = 1.0;
+    ctx.restore();
+  }
+
+  private traceAnomalyShape(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    r: number,
+    type: AnomalyType,
+  ): void {
+    switch (type) {
+      case 'derelict_ship':
+        // Diamond
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x - r, y);
+        break;
+      case 'resource_cache':
+        // Square
+        ctx.rect(x - r * 0.7, y - r * 0.7, r * 1.4, r * 1.4);
+        break;
+      case 'alien_signal':
+        // Star (4-pointed)
+        for (let i = 0; i < 8; i++) {
+          const angle = (Math.PI / 4) * i - Math.PI / 2;
+          const dist = i % 2 === 0 ? r : r * 0.4;
+          const px = x + dist * Math.cos(angle);
+          const py = y + dist * Math.sin(angle);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        break;
+      case 'wormhole':
+        // Circle
+        ctx.arc(x, y, r * 0.8, 0, Math.PI * 2);
+        break;
+      case 'ancient_ruins':
+        // Triangle
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r * 0.85, y + r * 0.6);
+        ctx.lineTo(x - r * 0.85, y + r * 0.6);
         break;
     }
   }

@@ -1,28 +1,37 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, model } from '@angular/core';
 import { ResourceBarComponent } from './resource-bar.component';
 import { TurnControlsComponent } from './turn-controls.component';
 import { HexInfoPanelComponent } from '../panels/hex-info-panel.component';
 import { UnitInfoPanelComponent } from '../panels/unit-info-panel.component';
 import { EventLogComponent } from '../log/event-log.component';
 import { ProductionMenuComponent } from '../panels/production-menu.component';
+import { UnitListPanelComponent } from '../panels/unit-list-panel.component';
+import { BuildingListPanelComponent } from '../panels/building-list-panel.component';
+import { MinimapComponent } from './minimap.component';
+import { ToastContainerComponent } from '../overlays/toast-container.component';
+import { NotificationService } from '../../core/notifications/notification.service';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { AIService } from '../../core/ai/ai.service';
+import { AudioService } from '../../core/audio/audio.service';
 import { CameraService } from '../../core/camera/camera.service';
+import { UndoService } from '../../core/state/undo.service';
 import { hexToPixel } from '../../shared/hex/hex-math';
 import { BuildingData, UnitType } from '../../models/game-state';
 
 @Component({
   selector: 'app-hud',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, ProductionMenuComponent],
+  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, ProductionMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent, ToastContainerComponent],
   template: `
+    <app-toast-container />
     <div class="hud-top">
       <app-resource-bar />
       @if (homeBase(); as hb) {
         <button class="home-btn" (click)="focusHome(hb)">&#8962; Home</button>
       }
+      <button class="help-btn" (click)="onHelp()">?</button>
       <app-turn-controls />
     </div>
     <div class="hud-unit-panel">
@@ -30,8 +39,11 @@ import { BuildingData, UnitType } from '../../models/game-state';
       @if (selectedStarbase(); as sb) {
         <app-production-menu [building]="sb" [homeBaseId]="gameState.homeBaseId()" (produceSelected)="onProduce($event)" (setHomeSelected)="onSetHome(sb)" />
       }
+      <app-unit-list-panel />
+      <app-building-list-panel />
     </div>
     <div class="hud-bottom-left">
+      <app-minimap />
       <app-hex-info-panel />
     </div>
     <div class="hud-bottom-right">
@@ -57,6 +69,9 @@ import { BuildingData, UnitType } from '../../models/game-state';
       padding: 0.75rem;
       gap: 0.5rem;
     }
+    app-toast-container {
+      display: contents;
+    }
     .hud-top {
       grid-column: 1 / -1;
       display: flex;
@@ -68,12 +83,16 @@ import { BuildingData, UnitType } from '../../models/game-state';
       grid-column: 1;
       align-self: start;
       pointer-events: auto;
+      width: 200px;
     }
     .hud-bottom-left {
       grid-row: 3;
       grid-column: 1;
       pointer-events: auto;
       align-self: end;
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
     }
     .hud-bottom-right {
       grid-row: 3;
@@ -94,6 +113,26 @@ import { BuildingData, UnitType } from '../../models/game-state';
     }
     .home-btn:hover {
       background: rgba(30, 40, 60, 0.95);
+    }
+    .help-btn {
+      background: rgba(10, 10, 26, 0.85);
+      border: 1px solid #2a4a5a;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      color: #9ca3af;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .help-btn:hover {
+      background: rgba(30, 40, 60, 0.95);
+      color: #e0e0e0;
     }
     .ai-overlay {
       position: absolute;
@@ -133,9 +172,13 @@ import { BuildingData, UnitType } from '../../models/game-state';
 export class HudComponent {
   private readonly selection = inject(SelectionService);
   readonly gameState = inject(GameStateService);
+  readonly helpVisible = model(false);
   private readonly eventLog = inject(EventLogService);
   private readonly ai = inject(AIService);
+  private readonly audio = inject(AudioService);
   private readonly camera = inject(CameraService);
+  private readonly undo = inject(UndoService);
+  private readonly notifications = inject(NotificationService);
   readonly aiExecuting = this.ai.executing;
 
   readonly homeBase = computed<BuildingData | null>(() => {
@@ -155,23 +198,31 @@ export class HudComponent {
   });
 
   focusHome(building: BuildingData): void {
+    this.audio.playClick();
     const { x, y } = hexToPixel(building.q, building.r, 30);
     this.camera.centerOn(x, y);
     this.selection.selectHex({ q: building.q, r: building.r, s: -building.q - building.r });
   }
 
   onSetHome(building: BuildingData): void {
+    this.audio.playClick();
     const player = this.gameState.currentPlayer();
     if (!player) return;
-    this.gameState.dispatch({ type: 'SET_HOME_BASE', playerId: player.id, buildingId: building.id });
+    this.undo.dispatch({ type: 'SET_HOME_BASE', playerId: player.id, buildingId: building.id });
     this.eventLog.push({ turn: this.gameState.turn(), message: 'Home base reassigned' });
   }
 
+  onHelp(): void {
+    this.helpVisible.update(v => !v);
+  }
+
   onProduce(unitType: UnitType): void {
+    this.audio.playClick();
     const starbase = this.selectedStarbase();
     if (!starbase) return;
-    this.gameState.dispatch({ type: 'PRODUCE_UNIT', buildingId: starbase.id, unitType });
+    this.undo.dispatch({ type: 'PRODUCE_UNIT', buildingId: starbase.id, unitType });
     const turn = this.gameState.turn();
     this.eventLog.push({ turn, message: `Queued ${unitType.replace(/_/g, ' ')} production` });
+    this.notifications.show(`Queued ${unitType.replace(/_/g, ' ')} production`, { type: 'success' });
   }
 }

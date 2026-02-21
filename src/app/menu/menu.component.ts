@@ -32,6 +32,9 @@ import { GameSaveService } from '../core/state/game-save.service';
         <button class="continue" (click)="loadGame()">Continue Game</button>
       }
       <button (click)="startGame()">Start Game</button>
+      @if (saveSvc.hasSave()) {
+        <button class="delete-saves" (click)="deleteSaves()">Delete All Saves</button>
+      }
     </div>
   `,
   styles: `
@@ -109,6 +112,20 @@ import { GameSaveService } from '../core/state/game-save.service';
       border: 1px solid #5eead4;
       color: #5eead4;
     }
+    button.delete-saves {
+      display: block;
+      margin: 0.75rem auto 0;
+      padding: 0.4rem 1.25rem;
+      font-size: 0.8rem;
+      font-weight: 400;
+      background: transparent;
+      border: 1px solid #4b5563;
+      color: #6b7280;
+    }
+    button.delete-saves:hover {
+      border-color: #f87171;
+      color: #f87171;
+    }
   `,
 })
 export class MenuComponent {
@@ -130,5 +147,9 @@ export class MenuComponent {
   async loadGame(): Promise<void> {
     await this.audio.ensureContext();
     this.saveSvc.load();
+  }
+
+  deleteSaves(): void {
+    this.saveSvc.deleteSave();
   }
 }

@@ -6,10 +6,12 @@ import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { AnimationService } from '../renderer/animation.service';
+import { UndoService } from '../../core/state/undo.service';
+import { NotificationService } from '../../core/notifications/notification.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance, pixelToHex } from '../../shared/hex/hex-math';
 import { attackWithResult } from '../../core/state/game-reducer';
-import { BuildingType, BuildingStats, BUILDING_STATS } from '../../models/game-state';
+import { BuildingType, BuildingStats, BUILDING_STATS, ANOMALY_REWARDS } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { VisionService } from '../../core/vision/vision.service';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
@@ -31,6 +33,10 @@ export interface ContextMenuState {
   targetId: string | null;
   buildOptions: BuildOption[];
   hexType: StellarObjectType | null;
+  canCollect: boolean;
+  collectAnomalyId: string | null;
+  collectAnomalyName: string | null;
+  collectUnitId: string | null;
 }
 
 @Component({
@@ -44,6 +50,9 @@ export interface ContextMenuState {
   template: `
     @if (state(); as s) {
       <div class="menu" [style.left.px]="s.screenX" [style.top.px]="s.screenY">
+        @if (s.canCollect) {
+          <button class="item collect" (click)="onCollect()">Collect {{ s.collectAnomalyName }}</button>
+        }
         @if (s.canAttack) {
           <button class="item attack" (click)="onAttack()">Attack</button>
         }
@@ -93,6 +102,9 @@ export interface ContextMenuState {
     .item.build {
       color: #5eead4;
     }
+    .item.collect {
+      color: #f59e0b;
+    }
   `,
 })
 export class ContextMenuComponent {
@@ -104,6 +116,8 @@ export class ContextMenuComponent {
   private readonly eventLog = inject(EventLogService);
   private readonly animation = inject(AnimationService);
   private readonly vision = inject(VisionService);
+  private readonly undo = inject(UndoService);
+  private readonly notifications = inject(NotificationService);
 
   private readonly _state = signal<ContextMenuState | null>(null);
   readonly state = this._state.asReadonly();
@@ -178,6 +192,26 @@ export class ContextMenuComponent {
       }
     }
 
+    // Check for collectable anomaly at hex — requires friendly scout with MP
+    let canCollect = false;
+    let collectAnomalyId: string | null = null;
+    let collectAnomalyName: string | null = null;
+    let collectUnitId: string | null = null;
+
+    const anomalies = this.gameState.anomalies();
+    for (const anomaly of anomalies.values()) {
+      if (anomaly.q === hex.q && anomaly.r === hex.r) {
+        const scout = unitsHere?.find(u => u.ownerId === currentPlayer.id && u.type === 'scout');
+        if (scout) {
+          canCollect = true;
+          collectAnomalyId = anomaly.id;
+          collectAnomalyName = ANOMALY_REWARDS[anomaly.type]?.name ?? anomaly.type;
+          collectUnitId = scout.id;
+        }
+        break;
+      }
+    }
+
     this._state.set({
       screenX: clientX,
       screenY: clientY,
@@ -187,6 +221,10 @@ export class ContextMenuComponent {
       targetId,
       buildOptions,
       hexType,
+      canCollect,
+      collectAnomalyId,
+      collectAnomalyName,
+      collectUnitId,
     });
   }
 
@@ -195,6 +233,7 @@ export class ContextMenuComponent {
   }
 
   onInspect(): void {
+    this.audio.playClick();
     const s = this._state();
     if (s) {
       this.selection.selectHex(s.hex);
@@ -203,6 +242,7 @@ export class ContextMenuComponent {
   }
 
   onAttack(): void {
+    this.audio.playClick();
     const s = this._state();
     if (!s || !s.attackerId || !s.targetId) return;
     this.close();
@@ -216,13 +256,16 @@ export class ContextMenuComponent {
     const defender = state.units.get(targetId)!;
 
     this.animation.animateCombat(attackerId, targetId).then(() => {
-      this.gameState.dispatch({ type: 'ATTACK', attackerId, targetId });
+      this.undo.dispatch({ type: 'ATTACK', attackerId, targetId });
 
       const turn = this.gameState.turn();
       const msg = `${attacker.type} attacked ${defender.type}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
         + (combat.defenderDestroyed ? ` — ${defender.type} destroyed!` : '')
         + (combat.attackerDestroyed ? ` — ${attacker.type} destroyed!` : '');
       this.eventLog.push({ turn, message: msg, q: defender.q, r: defender.r });
+
+      const toastType = combat.defenderDestroyed || combat.attackerDestroyed ? 'danger' : 'warning';
+      this.notifications.show(msg, { type: toastType, q: defender.q, r: defender.r });
 
       if (!combat.attackerDestroyed) {
         this.selection.selectUnit(attackerId);
@@ -232,7 +275,32 @@ export class ContextMenuComponent {
     });
   }
 
+  onCollect(): void {
+    this.audio.playClick();
+    const s = this._state();
+    if (!s || !s.collectAnomalyId || !s.collectUnitId) return;
+    this.close();
+
+    const anomaly = this.gameState.anomalies().get(s.collectAnomalyId);
+    if (!anomaly) return;
+
+    const info = ANOMALY_REWARDS[anomaly.type];
+    this.undo.dispatch({ type: 'COLLECT_ANOMALY', anomalyId: s.collectAnomalyId, unitId: s.collectUnitId });
+
+    const turn = this.gameState.turn();
+    const rewardParts: string[] = [];
+    if (info.reward.energy) rewardParts.push(`${info.reward.energy} energy`);
+    if (info.reward.minerals) rewardParts.push(`${info.reward.minerals} minerals`);
+    if (info.reward.alloys) rewardParts.push(`${info.reward.alloys} alloys`);
+    if (info.reward.credits) rewardParts.push(`${info.reward.credits} credits`);
+    const rewardStr = rewardParts.join(', ');
+
+    this.eventLog.push({ turn, message: `Collected ${info.name}: +${rewardStr}`, q: anomaly.q, r: anomaly.r });
+    this.notifications.show(`Collected ${info.name}: +${rewardStr}`, { type: 'success', q: anomaly.q, r: anomaly.r });
+  }
+
   onBuild(buildingType: BuildingType): void {
+    this.audio.playClick();
     const s = this._state();
     if (!s || !s.hexType) return;
     this.close();
@@ -240,7 +308,7 @@ export class ContextMenuComponent {
     const player = this.gameState.currentPlayer();
     if (!player) return;
 
-    this.gameState.dispatch({ type: 'BUILD', playerId: player.id, buildingType, hex: s.hex, hexType: s.hexType });
+    this.undo.dispatch({ type: 'BUILD', playerId: player.id, buildingType, hex: s.hex, hexType: s.hexType });
     const turn = this.gameState.turn();
     this.eventLog.push({ turn, message: `Built ${buildingType.replace(/_/g, ' ')} at (${s.hex.q}, ${s.hex.r})`, q: s.hex.q, r: s.hex.r });
   }

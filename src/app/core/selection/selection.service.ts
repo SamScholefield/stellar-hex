@@ -24,6 +24,18 @@ export class SelectionService {
   private readonly _selectedUnit = signal<string | null>(null);
   private readonly _selectedUnits = signal<ReadonlySet<string>>(new Set());
 
+  /** Human player's units sorted by type then ID for stable cycling. */
+  readonly ownedUnits = computed<UnitData[]>(() => {
+    const human = this.gameState.humanPlayer();
+    if (!human) return [];
+    const units: UnitData[] = [];
+    for (const u of this.gameState.units().values()) {
+      if (u.ownerId === human.id) units.push(u);
+    }
+    units.sort((a, b) => a.type.localeCompare(b.type) || a.id.localeCompare(b.id));
+    return units;
+  });
+
   readonly selectedHexCoord = this._selectedHexCoord.asReadonly();
   readonly hoveredHexCoord = this._hoveredHexCoord.asReadonly();
   readonly selectedUnit = this._selectedUnit.asReadonly();
@@ -138,6 +150,21 @@ export class SelectionService {
   deselectUnits(): void {
     this._selectedUnit.set(null);
     this._selectedUnits.set(new Set());
+  }
+
+  /** Cycle to next/previous owned unit. Returns the selected unit or null. */
+  selectNextUnit(direction: 1 | -1): UnitData | null {
+    const units = this.ownedUnits();
+    if (units.length === 0) return null;
+
+    const currentId = this._selectedUnit();
+    const idx = currentId ? units.findIndex(u => u.id === currentId) : -1;
+    const nextIdx = idx < 0
+      ? 0
+      : (idx + direction + units.length) % units.length;
+    const unit = units[nextIdx];
+    this.selectUnit(unit.id);
+    return unit;
   }
 
   /** Determine which unit to cycle to among friendly units at a hex. */

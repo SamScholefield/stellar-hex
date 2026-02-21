@@ -14,6 +14,7 @@ import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
 
 const SAVE_KEY = 'stellar-hex-save';
+const AUTOSAVE_KEY = 'stellar-hex-autosave';
 
 interface SaveData {
   state: SerializedGameState;
@@ -108,7 +109,7 @@ export class GameSaveService {
   private readonly camera = inject(CameraService);
   private readonly router = inject(Router);
 
-  private readonly _hasSave = signal(localStorage.getItem(SAVE_KEY) !== null);
+  private readonly _hasSave = signal(localStorage.getItem(SAVE_KEY) !== null || localStorage.getItem(AUTOSAVE_KEY) !== null);
   readonly hasSave = this._hasSave.asReadonly();
 
   save(): void {
@@ -122,8 +123,19 @@ export class GameSaveService {
     this._hasSave.set(true);
   }
 
-  load(): void {
-    const json = localStorage.getItem(SAVE_KEY);
+  autoSave(): void {
+    const state = this.gameState.getState();
+    const camera = {
+      panX: this.camera.panX(),
+      panY: this.camera.panY(),
+      zoom: this.camera.zoom(),
+    };
+    localStorage.setItem(AUTOSAVE_KEY, serialize(state, camera));
+    this._hasSave.set(true);
+  }
+
+  load(navigate = true): void {
+    const json = localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(AUTOSAVE_KEY);
     if (!json) return;
 
     const { state, camera } = deserialize(json);
@@ -132,11 +144,12 @@ export class GameSaveService {
     this.gameState.setState(state);
     this.camera.centerOn(camera.panX, camera.panY);
 
-    this.router.navigate(['/game']);
+    if (navigate) this.router.navigate(['/game']);
   }
 
   deleteSave(): void {
     localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(AUTOSAVE_KEY);
     this._hasSave.set(false);
   }
 }

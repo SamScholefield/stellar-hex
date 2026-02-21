@@ -8,7 +8,10 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { EventLogService } from '../../core/state/event-log.service';
+import { EventLogService, GameEvent } from '../../core/state/event-log.service';
+import { AudioService } from '../../core/audio/audio.service';
+import { CameraService } from '../../core/camera/camera.service';
+import { hexToPixel } from '../../shared/hex/hex-math';
 
 @Component({
   selector: 'app-event-log',
@@ -27,7 +30,11 @@ import { EventLogService } from '../../core/state/event-log.service';
           @for (event of recentEvents(); track $index) {
             <div class="entry">
               <span class="turn">T{{ event.turn }}</span>
-              <span class="msg">{{ event.message }}</span>
+              @if (event.q != null) {
+                <a class="msg link" [class.ai]="isAI(event)" (click)="goTo(event)">{{ event.message }}</a>
+              } @else {
+                <span class="msg" [class.ai]="isAI(event)">{{ event.message }}</span>
+              }
             </div>
           }
           @empty {
@@ -87,6 +94,24 @@ import { EventLogService } from '../../core/state/event-log.service';
     .msg {
       color: #d1d5db;
     }
+    .msg.ai {
+      color: #f59e0b;
+    }
+    .msg.link {
+      cursor: pointer;
+      color: #5eead4;
+      text-decoration: none;
+    }
+    .msg.link.ai {
+      color: #f59e0b;
+    }
+    .msg.link:hover {
+      text-decoration: underline;
+      color: #99f6e4;
+    }
+    .msg.link.ai:hover {
+      color: #fbbf24;
+    }
     .empty {
       font-size: 0.7rem;
       color: #6b7280;
@@ -97,6 +122,8 @@ import { EventLogService } from '../../core/state/event-log.service';
 })
 export class EventLogComponent {
   private readonly eventLog = inject(EventLogService);
+  private readonly audio = inject(AudioService);
+  private readonly camera = inject(CameraService);
   private readonly scrollContainer = viewChild<ElementRef<HTMLDivElement>>('scrollContainer');
 
   readonly collapsed = signal(false);
@@ -118,6 +145,19 @@ export class EventLogComponent {
   }
 
   toggle(): void {
+    this.audio.playClick();
     this.collapsed.update((v) => !v);
+  }
+
+  isAI(event: GameEvent): boolean {
+    return event.message.startsWith('[AI]');
+  }
+
+  goTo(event: GameEvent): void {
+    if (event.q != null && event.r != null) {
+      this.audio.playClick();
+      const { x, y } = hexToPixel(event.q, event.r, 30);
+      this.camera.centerOn(x, y);
+    }
   }
 }

@@ -1,5 +1,4 @@
 import { effect, Injectable, signal } from '@angular/core';
-import { playClick as synthClick } from './synth';
 
 const STORAGE_KEY = 'stellar-hex-audio';
 
@@ -23,6 +22,7 @@ export class AudioService {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
+  private clickBuffer: AudioBuffer | null = null;
 
   private readonly prefs = loadPrefs();
   readonly masterVolume = signal(this.prefs.masterVolume);
@@ -62,11 +62,25 @@ export class AudioService {
     this.sfxGain = this.ctx.createGain();
     this.sfxGain.gain.value = this.sfxVolume();
     this.sfxGain.connect(this.masterGain);
+
+    this.loadClickBuffer();
+  }
+
+  private async loadClickBuffer(): Promise<void> {
+    if (!this.ctx || this.clickBuffer) return;
+    try {
+      const res = await fetch('audio/click_003.ogg');
+      const buf = await res.arrayBuffer();
+      this.clickBuffer = await this.ctx.decodeAudioData(buf);
+    } catch { /* ignore — click will silently fail */ }
   }
 
   playClick(): void {
-    if (!this.ctx || !this.sfxGain) return;
-    synthClick(this.ctx, this.sfxGain);
+    if (!this.ctx || !this.sfxGain || !this.clickBuffer) return;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.clickBuffer;
+    src.connect(this.sfxGain);
+    src.start();
   }
 
   // Stubs kept so existing references compile without errors

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { BuildingData, Resources, UnitType, UNIT_STATS, UnitStats } from '../../models/game-state';
 import { GameStateService } from '../../core/state/game-state.service';
+import { AudioService } from '../../core/audio/audio.service';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 import { ProductionQueueComponent } from './production-queue.component';
 
@@ -133,6 +134,7 @@ interface ProductionOption {
 })
 export class ProductionMenuComponent {
   private readonly gameState = inject(GameStateService);
+  private readonly audio = inject(AudioService);
 
   readonly building = input.required<BuildingData | null>();
   readonly homeBaseId = input<string | null>(null);
@@ -164,6 +166,7 @@ export class ProductionMenuComponent {
   }
 
   onProduce(unitType: UnitType): void {
+    this.audio.playClick();
     this.produceSelected.emit(unitType);
   }
 }

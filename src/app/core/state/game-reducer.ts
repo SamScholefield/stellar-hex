@@ -1,4 +1,4 @@
-import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources } from '../../models/game-state';
+import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
@@ -17,6 +17,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return produceUnit(state, action.buildingId, action.unitType);
     case 'ATTACK':
       return attack(state, action.attackerId, action.targetId);
+    case 'DISCOVER_ANOMALY':
+      return discoverAnomaly(state, action.anomaly);
+    case 'COLLECT_ANOMALY':
+      return collectAnomaly(state, action.anomalyId, action.unitId);
     case 'ADVANCE_COMETS':
       return advanceComets(state);
     case 'SET_HOME_BASE':
@@ -351,6 +355,46 @@ function moveUnit(state: GameState, unitId: string, path: HexCoord[], cost: numb
   });
 
   return { ...state, units };
+}
+
+function discoverAnomaly(state: GameState, anomaly: Anomaly): GameState {
+  if (state.anomalies.has(anomaly.id)) return state;
+  const anomalies = new Map(state.anomalies);
+  anomalies.set(anomaly.id, anomaly);
+  return { ...state, anomalies };
+}
+
+function collectAnomaly(state: GameState, anomalyId: string, unitId: string): GameState {
+  const anomaly = state.anomalies.get(anomalyId);
+  if (!anomaly) return state;
+
+  const unit = state.units.get(unitId);
+  if (!unit || unit.type !== 'scout') return state;
+  if (unit.q !== anomaly.q || unit.r !== anomaly.r) return state;
+
+  const info = ANOMALY_REWARDS[anomaly.type];
+  if (!info) return state;
+
+  const playerIndex = state.players.findIndex(p => p.id === unit.ownerId);
+  if (playerIndex === -1) return state;
+
+  const players = state.players.map((p, i) => {
+    if (i !== playerIndex) return p;
+    return {
+      ...p,
+      resources: {
+        energy: p.resources.energy + (info.reward.energy ?? 0),
+        minerals: p.resources.minerals + (info.reward.minerals ?? 0),
+        alloys: p.resources.alloys + (info.reward.alloys ?? 0),
+        credits: p.resources.credits + (info.reward.credits ?? 0),
+      },
+    };
+  });
+
+  const anomalies = new Map(state.anomalies);
+  anomalies.delete(anomalyId);
+
+  return { ...state, players, anomalies };
 }
 
 function advanceComets(state: GameState): GameState {
