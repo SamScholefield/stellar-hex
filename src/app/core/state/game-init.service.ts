@@ -3,6 +3,8 @@ import { Router } from '@angular/router';
 import { GameState, PlayerState, Resources, UnitData, UnitType, UNIT_STATS, generateUnitName } from '../../models/game-state';
 import { GameStateService } from './game-state.service';
 import { GameSaveService } from './game-save.service';
+import { EventLogService } from './event-log.service';
+import { WaypointService } from './waypoint.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
 import { hexToPixel, hexDistance, hexesInRange } from '../../shared/hex/hex-math';
@@ -52,11 +54,15 @@ function makeUnit(id: string, name: string, ownerId: string, type: UnitType, q: 
 export class GameInitService {
   private readonly gameState = inject(GameStateService);
   private readonly gameSave = inject(GameSaveService);
+  private readonly eventLog = inject(EventLogService);
+  private readonly waypointSvc = inject(WaypointService);
   private readonly worldGenerator = inject(WorldGeneratorService);
   private readonly camera = inject(CameraService);
   private readonly router = inject(Router);
 
   newGame(config: NewGameConfig): void {
+    this.eventLog.clear();
+    this.waypointSvc.clearAll();
     this.gameSave.deleteSave();
     const seed = config.seed ?? Date.now();
     this.worldGenerator.setSeed(seed);

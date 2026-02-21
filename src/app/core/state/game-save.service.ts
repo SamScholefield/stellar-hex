@@ -10,6 +10,8 @@ import {
   Anomaly,
 } from '../../models/game-state';
 import { GameStateService } from './game-state.service';
+import { EventLogService } from './event-log.service';
+import { WaypointService } from './waypoint.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
 import { DEV_SAVES } from './dev-saves';
@@ -114,6 +116,8 @@ export function deserialize(json: string): {
 @Injectable({ providedIn: 'root' })
 export class GameSaveService {
   private readonly gameState = inject(GameStateService);
+  private readonly eventLog = inject(EventLogService);
+  private readonly waypointSvc = inject(WaypointService);
   private readonly worldGenerator = inject(WorldGeneratorService);
   private readonly camera = inject(CameraService);
   private readonly router = inject(Router);
@@ -138,6 +142,8 @@ export class GameSaveService {
     const json = localStorage.getItem(SAVE_KEY);
     if (!json) return;
 
+    this.eventLog.clear();
+    this.waypointSvc.clearAll();
     const { state, camera } = deserialize(json);
 
     this.worldGenerator.setSeed(state.seed);
@@ -151,6 +157,8 @@ export class GameSaveService {
     const json = localStorage.getItem(key);
     if (!json) return;
 
+    this.eventLog.clear();
+    this.waypointSvc.clearAll();
     const { state, camera } = deserialize(json);
     this.worldGenerator.setSeed(state.seed);
     this.gameState.setState(state);
