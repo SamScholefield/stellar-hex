@@ -3,11 +3,12 @@ import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { BuildingData, BUILDING_STATS } from '../../models/game-state';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
+import { ProductionQueueComponent } from './production-queue.component';
 
 @Component({
   selector: 'app-hex-info-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormatNamePipe],
+  imports: [FormatNamePipe, ProductionQueueComponent],
   template: `
     @if (info(); as data) {
       <div class="panel">
@@ -54,12 +55,7 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
               }
             </div>
             @if (b.productionQueue && b.productionQueue.length > 0) {
-              <div class="building-queue">
-                Producing:
-                @for (item of b.productionQueue; track $index) {
-                  <span class="queue-entry">{{ item.unitType | formatName }} ({{ item.turnsRemaining }}t)</span>
-                }
-              </div>
+              <app-production-queue [items]="b.productionQueue" />
             }
           </div>
         }
@@ -72,7 +68,7 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
       border: 1px solid #2a4a5a;
       border-radius: 0.5rem;
       padding: 0.75rem 1rem;
-      min-width: 160px;
+      min-width: 220px;
     }
     .coords {
       font-size: 0.75rem;
@@ -136,15 +132,9 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
       gap: 0.1rem;
       margin-top: 0.25rem;
     }
-    .building-queue {
-      font-size: 0.75rem;
-      color: #9ca3af;
-      margin-top: 0.25rem;
-    }
-    .queue-entry {
+    app-production-queue {
       display: block;
-      color: #fbbf24;
-      text-transform: capitalize;
+      margin-top: 0.5rem;
     }
   `,
 })
@@ -152,10 +142,12 @@ export class HexInfoPanelComponent {
   private readonly selection = inject(SelectionService);
   private readonly gameState = inject(GameStateService);
 
-  readonly info = this.selection.selectedHexData;
+  readonly info = computed(() => this.selection.hoveredHexData() ?? this.selection.selectedHexData());
+
+  private readonly activeCoord = computed(() => this.selection.hoveredHexCoord() ?? this.selection.selectedHexCoord());
 
   readonly buildingAtHex = computed<BuildingData | null>(() => {
-    const coord = this.selection.selectedHexCoord();
+    const coord = this.activeCoord();
     if (!coord) return null;
     return this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`) ?? null;
   });

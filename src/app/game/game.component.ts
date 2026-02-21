@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, untracked, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, effect, ElementRef, inject, OnDestroy, untracked, viewChild } from '@angular/core';
 import { GameViewportComponent } from './viewport/game-viewport.component';
 import { HudComponent } from './hud/hud.component';
 import { ContextMenuComponent } from './overlays/context-menu.component';
@@ -9,6 +9,7 @@ import { EventLogService } from '../core/state/event-log.service';
 import { GameStateService } from '../core/state/game-state.service';
 import { ChunkManagerService } from '../core/chunks/chunk-manager.service';
 import { AIService } from '../core/ai/ai.service';
+import { GameSaveService } from '../core/state/game-save.service';
 
 const PAN_STEP = 80;
 const ZOOM_STEP = 50;
@@ -20,6 +21,7 @@ const ZOOM_STEP = 50;
   host: {
     '(contextmenu)': 'onContextMenu($event)',
     '(keydown)': 'onKeyDown($event)',
+    '(pointerdown)': 'focus()',
     tabindex: '0',
   },
   template: `
@@ -37,7 +39,7 @@ const ZOOM_STEP = 50;
     }
   `,
 })
-export class GameComponent {
+export class GameComponent implements OnDestroy {
   private readonly camera = inject(CameraService);
   private readonly selection = inject(SelectionService);
   private readonly vision = inject(VisionService);
@@ -45,11 +47,20 @@ export class GameComponent {
   private readonly gameState = inject(GameStateService);
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly ai = inject(AIService);
+  private readonly saveSvc = inject(GameSaveService);
+  private readonly el = inject(ElementRef);
   private readonly contextMenu = viewChild(ContextMenuComponent);
   private lastTurnKey = '';
   private lastDiscoveryId = 0;
+  private readonly onBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (this.gameState.players().length === 0) return;
+    this.saveSvc.save();
+    e.preventDefault();
+  };
 
   constructor() {
+    window.addEventListener('beforeunload', this.onBeforeUnload);
+    afterNextRender(() => this.el.nativeElement.focus());
     // Log turn start — only when turn/player actually changes
     effect(() => {
       const turn = this.gameState.turn();
@@ -59,6 +70,8 @@ export class GameComponent {
       const key = `${turn}:${player.id}`;
       if (key === this.lastTurnKey) return;
       this.lastTurnKey = key;
+
+      untracked(() => this.selection.deselectUnits());
 
       if (player.isAI) {
         this.eventLog.push({ turn, message: `[AI] ${player.name} is thinking...` });
@@ -92,6 +105,14 @@ export class GameComponent {
         }
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('beforeunload', this.onBeforeUnload);
+  }
+
+  protected focus(): void {
+    this.el.nativeElement.focus();
   }
 
   protected onContextMenu(event: MouseEvent): void {

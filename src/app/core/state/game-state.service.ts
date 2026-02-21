@@ -39,10 +39,13 @@ export class GameStateService {
   readonly anomalies = computed(() => this._gameState().anomalies);
   readonly homeBaseId = computed(() => this.currentPlayer()?.homeBaseId ?? null);
 
-  readonly unitAtHex = computed<Map<string, UnitData>>(() => {
-    const index = new Map<string, UnitData>();
+  readonly unitsAtHex = computed<Map<string, UnitData[]>>(() => {
+    const index = new Map<string, UnitData[]>();
     for (const unit of this.units().values()) {
-      index.set(hexKey(unit.q, unit.r), unit);
+      const key = hexKey(unit.q, unit.r);
+      const list = index.get(key);
+      if (list) list.push(unit);
+      else index.set(key, [unit]);
     }
     return index;
   });

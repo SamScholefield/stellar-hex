@@ -25,12 +25,14 @@ import { BuildingData, UnitType } from '../../models/game-state';
       }
       <app-turn-controls />
     </div>
-    <div class="hud-bottom-left">
+    <div class="hud-unit-panel">
       <app-unit-info-panel />
-      <app-hex-info-panel />
       @if (selectedStarbase(); as sb) {
         <app-production-menu [building]="sb" [homeBaseId]="gameState.homeBaseId()" (produceSelected)="onProduce($event)" (setHomeSelected)="onSetHome(sb)" />
       }
+    </div>
+    <div class="hud-bottom-left">
+      <app-hex-info-panel />
     </div>
     <div class="hud-bottom-right">
       <app-event-log />
@@ -59,6 +61,12 @@ import { BuildingData, UnitType } from '../../models/game-state';
       grid-column: 1 / -1;
       display: flex;
       justify-content: space-between;
+      pointer-events: auto;
+    }
+    .hud-unit-panel {
+      grid-row: 2;
+      grid-column: 1;
+      align-self: start;
       pointer-events: auto;
     }
     .hud-bottom-left {

@@ -119,7 +119,7 @@ export class ContextMenuComponent {
     if (!currentPlayer) return;
 
     const units = this.gameState.units();
-    const unitIndex = this.gameState.unitAtHex();
+    const unitIndex = this.gameState.unitsAtHex();
     const buildingIndex = this.gameState.buildingAtHex();
     const selectedUnitId = this.selection.selectedUnit();
     const hexKeyStr = `${hex.q},${hex.r}`;
@@ -132,8 +132,8 @@ export class ContextMenuComponent {
     if (selectedUnitId) {
       const attacker = units.get(selectedUnitId);
       if (attacker && attacker.ownerId === currentPlayer.id && attacker.movementPoints > 0 && attacker.attack > 0) {
-        const unitAtTarget = unitIndex.get(hexKeyStr);
-        if (unitAtTarget && unitAtTarget.ownerId !== currentPlayer.id) {
+        const unitAtTarget = unitIndex.get(hexKeyStr)?.find(u => u.ownerId !== currentPlayer.id);
+        if (unitAtTarget) {
           const dist = hexDistance(
             { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
             { q: unitAtTarget.q, r: unitAtTarget.r, s: -unitAtTarget.q - unitAtTarget.r },
@@ -154,8 +154,8 @@ export class ContextMenuComponent {
     let buildOptions: BuildOption[] = [];
     let hexType: StellarObjectType | null = null;
 
-    const unitAtHex = unitIndex.get(hexKeyStr);
-    const hasFriendlyUnit = unitAtHex != null && unitAtHex.ownerId === currentPlayer.id;
+    const unitsHere = unitIndex.get(hexKeyStr);
+    const hasFriendlyUnit = unitsHere?.some(u => u.ownerId === currentPlayer.id) ?? false;
 
     if (hasFriendlyUnit) {
       const hasBuilding = buildingIndex.has(hexKeyStr);

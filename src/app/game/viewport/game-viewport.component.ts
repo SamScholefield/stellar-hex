@@ -37,6 +37,8 @@ const CLICK_THRESHOLD = 4;
     '(wheel)': 'onWheel($event)',
     '(dblclick)': 'onDblClick($event)',
     '(contextmenu)': 'onContextMenu($event)',
+    '(document:keydown)': 'onKeyDown($event)',
+    '(document:keyup)': 'onKeyUp($event)',
   },
   template: `<canvas #gameCanvas></canvas>`,
   styles: `
@@ -66,19 +68,30 @@ export class GameViewportComponent implements OnDestroy {
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
   private panning = false;
+  private spaceHeld = false;
+  private pointerDown = false;
+  private swallowNextClick = false;
   private lastX = 0;
   private lastY = 0;
   private downX = 0;
   private downY = 0;
   private resizeObserver: ResizeObserver | null = null;
+  private readonly onWindowBlur = () => { this.swallowNextClick = true; };
+  private readonly onWindowFocus = () => {
+    // If focus returned without a click (e.g. alt-tab back), clear after a short delay
+    // so that a keyboard-initiated focus doesn't block the next click
+    setTimeout(() => { this.swallowNextClick = false; }, 200);
+  };
 
-  // Pre-built set of occupied hex keys (excludes selected unit)
+  // Pre-built set of enemy-occupied hex keys (friendly units allow stacking)
   private readonly blockedHexSet = computed(() => {
     const units = this.gameState.units();
     const selectedId = this.selection.selectedUnit();
+    const currentPlayer = this.gameState.currentPlayer();
+    const playerId = currentPlayer?.id;
     const set = new Set<string>();
     for (const u of units.values()) {
-      if (u.id !== selectedId) set.add(`${u.q},${u.r}`);
+      if (u.id !== selectedId && u.ownerId !== playerId) set.add(`${u.q},${u.r}`);
     }
     return set;
   });
@@ -120,6 +133,8 @@ export class GameViewportComponent implements OnDestroy {
   });
 
   constructor() {
+    window.addEventListener('blur', this.onWindowBlur);
+    window.addEventListener('focus', this.onWindowFocus);
     afterNextRender(() => {
       const canvas = this.canvasRef().nativeElement;
       this.resizeObserver = new ResizeObserver((entries) => {
@@ -164,15 +179,21 @@ export class GameViewportComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+    window.removeEventListener('blur', this.onWindowBlur);
+    window.removeEventListener('focus', this.onWindowFocus);
   }
 
   protected onPointerDown(event: PointerEvent): void {
     if (event.button !== 0 || this.ai.executing()) return;
-    this.panning = true;
+    this.pointerDown = true;
     this.lastX = event.clientX;
     this.lastY = event.clientY;
     this.downX = event.clientX;
     this.downY = event.clientY;
+    if (this.spaceHeld) {
+      this.panning = true;
+      this.updateCursor();
+    }
   }
 
   protected onPointerMove(event: PointerEvent): void {
@@ -188,7 +209,7 @@ export class GameViewportComponent implements OnDestroy {
   }
 
   protected onPointerUp(event: PointerEvent): void {
-    if (this.panning && event.button === 0) {
+    if (this.pointerDown && event.button === 0 && !this.panning) {
       const movedX = Math.abs(event.clientX - this.downX);
       const movedY = Math.abs(event.clientY - this.downY);
       if (movedX < CLICK_THRESHOLD && movedY < CLICK_THRESHOLD) {
@@ -196,11 +217,35 @@ export class GameViewportComponent implements OnDestroy {
       }
     }
     this.panning = false;
+    this.pointerDown = false;
+    this.updateCursor();
   }
 
   protected onPointerLeave(): void {
     this.panning = false;
+    this.pointerDown = false;
     this.selection.hoverHex(null);
+  }
+
+  protected onKeyDown(event: KeyboardEvent): void {
+    if (event.code === 'Space') {
+      event.preventDefault();
+      this.spaceHeld = true;
+      this.updateCursor();
+    }
+  }
+
+  protected onKeyUp(event: KeyboardEvent): void {
+    if (event.code === 'Space') {
+      this.spaceHeld = false;
+      this.panning = false;
+      this.updateCursor();
+    }
+  }
+
+  private updateCursor(): void {
+    const el = this.canvasRef().nativeElement;
+    el.style.cursor = this.panning ? 'grabbing' : this.spaceHeld ? 'grab' : '';
   }
 
   protected onWheel(event: WheelEvent): void {
@@ -224,13 +269,17 @@ export class GameViewportComponent implements OnDestroy {
   }
 
   private handleClick(event: PointerEvent): void {
+    if (this.swallowNextClick) {
+      this.swallowNextClick = false;
+      return;
+    }
     if (this.animation.inputLocked() || this.ai.executing()) return;
 
     const hex = this.screenEventToHex(event);
     const selectedUnitId = this.selection.selectedUnit();
 
-    // If a unit is selected, try to move it to the clicked hex
-    if (selectedUnitId) {
+    // If a unit is selected and shift is not held, try to move it to the clicked hex
+    if (selectedUnitId && !event.shiftKey) {
       const unit = this.gameState.units().get(selectedUnitId);
       if (unit && unit.movementPoints > 0) {
         const from = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
@@ -251,7 +300,7 @@ export class GameViewportComponent implements OnDestroy {
       }
     }
 
-    this.selection.selectHex(hex);
+    this.selection.selectHex(hex, event.shiftKey);
     this.audio.playClick();
   }
 

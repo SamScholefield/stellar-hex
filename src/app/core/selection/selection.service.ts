@@ -22,10 +22,12 @@ export class SelectionService {
   private readonly _selectedHexCoord = signal<HexCoord | null>(null);
   private readonly _hoveredHexCoord = signal<HexCoord | null>(null);
   private readonly _selectedUnit = signal<string | null>(null);
+  private readonly _selectedUnits = signal<ReadonlySet<string>>(new Set());
 
   readonly selectedHexCoord = this._selectedHexCoord.asReadonly();
   readonly hoveredHexCoord = this._hoveredHexCoord.asReadonly();
   readonly selectedUnit = this._selectedUnit.asReadonly();
+  readonly selectedUnits = this._selectedUnits.asReadonly();
 
   readonly selectedUnitData = computed<UnitData | null>(() => {
     const id = this._selectedUnit();
@@ -35,7 +37,15 @@ export class SelectionService {
 
   readonly selectedHexData = computed<SelectedHexInfo | null>(() => {
     const coord = this._selectedHexCoord();
-    if (!coord) return null;
+    return coord ? this.resolveHexInfo(coord) : null;
+  });
+
+  readonly hoveredHexData = computed<SelectedHexInfo | null>(() => {
+    const coord = this._hoveredHexCoord();
+    return coord ? this.resolveHexInfo(coord) : null;
+  });
+
+  private resolveHexInfo(coord: HexCoord): SelectedHexInfo | null {
     const hex = this.chunkManager.getHex(coord.q, coord.r);
     if (!hex) return null;
 
@@ -50,30 +60,60 @@ export class SelectionService {
     }
 
     return { hex, visibility };
-  });
+  }
 
   /** Select a hex, auto-detecting units. Returns true if a move command should be issued. */
-  selectHex(coord: HexCoord): boolean {
-    const unitAtHex = this.findUnitAt(coord.q, coord.r);
+  selectHex(coord: HexCoord, shiftKey = false): boolean {
+    const unitsAtHex = this.findUnitsAt(coord.q, coord.r);
     const currentlySelected = this._selectedUnit();
     const currentPlayer = this.gameState.currentPlayer();
 
-    // If a friendly unit is at the clicked hex, select it
-    if (unitAtHex && currentPlayer && unitAtHex.ownerId === currentPlayer.id) {
-      this._selectedUnit.set(unitAtHex.id);
+    // Get friendly units at this hex
+    const friendlyUnits = currentPlayer
+      ? unitsAtHex.filter(u => u.ownerId === currentPlayer.id)
+      : [];
+
+    if (shiftKey && friendlyUnits.length > 0) {
+      // Shift+click: toggle unit in multi-selection
+      const target = this.cycleTarget(friendlyUnits);
+      const prev = this._selectedUnits();
+      const next = new Set(prev);
+      if (next.has(target.id)) {
+        next.delete(target.id);
+        // Set primary to first remaining, or null
+        const firstRemaining = [...next][0] ?? null;
+        this._selectedUnit.set(firstRemaining);
+      } else {
+        next.add(target.id);
+        this._selectedUnit.set(target.id);
+      }
+      this._selectedUnits.set(next);
       this._selectedHexCoord.set(coord);
       return false;
     }
 
-    // If we have a unit selected and clicked an empty/enemy hex, signal a move
-    if (currentlySelected && !unitAtHex) {
+    // Friendly units on clicked hex — cycle selection
+    if (friendlyUnits.length > 0) {
+      const selectedOnThisHex = currentlySelected && friendlyUnits.some(u => u.id === currentlySelected);
+      if (!currentlySelected || selectedOnThisHex) {
+        const target = this.cycleTarget(friendlyUnits);
+        this._selectedUnit.set(target.id);
+        this._selectedHexCoord.set(coord);
+        this._selectedUnits.set(new Set());
+        return false;
+      }
+    }
+
+    // Unit selected, clicked a different hex — signal a move
+    if (currentlySelected) {
       this._selectedHexCoord.set(coord);
       return true;
     }
 
-    // Otherwise, plain hex selection
+    // Otherwise, plain hex selection (enemy hex or empty with no unit selected)
     this._selectedHexCoord.set(coord);
     this._selectedUnit.set(null);
+    this._selectedUnits.set(new Set());
     return false;
   }
 
@@ -92,9 +132,26 @@ export class SelectionService {
   deselectAll(): void {
     this._selectedHexCoord.set(null);
     this._selectedUnit.set(null);
+    this._selectedUnits.set(new Set());
   }
 
-  private findUnitAt(q: number, r: number): UnitData | null {
-    return this.gameState.unitAtHex().get(`${q},${r}`) ?? null;
+  deselectUnits(): void {
+    this._selectedUnit.set(null);
+    this._selectedUnits.set(new Set());
+  }
+
+  /** Determine which unit to cycle to among friendly units at a hex. */
+  private cycleTarget(friendlyUnits: UnitData[]): UnitData {
+    const currentId = this._selectedUnit();
+    const idx = friendlyUnits.findIndex(u => u.id === currentId);
+    if (idx >= 0) {
+      // Current selection is one of them — cycle to next
+      return friendlyUnits[(idx + 1) % friendlyUnits.length];
+    }
+    return friendlyUnits[0];
+  }
+
+  private findUnitsAt(q: number, r: number): UnitData[] {
+    return this.gameState.unitsAtHex().get(`${q},${r}`) ?? [];
   }
 }

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output } f
 import { BuildingData, Resources, UnitType, UNIT_STATS, UnitStats } from '../../models/game-state';
 import { GameStateService } from '../../core/state/game-state.service';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
+import { ProductionQueueComponent } from './production-queue.component';
 
 interface ProductionOption {
   unitType: UnitType;
@@ -12,7 +13,7 @@ interface ProductionOption {
 @Component({
   selector: 'app-production-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormatNamePipe],
+  imports: [FormatNamePipe, ProductionQueueComponent],
   template: `
     @if (building(); as b) {
       <div class="menu">
@@ -23,17 +24,7 @@ interface ProductionOption {
           <button class="set-home-btn" (click)="setHomeSelected.emit()">Set as Home</button>
         }
 
-        @if (queue().length > 0) {
-          <div class="queue-section">
-            <div class="queue-title">Queue</div>
-            @for (item of queue(); track $index) {
-              <div class="queue-item">
-                <span class="unit-name">{{ item.unitType | formatName }}</span>
-                <span class="turns">{{ item.turnsRemaining }} turn{{ item.turnsRemaining > 1 ? 's' : '' }}</span>
-              </div>
-            }
-          </div>
-        }
+        <app-production-queue [items]="queue()" />
 
         <div class="produce-title">Produce Unit</div>
         @for (opt of options(); track opt.unitType) {
@@ -72,27 +63,9 @@ interface ProductionOption {
       margin-bottom: 0.25rem;
       padding: 0 0.25rem;
     }
-    .queue-section {
+    app-production-queue {
+      display: block;
       margin-bottom: 0.5rem;
-      padding: 0.25rem;
-      background: #111827;
-      border-radius: 0.25rem;
-    }
-    .queue-title {
-      font-size: 0.7rem;
-      color: #6b7280;
-      margin-bottom: 0.15rem;
-    }
-    .queue-item {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: #e0e0e0;
-      padding: 0.1rem 0;
-    }
-    .turns {
-      color: #fbbf24;
-      font-size: 0.7rem;
     }
     .produce-title {
       font-size: 0.7rem;
@@ -172,10 +145,7 @@ export class ProductionMenuComponent {
     return b != null && hid != null && b.id === hid;
   });
 
-  readonly queue = computed(() => {
-    const b = this.building();
-    return b?.productionQueue ?? [];
-  });
+  readonly queue = computed(() => this.building()?.productionQueue ?? []);
 
   readonly options = computed<ProductionOption[]>(() => {
     const resources = this.gameState.resources();
