@@ -12,6 +12,7 @@ import { attackWithResult } from '../../core/state/game-reducer';
 import { BuildingType, BuildingStats, BUILDING_STATS } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { VisionService } from '../../core/vision/vision.service';
+import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 
 const HEX_SIZE = 30;
 
@@ -35,6 +36,7 @@ export interface ContextMenuState {
 @Component({
   selector: 'app-context-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormatNamePipe],
   host: {
     '(document:click)': 'close()',
     '(document:keydown.escape)': 'close()',
@@ -50,7 +52,7 @@ export interface ContextMenuState {
             class="item build"
             [disabled]="!opt.affordable"
             (click)="onBuild(opt.type)"
-          >Build {{ formatName(opt.type) }}</button>
+          >Build {{ opt.type | formatName }}</button>
         }
         <button class="item" (click)="onInspect()">Inspect</button>
       </div>
@@ -243,7 +245,4 @@ export class ContextMenuComponent {
     this.eventLog.push({ turn, message: `Built ${buildingType.replace(/_/g, ' ')} at (${s.hex.q}, ${s.hex.r})`, q: s.hex.q, r: s.hex.r });
   }
 
-  formatName(type: BuildingType): string {
-    return type.replace(/_/g, ' ');
-  }
 }

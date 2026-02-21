@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { BuildingData, Resources, UnitType, UNIT_STATS, UnitStats } from '../../models/game-state';
 import { GameStateService } from '../../core/state/game-state.service';
+import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 
 interface ProductionOption {
   unitType: UnitType;
@@ -11,10 +12,11 @@ interface ProductionOption {
 @Component({
   selector: 'app-production-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormatNamePipe],
   template: `
     @if (building(); as b) {
       <div class="menu">
-        <div class="title">Production — {{ formatName(b.type) }}</div>
+        <div class="title">Production — {{ b.type | formatName }}</div>
         @if (isHome()) {
           <div class="home-label">&#9733; Home Base</div>
         } @else {
@@ -26,7 +28,7 @@ interface ProductionOption {
             <div class="queue-title">Queue</div>
             @for (item of queue(); track $index) {
               <div class="queue-item">
-                <span class="unit-name">{{ formatName(item.unitType) }}</span>
+                <span class="unit-name">{{ item.unitType | formatName }}</span>
                 <span class="turns">{{ item.turnsRemaining }} turn{{ item.turnsRemaining > 1 ? 's' : '' }}</span>
               </div>
             }
@@ -41,7 +43,7 @@ interface ProductionOption {
             [disabled]="!opt.affordable"
             (click)="onProduce(opt.unitType)"
           >
-            <span class="name">{{ formatName(opt.unitType) }}</span>
+            <span class="name">{{ opt.unitType | formatName }}</span>
             <span class="cost">
               @for (c of costEntries(opt.stats); track c.key) {
                 <span class="cost-item">{{ c.value }} {{ c.key }}</span>
@@ -184,10 +186,6 @@ export class ProductionMenuComponent {
     }
     return result;
   });
-
-  formatName(name: string): string {
-    return name.replace(/_/g, ' ');
-  }
 
   costEntries(stats: UnitStats): { key: string; value: number }[] {
     return Object.entries(stats.cost)

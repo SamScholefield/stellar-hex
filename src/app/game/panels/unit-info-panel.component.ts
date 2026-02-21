@@ -1,14 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { SelectionService } from '../../core/selection/selection.service';
+import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 
 @Component({
   selector: 'app-unit-info-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormatNamePipe],
   template: `
     @if (unitData(); as unit) {
       <div class="panel">
         <div class="header">
-          <span class="unit-type">{{ formatType(unit.type) }}</span>
+          <span class="unit-type">{{ unit.type | formatName }}</span>
           <span class="owner">{{ unit.ownerId }}</span>
         </div>
         <div class="stats">
@@ -120,7 +122,4 @@ export class UnitInfoPanelComponent {
 
   readonly unitData = this.selection.selectedUnitData;
 
-  formatType(type: string): string {
-    return type.replace(/_/g, ' ');
-  }
 }

@@ -59,14 +59,14 @@ export class VisionService {
 
   /** Vision always from the human player's perspective (for rendering). */
   readonly humanVisibleHexes = computed<Set<string>>(() => {
-    const human = this.gameState.players().find(p => !p.isAI);
+    const human = this.gameState.humanPlayer();
     if (!human) return new Set();
     return this.computeVisible(this.sourcesForPlayer(human.id));
   });
 
   /** Explored hexes for the human player (for rendering). */
   readonly humanExploredHexes = computed<Set<string>>(() => {
-    const human = this.gameState.players().find(p => !p.isAI);
+    const human = this.gameState.humanPlayer();
     return human?.exploredHexes ?? new Set();
   });
 

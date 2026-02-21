@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output } f
 import { BuildingType, BUILDING_STATS, BuildingStats, Resources } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { GameStateService } from '../../core/state/game-state.service';
+import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 
 interface BuildOption {
   type: BuildingType;
@@ -12,6 +13,7 @@ interface BuildOption {
 @Component({
   selector: 'app-build-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormatNamePipe],
   template: `
     @if (options().length > 0) {
       <div class="menu">
@@ -23,7 +25,7 @@ interface BuildOption {
             [disabled]="!opt.affordable"
             (click)="onBuild(opt.type)"
           >
-            <span class="name">{{ formatName(opt.type) }}</span>
+            <span class="name">{{ opt.type | formatName }}</span>
             <span class="yield">
               @for (y of yieldEntries(opt.stats); track y.key) {
                 <span class="yield-item">+{{ y.value }} {{ y.key }}</span>
@@ -119,10 +121,6 @@ export class BuildMenuComponent {
     }
     return result;
   });
-
-  formatName(type: BuildingType): string {
-    return type.replace(/_/g, ' ');
-  }
 
   yieldEntries(stats: BuildingStats): { key: string; value: number }[] {
     return Object.entries(stats.yield)

@@ -2,10 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { BuildingData, BUILDING_STATS } from '../../models/game-state';
+import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 
 @Component({
   selector: 'app-hex-info-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormatNamePipe],
   template: `
     @if (info(); as data) {
       <div class="panel">
@@ -14,7 +16,7 @@ import { BuildingData, BUILDING_STATS } from '../../models/game-state';
           <div class="type unknown">Unknown</div>
           <div class="hint">Unexplored region</div>
         } @else if (data.hex.object; as obj) {
-          <div class="type">{{ formatType(obj.type) }}</div>
+          <div class="type">{{ obj.type | formatName }}</div>
           @if (obj.subtype) {
             <div class="subtype">{{ obj.subtype }}</div>
           }
@@ -44,7 +46,7 @@ import { BuildingData, BUILDING_STATS } from '../../models/game-state';
         }
         @if (buildingAtHex(); as b) {
           <div class="building-info">
-            <div class="building-type">{{ formatType(b.type) }}</div>
+            <div class="building-type">{{ b.type | formatName }}</div>
             <div class="building-owner">Owner: {{ b.ownerId }}</div>
             <div class="building-yield">
               @for (entry of buildingYield(b); track entry.key) {
@@ -55,7 +57,7 @@ import { BuildingData, BUILDING_STATS } from '../../models/game-state';
               <div class="building-queue">
                 Producing:
                 @for (item of b.productionQueue; track $index) {
-                  <span class="queue-entry">{{ formatType(item.unitType) }} ({{ item.turnsRemaining }}t)</span>
+                  <span class="queue-entry">{{ item.unitType | formatName }} ({{ item.turnsRemaining }}t)</span>
                 }
               </div>
             }
@@ -157,10 +159,6 @@ export class HexInfoPanelComponent {
     if (!coord) return null;
     return this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`) ?? null;
   });
-
-  formatType(type: string): string {
-    return type.replace(/_/g, ' ');
-  }
 
   buildingYield(b: BuildingData): { key: string; value: number }[] {
     const stats = BUILDING_STATS[b.type];
