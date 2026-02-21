@@ -3,7 +3,7 @@ import { GameStateService } from '../state/game-state.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { AnimationService } from '../../game/renderer/animation.service';
 import { EventLogService } from '../state/event-log.service';
-import { UnitData } from '../../models/game-state';
+import { PlayerState, UnitData } from '../../models/game-state';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
 import { findPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
@@ -51,9 +51,18 @@ export class AIService {
       const player = state.players.find(p => p.id === playerId);
       if (!player) break;
 
-      // Get units that still have movement points
-      const myUnits = [...state.units.values()]
-        .filter(u => u.ownerId === playerId && u.movementPoints > 0 && !processedUnits.has(u.id));
+      // Build unit lists by iterating once instead of spread+filter
+      const myUnits: UnitData[] = [];
+      const visibleEnemies: UnitData[] = [];
+      for (const u of state.units.values()) {
+        if (u.ownerId === playerId) {
+          if (u.movementPoints > 0 && !processedUnits.has(u.id)) {
+            myUnits.push(u);
+          }
+        } else if (player.exploredHexes.has(`${u.q},${u.r}`)) {
+          visibleEnemies.push(u);
+        }
+      }
 
       if (myUnits.length === 0) break;
 
@@ -72,10 +81,7 @@ export class AIService {
 
       // Try attack
       if (unit.attack > 0 && unit.movementPoints > 0) {
-        const enemies = [...state.units.values()].filter(u =>
-          u.ownerId !== playerId && player.exploredHexes.has(`${u.q},${u.r}`)
-        );
-        const attackResult = scoreAttack(unit, enemies, state.seed + state.turn);
+        const attackResult = scoreAttack(unit, visibleEnemies, state.seed + state.turn);
         if (attackResult) {
           const target = state.units.get(attackResult.targetId);
           if (target) {
@@ -102,7 +108,8 @@ export class AIService {
         const freshState = this.gameState.getState();
         const freshUnit = freshState.units.get(unit.id);
         if (freshUnit && freshUnit.movementPoints > 0) {
-          const moveTarget = this.findMoveTarget(freshUnit, playerId, freshState, hexLookup);
+          const freshPlayer = freshState.players.find(p => p.id === playerId);
+          const moveTarget = freshPlayer ? this.findMoveTarget(freshUnit, freshPlayer, freshState, hexLookup) : null;
           if (moveTarget) {
             const from: HexCoord = { q: freshUnit.q, r: freshUnit.r, s: -freshUnit.q - freshUnit.r };
             const blockedHexes = new Set<string>();
@@ -181,13 +188,10 @@ export class AIService {
 
   private findMoveTarget(
     unit: UnitData,
-    playerId: string,
+    player: PlayerState,
     state: import('../../models/game-state').GameState,
     hexLookup: (q: number, r: number) => import('../../models/hex-data').HexData | null,
   ): HexCoord | null {
-    const player = state.players.find(p => p.id === playerId);
-    if (!player) return null;
-
     // For combat units: move toward nearest visible enemy
     if (unit.attack > 0 && unit.type !== 'scout') {
       let nearestEnemy: UnitData | null = null;
@@ -195,7 +199,7 @@ export class AIService {
       const unitCoord: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
 
       for (const u of state.units.values()) {
-        if (u.ownerId === playerId) continue;
+        if (u.ownerId === player.id) continue;
         if (!player.exploredHexes.has(`${u.q},${u.r}`)) continue;
         const enemyCoord: HexCoord = { q: u.q, r: u.r, s: -u.q - u.r };
         const dist = hexDistance(unitCoord, enemyCoord);

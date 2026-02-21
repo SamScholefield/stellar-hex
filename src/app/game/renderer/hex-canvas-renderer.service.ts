@@ -9,6 +9,20 @@ import { CHUNK_SIZE } from '../../core/generation/world-generator.service';
 import { CombatAnimation, UnitAnimation } from './animation.service';
 import { SpriteAtlasService } from '../../core/sprites/sprite-atlas.service';
 
+// Pre-computed hex vertex offsets (cos/sin for 6 angles at 60° intervals)
+const HEX_VERTICES: ReadonlyArray<{ dx: number; dy: number }> = Array.from({ length: 6 }, (_, i) => {
+  const angle = (Math.PI / 3) * i;
+  return { dx: Math.cos(angle), dy: Math.sin(angle) };
+});
+
+// Pre-allocated fog overlay color strings
+const FOG_EXPLORED_REACHABLE = 'rgba(0, 0, 0, 0.35)';
+const FOG_EXPLORED = 'rgba(0, 0, 0, 0.6)';
+const FOG_UNEXPLORED_REACHABLE = 'rgba(0, 0, 0, 0.5)';
+const FOG_UNEXPLORED = 'rgba(0, 0, 0, 0.9)';
+const RANGE_VISIBLE = 'rgba(59, 130, 246, 0.15)';
+const RANGE_FOG = 'rgba(59, 130, 246, 0.3)';
+
 const FILL_COLORS: Record<StellarObjectType, string> = {
   star: '#f0c040',
   planet: '#4080d0',
@@ -69,13 +83,11 @@ export class HexCanvasRendererService {
           if (visibleHexes!.has(key)) continue; // fully visible, no fog
           const isReachable = reachableHexes?.has(key) ?? false;
           if (exploredHexes!.has(key)) {
-            // Explored but not currently visible — lighter fog if reachable
-            const alpha = isReachable ? 0.35 : 0.6;
-            this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, `rgba(0, 0, 0, ${alpha})`, null);
+            const fogColor = isReachable ? FOG_EXPLORED_REACHABLE : FOG_EXPLORED;
+            this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, fogColor, null);
           } else {
-            // Unexplored — lighter fog if reachable so movement indicator shows
-            const alpha = isReachable ? 0.5 : 0.9;
-            this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, `rgba(0, 0, 0, ${alpha})`, null);
+            const fogColor = isReachable ? FOG_UNEXPLORED_REACHABLE : FOG_UNEXPLORED;
+            this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, fogColor, null);
           }
         }
       }
@@ -97,9 +109,8 @@ export class HexCanvasRendererService {
     if (reachableHexes) {
       for (const key of reachableHexes.keys()) {
         const [q, r] = key.split(',').map(Number);
-        const inFog = hasFog && !visibleHexes!.has(key);
-        const alpha = inFog ? 0.3 : 0.15;
-        this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, `rgba(59, 130, 246, ${alpha})`, null);
+        const rangeColor = hasFog && !visibleHexes!.has(key) ? RANGE_FOG : RANGE_VISIBLE;
+        this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, rangeColor, null);
       }
     }
 
@@ -178,9 +189,8 @@ export class HexCanvasRendererService {
     const { x, y } = hexToPixel(hex.q, hex.r, hexSize);
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i;
-      const vx = x + hexSize * Math.cos(angle);
-      const vy = y + hexSize * Math.sin(angle);
+      const vx = x + hexSize * HEX_VERTICES[i].dx;
+      const vy = y + hexSize * HEX_VERTICES[i].dy;
       if (i === 0) {
         ctx.moveTo(vx, vy);
       } else {
@@ -477,9 +487,8 @@ export class HexCanvasRendererService {
   ): void {
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
-      const angle = (Math.PI / 3) * i;
-      const x = cx + size * Math.cos(angle);
-      const y = cy + size * Math.sin(angle);
+      const x = cx + size * HEX_VERTICES[i].dx;
+      const y = cy + size * HEX_VERTICES[i].dy;
       if (i === 0) {
         ctx.moveTo(x, y);
       } else {
