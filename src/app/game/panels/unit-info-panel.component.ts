@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { SelectionService } from '../../core/selection/selection.service';
+import { GameStateService } from '../../core/state/game-state.service';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 
 @Component({
@@ -11,7 +12,7 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
       <div class="panel">
         <div class="header">
           <span class="unit-type">{{ unit.type | formatName }}</span>
-          <span class="owner">{{ unit.ownerId }}</span>
+          <span class="owner">{{ ownerName(unit.ownerId) }}</span>
         </div>
         <div class="stats">
           <div class="stat">
@@ -119,7 +120,11 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 })
 export class UnitInfoPanelComponent {
   private readonly selection = inject(SelectionService);
+  private readonly gameState = inject(GameStateService);
 
   readonly unitData = this.selection.selectedUnitData;
 
+  ownerName(ownerId: string): string {
+    return this.gameState.playerNames().get(ownerId) ?? ownerId;
+  }
 }

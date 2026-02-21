@@ -48,7 +48,7 @@ import { ProductionQueueComponent } from './production-queue.component';
         @if (buildingAtHex(); as b) {
           <div class="building-info">
             <div class="building-type">{{ b.type | formatName }}</div>
-            <div class="building-owner">Owner: {{ b.ownerId }}</div>
+            <div class="building-owner">Owner: {{ ownerName(b.ownerId) }}</div>
             <div class="building-yield">
               @for (entry of buildingYield(b); track entry.key) {
                 <span class="res">+{{ entry.value }} {{ entry.key }}/turn</span>
@@ -151,6 +151,10 @@ export class HexInfoPanelComponent {
     if (!coord) return null;
     return this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`) ?? null;
   });
+
+  ownerName(ownerId: string): string {
+    return this.gameState.playerNames().get(ownerId) ?? ownerId;
+  }
 
   buildingYield(b: BuildingData): { key: string; value: number }[] {
     const stats = BUILDING_STATS[b.type];

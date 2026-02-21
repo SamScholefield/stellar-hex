@@ -66,6 +66,14 @@ export class GameStateService {
     return colors;
   });
 
+  readonly playerNames = computed<Map<string, string>>(() => {
+    const names = new Map<string, string>();
+    for (const p of this.players()) {
+      names.set(p.id, p.name);
+    }
+    return names;
+  });
+
   readonly humanPlayer = computed<PlayerState | null>(() => {
     return this.players().find(p => !p.isAI) ?? null;
   });

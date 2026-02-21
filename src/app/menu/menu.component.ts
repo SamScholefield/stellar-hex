@@ -213,13 +213,15 @@ export class MenuComponent {
   private readonly audio = inject(AudioService);
   protected readonly saveSvc = inject(GameSaveService);
 
-  playerName = 'Commander';
+  playerName = localStorage.getItem('stellar-hex-player-name') ?? 'Commander';
   aiOpponents = 1;
 
   async startGame(): Promise<void> {
+    const name = this.playerName || 'Commander';
+    localStorage.setItem('stellar-hex-player-name', name);
     await this.audio.ensureContext();
     this.gameInit.newGame({
-      playerName: this.playerName || 'Commander',
+      playerName: name,
       aiOpponents: this.aiOpponents,
     });
   }
