@@ -6,7 +6,7 @@ import { EventLogService } from '../state/event-log.service';
 import { ANOMALY_REWARDS, PlayerState, UnitData } from '../../models/game-state';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
-import { findPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
+import { findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
 import { attackWithResult } from '../state/game-reducer';
 import { scoreExplore, scoreAttack, scoreBuild, scoreProduction } from './ai-scoring';
 
@@ -56,7 +56,7 @@ export class AIService {
       const visibleEnemies: UnitData[] = [];
       for (const u of state.units.values()) {
         if (u.ownerId === playerId) {
-          if (u.movementPoints > 0 && !processedUnits.has(u.id)) {
+          if (u.movementPoints >= 0 && !processedUnits.has(u.id)) {
             myUnits.push(u);
           }
         } else if (player.exploredHexes.has(`${u.q},${u.r}`)) {
@@ -69,7 +69,7 @@ export class AIService {
       // Sort: combat units first, then scouts, then others
       myUnits.sort((a, b) => {
         const priority = (u: UnitData) => {
-          if (u.attack > 0 && u.type !== 'scout') return 0;
+          if (u.weapon != null && u.type !== 'scout') return 0;
           if (u.type === 'scout') return 1;
           return 2;
         };
@@ -80,7 +80,7 @@ export class AIService {
       let acted = false;
 
       // Try attack
-      if (unit.attack > 0 && unit.movementPoints > 0) {
+      if (unit.weapon != null && unit.movementPoints >= 0) {
         const attackResult = scoreAttack(unit, visibleEnemies, state.seed + state.turn);
         if (attackResult) {
           const target = state.units.get(attackResult.targetId);
@@ -113,13 +113,24 @@ export class AIService {
           if (moveTarget) {
             const from: HexCoord = { q: freshUnit.q, r: freshUnit.r, s: -freshUnit.q - freshUnit.r };
             const blockedHexes = new Set<string>();
+            const targetKey = `${moveTarget.q},${moveTarget.r}`;
             for (const u of freshState.units.values()) {
               if (u.id !== freshUnit.id) blockedHexes.add(`${u.q},${u.r}`);
             }
+            // Exclude the move target so pathfinding can route toward enemy units
+            blockedHexes.delete(targetKey);
             const isBlocked = (q: number, r: number) => blockedHexes.has(`${q},${r}`);
 
             const override = getUnitCostOverride(freshUnit.type);
-            const path = findPath(from, moveTarget, freshUnit.movementPoints, hexLookup, isBlocked, override);
+            const path = findPartialPath(from, moveTarget, freshUnit.movementPoints, hexLookup, isBlocked, override);
+
+            // Don't move onto an occupied hex — trim if path ends on another unit
+            if (path && path.length > 1) {
+              const last = path[path.length - 1];
+              const occupied = freshState.units.has(targetKey) && last.q === moveTarget.q && last.r === moveTarget.r;
+              if (occupied) path.pop();
+            }
+
             if (path && path.length > 1) {
               const cost = pathCost(path, hexLookup, override);
               await this.animation.animateUnitMovement(freshUnit.id, path);
@@ -197,7 +208,7 @@ export class AIService {
     hexLookup: (q: number, r: number) => import('../../models/hex-data').HexData | null,
   ): HexCoord | null {
     // For combat units: move toward nearest visible enemy
-    if (unit.attack > 0 && unit.type !== 'scout') {
+    if (unit.weapon != null && unit.type !== 'scout') {
       let nearestEnemy: UnitData | null = null;
       let nearestDist = Infinity;
       const unitCoord: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };

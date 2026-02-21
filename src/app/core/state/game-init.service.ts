@@ -47,6 +47,13 @@ function makeUnit(id: string, name: string, ownerId: string, type: UnitType, q: 
     defense: stats.defense,
     range: stats.range,
     sightRange: stats.sightRange,
+    size: stats.size,
+    weapon: stats.weapon,
+    armor: stats.armor,
+    shields: stats.maxShields,
+    maxShields: stats.maxShields,
+    xp: 0,
+    veteranTier: 'standard',
   };
 }
 

@@ -1,20 +1,29 @@
 import { describe, it, expect } from 'vitest';
 import { computeIncome, computeMiningDroneIncome } from './economy.service';
-import { BuildingData, UnitData } from '../../models/game-state';
+import { BuildingData, UnitData, UNIT_STATS } from '../../models/game-state';
 import { HexData, StellarObjectType } from '../../models/hex-data';
 
 function makeUnit(overrides: Partial<UnitData> & { id: string; ownerId: string; q: number; r: number }): UnitData {
+  const type = overrides.type ?? 'mining_drone';
+  const stats = UNIT_STATS[type];
   return {
     name: overrides.name ?? 'Mining Drone MD001',
-    type: 'mining_drone',
-    movementPoints: 2,
-    maxMovementPoints: 2,
-    health: 6,
-    maxHealth: 6,
-    attack: 0,
-    defense: 1,
-    range: 0,
-    sightRange: 1,
+    type,
+    movementPoints: stats.maxMovementPoints,
+    maxMovementPoints: stats.maxMovementPoints,
+    health: stats.maxHealth,
+    maxHealth: stats.maxHealth,
+    attack: stats.attack,
+    defense: stats.defense,
+    range: stats.range,
+    sightRange: stats.sightRange,
+    size: stats.size,
+    weapon: stats.weapon,
+    armor: stats.armor,
+    shields: stats.maxShields,
+    maxShields: stats.maxShields,
+    xp: 0,
+    veteranTier: 'standard',
     ...overrides,
   };
 }

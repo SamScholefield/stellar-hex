@@ -40,6 +40,7 @@ interface ProductionOption {
               @for (c of costEntries(opt.stats); track c.key) {
                 <span class="cost-item">{{ c.value }} {{ c.key }}</span>
               }
+              <span class="build-turns">{{ opt.stats.buildTurns }}T</span>
             </span>
           </button>
         }
@@ -108,6 +109,10 @@ interface ProductionOption {
     .cost-item {
       font-size: 0.7rem;
       color: var(--accent-red);
+    }
+    .build-turns {
+      font-size: 0.7rem;
+      color: var(--text-muted);
     }
     .home-label {
       font-size: 0.75rem;

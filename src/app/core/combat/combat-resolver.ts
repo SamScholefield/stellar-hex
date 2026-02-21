@@ -1,19 +1,28 @@
-import { UnitData } from '../../models/game-state';
+import { UnitData, VeteranTier, VETERAN_BONUSES, VETERAN_XP_THRESHOLDS, WEAPON_STATS } from '../../models/game-state';
 import { seededRNG } from '../generation/noise';
+
+export interface StrikeResult {
+  rawDamage: number;
+  shieldDamage: number;
+  hullDamage: number;
+  isCrit: boolean;
+}
 
 export interface CombatResult {
   attackerDamage: number;
   defenderDamage: number;
+  attackerShieldDamage: number;
+  defenderShieldDamage: number;
   attackerDestroyed: boolean;
   defenderDestroyed: boolean;
+  attackerXpGain: number;
+  defenderXpGain: number;
+  attackerStrike: StrikeResult;
+  defenderStrike: StrikeResult | null;
 }
 
 /**
  * Resolve combat between attacker and defender.
- * @param attacker - The attacking unit
- * @param defender - The defending unit
- * @param attackerRange - Hex distance between the two units
- * @param seed - Deterministic seed for variance
  */
 export function resolveCombat(
   attacker: UnitData,
@@ -23,30 +32,120 @@ export function resolveCombat(
 ): CombatResult {
   const rng = seededRNG(seed);
 
-  // Attacker deals damage
-  const defenderDamage = computeDamage(attacker.attack, defender.defense, rng.next());
+  // Attacker strikes
+  const attackerStrike = resolveStrike(attacker, defender, rng);
 
-  // Check if defender survives and can retaliate
-  const defenderSurvives = defender.health - defenderDamage > 0;
-  const defenderInRange = attackerRange <= defender.range;
+  // Apply attacker's strike to defender
+  const defenderShieldsAfter = Math.max(0, defender.shields - attackerStrike.shieldDamage);
+  const defenderHealthAfter = defender.health - attackerStrike.hullDamage;
+  const defenderDestroyed = defenderHealthAfter <= 0;
 
-  let attackerDamage = 0;
-  if (defenderSurvives && defenderInRange) {
-    attackerDamage = computeDamage(defender.attack, attacker.defense, rng.next());
+  // Defender retaliates only if alive AND attacker within defender's range
+  let defenderStrike: StrikeResult | null = null;
+  if (!defenderDestroyed && defender.weapon != null && attackerRange <= defender.range) {
+    // Create a temporary defender view with reduced shields for retaliation calc
+    const defenderAfterHit: UnitData = {
+      ...defender,
+      shields: defenderShieldsAfter,
+      health: defenderHealthAfter,
+    };
+    defenderStrike = resolveStrike(defenderAfterHit, attacker, rng);
   }
 
+  const attackerHullDmg = defenderStrike?.hullDamage ?? 0;
+  const attackerShieldDmg = defenderStrike?.shieldDamage ?? 0;
+  const attackerHealthAfter = attacker.health - attackerHullDmg;
+  const attackerDestroyed = attackerHealthAfter <= 0;
+
+  // XP calculation
+  let attackerXpGain = 0;
+  let defenderXpGain = 0;
+
+  if (attacker.weapon != null) {
+    attackerXpGain += attackerStrike.hullDamage;
+    if (defenderDestroyed) attackerXpGain += Math.floor(defender.maxHealth * 0.5);
+    if (!attackerDestroyed) attackerXpGain += 10;
+  }
+
+  if (defenderStrike && defender.weapon != null) {
+    defenderXpGain += defenderStrike.hullDamage;
+    if (attackerDestroyed) defenderXpGain += Math.floor(attacker.maxHealth * 0.5);
+    if (!defenderDestroyed) defenderXpGain += 10;
+  }
+
+  const defenderTotalDamage = attackerStrike.shieldDamage + attackerStrike.hullDamage;
+  const attackerTotalDamage = (defenderStrike?.shieldDamage ?? 0) + (defenderStrike?.hullDamage ?? 0);
+
   return {
-    attackerDamage,
-    defenderDamage,
-    attackerDestroyed: attacker.health - attackerDamage <= 0,
-    defenderDestroyed: defender.health - defenderDamage <= 0,
+    attackerDamage: attackerTotalDamage,
+    defenderDamage: defenderTotalDamage,
+    attackerShieldDamage: attackerShieldDmg,
+    defenderShieldDamage: attackerStrike.shieldDamage,
+    attackerDestroyed,
+    defenderDestroyed,
+    attackerXpGain,
+    defenderXpGain,
+    attackerStrike,
+    defenderStrike,
   };
 }
 
-function computeDamage(attack: number, defense: number, roll: number): number {
-  if (attack <= 0) return 0;
-  const base = attack * (1 - defense / (defense + 100));
-  // Variance: ±15% of base damage
-  const variance = base * 0.15 * (2 * roll - 1);
-  return Math.max(1, Math.round(base + variance));
+function resolveStrike(
+  striker: UnitData,
+  target: UnitData,
+  rng: { next(): number },
+): StrikeResult {
+  if (striker.weapon == null) {
+    return { rawDamage: 0, shieldDamage: 0, hullDamage: 0, isCrit: false };
+  }
+
+  const vetBonus = VETERAN_BONUSES[striker.veteranTier];
+  const weaponStats = WEAPON_STATS[striker.weapon];
+
+  // 1. Base damage with vet multiplier
+  let damage = striker.attack * vetBonus.attackMul;
+
+  // 2. Size factor: small targets take less, large take more
+  const sizeFactor = target.size === 'small' ? 0.75 : target.size === 'large' ? 1.25 : 1.0;
+
+  // 3. Missile bonus vs small
+  const missileBonus = weaponStats.sizeBonus[target.size];
+  damage *= missileBonus;
+  damage *= sizeFactor;
+
+  // 4. Crit check
+  const critChance = 0.10 + vetBonus.critBonus;
+  const isCrit = rng.next() < critChance;
+  if (isCrit) {
+    damage *= 1.5;
+  }
+
+  // 5. Variance: ±10%
+  const variance = damage * 0.10 * (2 * rng.next() - 1);
+  damage += variance;
+
+  // 6. Shield absorption — laser deals bonus damage to shields
+  const shieldDamage = Math.min(Math.ceil(damage * weaponStats.shieldBonus), target.shields);
+  let remaining = damage - (shieldDamage / weaponStats.shieldBonus);
+
+  // 7. Armor reduction — kinetic bypasses 25% of armor
+  const effectiveArmor = target.armor * (1.0 - weaponStats.armorBypass);
+  remaining = Math.max(0, remaining - effectiveArmor);
+
+  // 8. Minimum 1 hull damage if weapon is present
+  const hullDamage = Math.max(1, Math.round(remaining));
+
+  return {
+    rawDamage: Math.round(damage),
+    shieldDamage,
+    hullDamage,
+    isCrit,
+  };
+}
+
+/** Check if XP warrants a promotion and return the new tier. */
+export function maybePromote(currentTier: VeteranTier, xp: number): VeteranTier {
+  if (xp >= VETERAN_XP_THRESHOLDS.advanced) return 'advanced';
+  if (xp >= VETERAN_XP_THRESHOLDS.improved) return 'improved';
+  return 'standard';
 }

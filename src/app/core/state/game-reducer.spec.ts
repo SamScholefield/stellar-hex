@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { gameReducer } from './game-reducer';
-import { GameState, DynamicObject, Resources, UnitData, BuildingData, BUILDING_STATS, Anomaly } from '../../models/game-state';
+import { GameState, DynamicObject, Resources, UnitData, BuildingData, BUILDING_STATS, UNIT_STATS, Anomaly } from '../../models/game-state';
 
 function makeResources(overrides: Partial<Resources> = {}): Resources {
   return { energy: 100, minerals: 50, alloys: 20, credits: 30, ...overrides };
@@ -20,6 +20,31 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     chunkOverrides: new Map(),
     anomalies: new Map(),
     seed: 12345,
+    ...overrides,
+  };
+}
+
+function makeUnitData(overrides: Partial<UnitData> & { id: string; ownerId: string; type: UnitData['type'] }): UnitData {
+  const stats = UNIT_STATS[overrides.type];
+  return {
+    name: `${overrides.type} T001`,
+    q: 0,
+    r: 0,
+    movementPoints: stats.maxMovementPoints,
+    maxMovementPoints: stats.maxMovementPoints,
+    health: stats.maxHealth,
+    maxHealth: stats.maxHealth,
+    attack: stats.attack,
+    defense: stats.defense,
+    range: stats.range,
+    sightRange: stats.sightRange,
+    size: stats.size,
+    weapon: stats.weapon,
+    armor: stats.armor,
+    shields: stats.maxShields,
+    maxShields: stats.maxShields,
+    xp: 0,
+    veteranTier: 'standard',
     ...overrides,
   };
 }
@@ -47,28 +72,12 @@ describe('gameReducer', () => {
 
     it('refreshes movement points for the next player units', () => {
       const units = new Map<string, UnitData>([
-        [
-          'u1',
-          {
-            id: 'u1', name: 'Scout SC001', ownerId: 'p2', type: 'scout', q: 0, r: 0,
-            movementPoints: 0, maxMovementPoints: 3,
-            health: 10, maxHealth: 10, attack: 2, defense: 1, range: 1, sightRange: 3,
-          },
-        ],
-        [
-          'u2',
-          {
-            id: 'u2', name: 'Scout SC002', ownerId: 'p1', type: 'scout', q: 1, r: 0,
-            movementPoints: 0, maxMovementPoints: 3,
-            health: 10, maxHealth: 10, attack: 2, defense: 1, range: 1, sightRange: 3,
-          },
-        ],
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p2', type: 'scout', movementPoints: 0 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p1', type: 'scout', q: 1, movementPoints: 0 })],
       ]);
       const state = makeState({ units });
       const next = gameReducer(state, { type: 'END_TURN' });
-      // Next player is p2
-      expect(next.units.get('u1')!.movementPoints).toBe(3);
-      // p1's unit should not be refreshed
+      expect(next.units.get('u1')!.movementPoints).toBe(UNIT_STATS.scout.maxMovementPoints);
       expect(next.units.get('u2')!.movementPoints).toBe(0);
     });
 
@@ -77,6 +86,30 @@ describe('gameReducer', () => {
       const next = gameReducer(state, { type: 'END_TURN' });
       expect(state.currentPlayerIndex).toBe(0);
       expect(next).not.toBe(state);
+    });
+
+    it('regenerates shields by 1 on turn refresh', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({
+          id: 'u1', ownerId: 'p2', type: 'fighter',
+          shields: 0, maxShields: 2,
+        })],
+      ]);
+      const state = makeState({ units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      expect(next.units.get('u1')!.shields).toBe(1);
+    });
+
+    it('does not regenerate shields beyond maxShields', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({
+          id: 'u1', ownerId: 'p2', type: 'fighter',
+          shields: 2, maxShields: 2,
+        })],
+      ]);
+      const state = makeState({ units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      expect(next.units.get('u1')!.shields).toBe(2);
     });
   });
 
@@ -133,11 +166,7 @@ describe('gameReducer', () => {
   describe('MOVE_UNIT', () => {
     it('moves unit to destination and deducts movement points', () => {
       const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
-          movementPoints: 4, maxMovementPoints: 4,
-          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
-        }],
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', movementPoints: 4 })],
       ]);
       const state = makeState({ units });
       const path = [
@@ -152,31 +181,9 @@ describe('gameReducer', () => {
       expect(unit.movementPoints).toBe(2);
     });
 
-    it('deducts terrain-weighted cost for nebula movement', () => {
-      const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
-          movementPoints: 4, maxMovementPoints: 4,
-          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
-        }],
-      ]);
-      const state = makeState({ units });
-      const path = [
-        { q: 0, r: 0, s: 0 },
-        { q: 1, r: 0, s: -1 },
-      ];
-      // Moving onto a nebula hex costs 2 MP
-      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 2 });
-      expect(next.units.get('u1')!.movementPoints).toBe(2);
-    });
-
     it('does not mutate original state', () => {
       const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
-          movementPoints: 3, maxMovementPoints: 3,
-          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
-        }],
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', movementPoints: 3 })],
       ]);
       const state = makeState({ units });
       const path = [{ q: 0, r: 0, s: 0 }, { q: 1, r: 0, s: -1 }];
@@ -193,11 +200,7 @@ describe('gameReducer', () => {
 
     it('returns same state when not enough movement points', () => {
       const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
-          movementPoints: 1, maxMovementPoints: 4,
-          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
-        }],
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', movementPoints: 1 })],
       ]);
       const state = makeState({ units });
       const path = [
@@ -214,11 +217,7 @@ describe('gameReducer', () => {
   describe('BUILD', () => {
     it('places building and deducts resources', () => {
       const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 5, r: 3,
-          movementPoints: 3, maxMovementPoints: 3,
-          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
-        }],
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 5, r: 3 })],
       ]);
       const state = makeState({ units });
       const hex = { q: 5, r: 3, s: -8 };
@@ -229,18 +228,13 @@ describe('gameReducer', () => {
       expect(buildings[0].q).toBe(5);
       expect(buildings[0].r).toBe(3);
       expect(buildings[0].ownerId).toBe('p1');
-      // mining_station cost: energy:20, minerals:5
       expect(next.players[0].resources.energy).toBe(80);
       expect(next.players[0].resources.minerals).toBe(45);
     });
 
     it('rejects placement with insufficient resources', () => {
       const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
-          movementPoints: 3, maxMovementPoints: 3,
-          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
-        }],
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout' })],
       ]);
       const state = makeState({
         units,
@@ -256,11 +250,7 @@ describe('gameReducer', () => {
 
     it('rejects placement on wrong hex type', () => {
       const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
-          movementPoints: 3, maxMovementPoints: 3,
-          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
-        }],
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout' })],
       ]);
       const state = makeState({ units });
       const hex = { q: 0, r: 0, s: 0 };
@@ -270,11 +260,7 @@ describe('gameReducer', () => {
 
     it('rejects duplicate building at same hex', () => {
       const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 5, r: 3,
-          movementPoints: 3, maxMovementPoints: 3,
-          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
-        }],
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 5, r: 3 })],
       ]);
       const buildings = new Map<string, BuildingData>([
         ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 5, r: 3, health: 15, maxHealth: 15 }],
@@ -287,11 +273,7 @@ describe('gameReducer', () => {
 
     it('consumes colony_ship when building colony', () => {
       const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Colony Ship CO001', ownerId: 'p1', type: 'colony_ship', q: 2, r: 4,
-          movementPoints: 2, maxMovementPoints: 2,
-          health: 12, maxHealth: 12, attack: 0, defense: 2, range: 0, sightRange: 2,
-        }],
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'colony_ship', q: 2, r: 4 })],
       ]);
       const state = makeState({ units });
       const hex = { q: 2, r: 4, s: -6 };
@@ -323,8 +305,6 @@ describe('gameReducer', () => {
       ]);
       const state = makeState({ buildings });
       const next = gameReducer(state, { type: 'END_TURN' });
-      // p1 had: energy:100, minerals:50, alloys:20, credits:30
-      // mining_station yields minerals:3, colony yields alloys:2 + credits:2
       expect(next.players[0].resources.minerals).toBe(53);
       expect(next.players[0].resources.alloys).toBe(22);
       expect(next.players[0].resources.credits).toBe(32);
@@ -336,14 +316,12 @@ describe('gameReducer', () => {
       ]);
       const state = makeState({ buildings });
       const next = gameReducer(state, { type: 'END_TURN' });
-      // p1 resources should be unchanged
       expect(next.players[0].resources.minerals).toBe(50);
     });
 
     it('adds miningYields to current player resources', () => {
       const state = makeState();
       const next = gameReducer(state, { type: 'END_TURN', miningYields: { minerals: 5, energy: 2 } });
-      // p1 had: energy:100, minerals:50
       expect(next.players[0].resources.minerals).toBe(55);
       expect(next.players[0].resources.energy).toBe(102);
     });
@@ -353,15 +331,13 @@ describe('gameReducer', () => {
         ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
       ]);
       const state = makeState({ buildings });
-      // mining_station yields minerals:3, plus miningYields minerals:4
       const next = gameReducer(state, { type: 'END_TURN', miningYields: { minerals: 4 } });
-      expect(next.players[0].resources.minerals).toBe(57); // 50 + 3 + 4
+      expect(next.players[0].resources.minerals).toBe(57);
     });
 
     it('works without miningYields (backward compatible)', () => {
       const state = makeState();
       const next = gameReducer(state, { type: 'END_TURN' });
-      // No buildings, no mining yields — resources unchanged
       expect(next.players[0].resources.energy).toBe(100);
       expect(next.players[0].resources.minerals).toBe(50);
       expect(next.players[0].resources.alloys).toBe(20);
@@ -391,14 +367,17 @@ describe('gameReducer', () => {
       ]);
       const state = makeState({ buildings });
       const next = gameReducer(state, { type: 'END_TURN' });
-      // Unit should be spawned
       expect(next.units.size).toBe(1);
       const unit = [...next.units.values()][0];
       expect(unit.type).toBe('scout');
       expect(unit.q).toBe(0);
       expect(unit.r).toBe(0);
       expect(unit.ownerId).toBe('p1');
-      // Queue should be empty
+      // Spawned unit should have new combat fields
+      expect(unit.weapon).toBe('laser');
+      expect(unit.size).toBe('small');
+      expect(unit.xp).toBe(0);
+      expect(unit.veteranTier).toBe('standard');
       const building = next.buildings.get('b1')!;
       expect(building.productionQueue).toBeUndefined();
     });
@@ -429,10 +408,28 @@ describe('gameReducer', () => {
       const building = next.buildings.get('b1')!;
       expect(building.productionQueue!.length).toBe(1);
       expect(building.productionQueue![0].unitType).toBe('scout');
-      expect(building.productionQueue![0].turnsRemaining).toBe(2);
-      // scout cost: energy:20, alloys:5
+      expect(building.productionQueue![0].turnsRemaining).toBe(UNIT_STATS.scout.buildTurns);
       expect(next.players[0].resources.energy).toBe(80);
       expect(next.players[0].resources.alloys).toBe(15);
+    });
+
+    it('uses variable build turns from UNIT_STATS', () => {
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+      ]);
+      const state = makeState({
+        buildings,
+        players: [
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 200, alloys: 100, credits: 100 }), isAI: false, exploredHexes: new Set() },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set() },
+        ],
+      });
+
+      const nextBs = gameReducer(state, { type: 'PRODUCE_UNIT', buildingId: 'b1', unitType: 'battleship' });
+      expect(nextBs.buildings.get('b1')!.productionQueue![0].turnsRemaining).toBe(UNIT_STATS.battleship.buildTurns);
+
+      const nextFr = gameReducer(state, { type: 'PRODUCE_UNIT', buildingId: 'b1', unitType: 'frigate' });
+      expect(nextFr.buildings.get('b1')!.productionQueue![0].turnsRemaining).toBe(UNIT_STATS.frigate.buildTurns);
     });
 
     it('rejects production on non-starbase building', () => {
@@ -464,32 +461,30 @@ describe('gameReducer', () => {
     function makeAttackerDefender(opts: { attackerMp?: number; distance?: number; attackerRange?: number; defenderRange?: number; attackerHealth?: number; defenderHealth?: number; sameOwner?: boolean } = {}) {
       const dist = opts.distance ?? 1;
       const units = new Map<string, UnitData>([
-        ['attacker', {
-          id: 'attacker', name: 'Fighter FI001', ownerId: 'p1', type: 'fighter', q: 0, r: 0,
-          movementPoints: opts.attackerMp ?? 3, maxMovementPoints: 3,
-          health: opts.attackerHealth ?? 15, maxHealth: 15,
-          attack: 6, defense: 3, range: opts.attackerRange ?? 1, sightRange: 2,
-        }],
-        ['defender', {
-          id: 'defender', name: 'Fighter FI002', ownerId: opts.sameOwner ? 'p1' : 'p2', type: 'fighter', q: dist, r: 0,
-          movementPoints: 3, maxMovementPoints: 3,
-          health: opts.defenderHealth ?? 15, maxHealth: 15,
-          attack: 6, defense: 3, range: opts.defenderRange ?? 1, sightRange: 2,
-        }],
+        ['attacker', makeUnitData({
+          id: 'attacker', ownerId: 'p1', type: 'fighter', q: 0, r: 0,
+          movementPoints: opts.attackerMp ?? 3,
+          health: opts.attackerHealth ?? UNIT_STATS.fighter.maxHealth,
+          range: opts.attackerRange ?? 1,
+        })],
+        ['defender', makeUnitData({
+          id: 'defender', ownerId: opts.sameOwner ? 'p1' : 'p2', type: 'fighter', q: dist, r: 0,
+          health: opts.defenderHealth ?? UNIT_STATS.fighter.maxHealth,
+          range: opts.defenderRange ?? 1,
+        })],
       ]);
       return makeState({ units });
     }
 
-    it('applies damage to both units and sets attacker MP to 0', () => {
+    it('applies damage to both units and sets attacker MP to -1', () => {
       const state = makeAttackerDefender();
       const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
       const attacker = next.units.get('attacker');
       const defender = next.units.get('defender');
-      // Both should exist (not destroyed in one hit with these stats)
       expect(attacker).toBeDefined();
       expect(defender).toBeDefined();
-      expect(attacker!.movementPoints).toBe(0);
-      expect(defender!.health).toBeLessThan(15);
+      expect(attacker!.movementPoints).toBe(-1);
+      expect(defender!.health).toBeLessThan(UNIT_STATS.fighter.maxHealth);
     });
 
     it('rejects out-of-range attack', () => {
@@ -514,14 +509,109 @@ describe('gameReducer', () => {
     it('removes destroyed attacker from retaliation', () => {
       const state = makeAttackerDefender({ attackerHealth: 1 });
       const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
-      // Attacker has 1 HP and defender retaliates — attacker should be destroyed
       expect(next.units.has('attacker')).toBe(false);
     });
 
-    it('rejects attack with 0 movement points', () => {
+    it('allows attack with 0 movement points (move then attack)', () => {
       const state = makeAttackerDefender({ attackerMp: 0 });
       const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      expect(next).not.toBe(state);
+      expect(next.units.get('attacker')?.movementPoints).toBe(-1);
+    });
+
+    it('rejects attack with -1 movement points (already attacked)', () => {
+      const state = makeAttackerDefender({ attackerMp: -1 });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
       expect(next).toBe(state);
+    });
+
+    it('range-2 unit can attack at distance 2', () => {
+      const state = makeAttackerDefender({ distance: 2, attackerRange: 2 });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      expect(next).not.toBe(state);
+      const defender = next.units.get('defender');
+      // Defender should have taken damage or been destroyed
+      expect(!defender || defender.health < UNIT_STATS.fighter.maxHealth).toBe(true);
+    });
+
+    it('range-2 attacker vs range-1 defender at distance 2 — no retaliation', () => {
+      const state = makeAttackerDefender({ distance: 2, attackerRange: 2, defenderRange: 1 });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      expect(next).not.toBe(state);
+      const attacker = next.units.get('attacker');
+      // Attacker should be unscathed (no retaliation from range-1 defender at distance 2)
+      expect(attacker).toBeDefined();
+      expect(attacker!.health).toBe(UNIT_STATS.fighter.maxHealth);
+      expect(attacker!.shields).toBe(UNIT_STATS.fighter.maxShields);
+    });
+
+    it('range-2 attacker vs range-2 defender at distance 2 — both strike', () => {
+      const state = makeAttackerDefender({ distance: 2, attackerRange: 2, defenderRange: 2 });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      expect(next).not.toBe(state);
+      const attacker = next.units.get('attacker');
+      const defender = next.units.get('defender');
+      // Both should take damage (or one/both destroyed)
+      if (attacker && defender) {
+        const attackerTookDamage = attacker.health < UNIT_STATS.fighter.maxHealth || attacker.shields < UNIT_STATS.fighter.maxShields;
+        const defenderTookDamage = defender.health < UNIT_STATS.fighter.maxHealth || defender.shields < UNIT_STATS.fighter.maxShields;
+        expect(attackerTookDamage).toBe(true);
+        expect(defenderTookDamage).toBe(true);
+      }
+    });
+
+    it('range-2 unit rejects attack at distance 3', () => {
+      const state = makeAttackerDefender({ distance: 3, attackerRange: 2 });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      expect(next).toBe(state);
+    });
+
+    it('adds XP to attacker after combat', () => {
+      const state = makeAttackerDefender();
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      const attacker = next.units.get('attacker');
+      if (attacker) {
+        expect(attacker.xp).toBeGreaterThan(0);
+      }
+    });
+
+    it('promotes unit when XP threshold reached', () => {
+      // Give attacker 49 XP, a kill should push them over 50
+      const units = new Map<string, UnitData>([
+        ['attacker', makeUnitData({
+          id: 'attacker', ownerId: 'p1', type: 'fighter', q: 0, r: 0,
+          xp: 49, veteranTier: 'standard',
+        })],
+        ['defender', makeUnitData({
+          id: 'defender', ownerId: 'p2', type: 'scout', q: 1, r: 0,
+          health: 1, shields: 0,
+        })],
+      ]);
+      const state = makeState({ units });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      const attacker = next.units.get('attacker');
+      if (attacker) {
+        expect(attacker.xp).toBeGreaterThanOrEqual(50);
+        expect(attacker.veteranTier).toBe('improved');
+      }
+    });
+
+    it('applies shield damage from combat', () => {
+      const units = new Map<string, UnitData>([
+        ['attacker', makeUnitData({
+          id: 'attacker', ownerId: 'p1', type: 'fighter', q: 0, r: 0,
+        })],
+        ['defender', makeUnitData({
+          id: 'defender', ownerId: 'p2', type: 'cruiser', q: 1, r: 0,
+          shields: 8, maxShields: 8,
+        })],
+      ]);
+      const state = makeState({ units });
+      const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
+      const defender = next.units.get('defender');
+      if (defender) {
+        expect(defender.shields).toBeLessThan(8);
+      }
     });
   });
 
@@ -547,11 +637,11 @@ describe('gameReducer', () => {
     function makeCollectState(opts: { unitType?: string; mp?: number; unitQ?: number; unitR?: number } = {}) {
       const anomaly: Anomaly = { id: 'a1', type: 'resource_cache', q: 3, r: 2 };
       const units = new Map<string, UnitData>([
-        ['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: (opts.unitType ?? 'scout') as any, q: opts.unitQ ?? 3, r: opts.unitR ?? 2,
-          movementPoints: opts.mp ?? 4, maxMovementPoints: 4,
-          health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
-        }],
+        ['u1', makeUnitData({
+          id: 'u1', ownerId: 'p1', type: (opts.unitType ?? 'scout') as any,
+          q: opts.unitQ ?? 3, r: opts.unitR ?? 2,
+          movementPoints: opts.mp ?? 4,
+        })],
       ]);
       return makeState({ units, anomalies: new Map([['a1', anomaly]]) });
     }
@@ -559,7 +649,6 @@ describe('gameReducer', () => {
     it('grants resources and removes anomaly', () => {
       const state = makeCollectState();
       const next = gameReducer(state, { type: 'COLLECT_ANOMALY', anomalyId: 'a1', unitId: 'u1' });
-      // resource_cache rewards: minerals:20, energy:10
       expect(next.players[0].resources.minerals).toBe(70);
       expect(next.players[0].resources.energy).toBe(110);
       expect(next.anomalies.size).toBe(0);

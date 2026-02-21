@@ -42,7 +42,41 @@ export interface PlayerState {
   homeBaseId?: string;
 }
 
-export type UnitType = 'scout' | 'fighter' | 'cruiser' | 'colony_ship' | 'mining_drone';
+export type ShipSize = 'small' | 'medium' | 'large';
+export type WeaponType = 'laser' | 'kinetic' | 'missile';
+export type VeteranTier = 'standard' | 'improved' | 'advanced';
+
+export interface WeaponStats {
+  shieldBonus: number;
+  armorBypass: number;
+  sizeBonus: Record<ShipSize, number>;
+}
+
+export const WEAPON_STATS: Record<WeaponType, WeaponStats> = {
+  laser:   { shieldBonus: 1.25, armorBypass: 0,    sizeBonus: { small: 1.0, medium: 1.0, large: 1.0 } },
+  kinetic: { shieldBonus: 1.0,  armorBypass: 0.25, sizeBonus: { small: 1.0, medium: 1.0, large: 1.0 } },
+  missile: { shieldBonus: 1.0,  armorBypass: 0,    sizeBonus: { small: 1.25, medium: 1.0, large: 1.0 } },
+};
+
+export interface VeteranBonus {
+  attackMul: number;
+  defenseMul: number;
+  critBonus: number;
+}
+
+export const VETERAN_BONUSES: Record<VeteranTier, VeteranBonus> = {
+  standard: { attackMul: 1.0, defenseMul: 1.0, critBonus: 0 },
+  improved: { attackMul: 1.15, defenseMul: 1.1, critBonus: 0.05 },
+  advanced: { attackMul: 1.3, defenseMul: 1.2, critBonus: 0.10 },
+};
+
+export const VETERAN_XP_THRESHOLDS: Record<VeteranTier, number> = {
+  standard: 0,
+  improved: 50,
+  advanced: 150,
+};
+
+export type UnitType = 'scout' | 'fighter' | 'corvette' | 'frigate' | 'cruiser' | 'battleship' | 'colony_ship' | 'mining_drone';
 
 export interface UnitStats {
   maxMovementPoints: number;
@@ -52,14 +86,22 @@ export interface UnitStats {
   range: number;
   sightRange: number;
   cost: Partial<Resources>;
+  size: ShipSize;
+  weapon: WeaponType | null;
+  armor: number;
+  maxShields: number;
+  buildTurns: number;
 }
 
 export const UNIT_STATS: Record<UnitType, UnitStats> = {
-  scout:        { maxMovementPoints: 4, maxHealth: 8,  attack: 2,  defense: 1,  range: 1, sightRange: 4, cost: { energy: 20, alloys: 5 } },
-  fighter:      { maxMovementPoints: 3, maxHealth: 15, attack: 6,  defense: 3,  range: 1, sightRange: 2, cost: { energy: 30, alloys: 15 } },
-  cruiser:      { maxMovementPoints: 2, maxHealth: 30, attack: 10, defense: 8,  range: 2, sightRange: 3, cost: { energy: 50, alloys: 30, credits: 20 } },
-  colony_ship:  { maxMovementPoints: 2, maxHealth: 12, attack: 0,  defense: 2,  range: 0, sightRange: 2, cost: { energy: 40, alloys: 20, credits: 30 } },
-  mining_drone: { maxMovementPoints: 2, maxHealth: 6,  attack: 0,  defense: 1,  range: 0, sightRange: 1, cost: { energy: 15, minerals: 10 } },
+  scout:        { maxMovementPoints: 4, maxHealth: 8,  attack: 3,  defense: 0,  range: 1, sightRange: 4, cost: { energy: 20, alloys: 5 },                       size: 'small',  weapon: 'laser',   armor: 0, maxShields: 0,  buildTurns: 2 },
+  fighter:      { maxMovementPoints: 3, maxHealth: 15, attack: 7,  defense: 3,  range: 1, sightRange: 2, cost: { energy: 30, alloys: 15 },                      size: 'small',  weapon: 'laser',   armor: 1, maxShields: 2,  buildTurns: 2 },
+  corvette:     { maxMovementPoints: 3, maxHealth: 18, attack: 8,  defense: 5,  range: 1, sightRange: 2, cost: { energy: 35, alloys: 18 },                      size: 'small',  weapon: 'kinetic', armor: 2, maxShields: 3,  buildTurns: 2 },
+  frigate:      { maxMovementPoints: 2, maxHealth: 25, attack: 9,  defense: 8,  range: 2, sightRange: 3, cost: { energy: 45, alloys: 25, credits: 10 },         size: 'medium', weapon: 'missile', armor: 3, maxShields: 5,  buildTurns: 3 },
+  cruiser:      { maxMovementPoints: 2, maxHealth: 30, attack: 12, defense: 12, range: 2, sightRange: 3, cost: { energy: 50, alloys: 30, credits: 20 },         size: 'medium', weapon: 'laser',   armor: 4, maxShields: 8,  buildTurns: 3 },
+  battleship:   { maxMovementPoints: 1, maxHealth: 50, attack: 18, defense: 18, range: 2, sightRange: 3, cost: { energy: 80, alloys: 50, credits: 40 },         size: 'large',  weapon: 'kinetic', armor: 6, maxShields: 12, buildTurns: 4 },
+  colony_ship:  { maxMovementPoints: 2, maxHealth: 12, attack: 0,  defense: 0,  range: 0, sightRange: 2, cost: { energy: 40, alloys: 20, credits: 30 },         size: 'medium', weapon: null,      armor: 0, maxShields: 0,  buildTurns: 2 },
+  mining_drone: { maxMovementPoints: 2, maxHealth: 6,  attack: 0,  defense: 0,  range: 0, sightRange: 1, cost: { energy: 15, minerals: 10 },                    size: 'small',  weapon: null,      armor: 0, maxShields: 0,  buildTurns: 2 },
 };
 
 export interface UnitData {
@@ -77,12 +119,22 @@ export interface UnitData {
   defense: number;
   range: number;
   sightRange: number;
+  size: ShipSize;
+  weapon: WeaponType | null;
+  armor: number;
+  shields: number;
+  maxShields: number;
+  xp: number;
+  veteranTier: VeteranTier;
 }
 
 const UNIT_TYPE_PREFIX: Record<UnitType, string> = {
   scout: 'SC',
   fighter: 'FI',
+  corvette: 'CV',
+  frigate: 'FR',
   cruiser: 'CR',
+  battleship: 'BS',
   colony_ship: 'CO',
   mining_drone: 'MD',
 };
@@ -90,7 +142,10 @@ const UNIT_TYPE_PREFIX: Record<UnitType, string> = {
 const UNIT_TYPE_LABEL: Record<UnitType, string> = {
   scout: 'Scout',
   fighter: 'Fighter',
+  corvette: 'Corvette',
+  frigate: 'Frigate',
   cruiser: 'Cruiser',
+  battleship: 'Battleship',
   colony_ship: 'Colony Ship',
   mining_drone: 'Mining Drone',
 };

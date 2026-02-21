@@ -11,7 +11,10 @@ interface SpriteRegion {
 const UNIT_REGIONS: Record<UnitType, SpriteRegion> = {
   scout:        { x: 456, y: 8,  w: 48, h: 48 },
   fighter:      { x: 392, y: 8,  w: 48, h: 48 },
+  corvette:     { x: 392, y: 8,  w: 48, h: 48 },
+  frigate:      { x: 328, y: 8,  w: 48, h: 48 },
   cruiser:      { x: 328, y: 8,  w: 48, h: 48 },
+  battleship:   { x: 328, y: 8,  w: 48, h: 48 },
   colony_ship:  { x: 264, y: 8,  w: 48, h: 48 },
   mining_drone: { x: 200, y: 16, w: 48, h: 32 },
 };

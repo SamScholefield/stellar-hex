@@ -21,6 +21,13 @@ function makeUnit(overrides: Partial<UnitData> & { id: string; ownerId: string; 
     defense: stats.defense,
     range: stats.range,
     sightRange: stats.sightRange,
+    size: stats.size,
+    weapon: stats.weapon,
+    armor: stats.armor,
+    shields: stats.maxShields,
+    maxShields: stats.maxShields,
+    xp: 0,
+    veteranTier: 'standard',
     ...overrides,
   };
 }
@@ -118,7 +125,7 @@ describe('AIService', () => {
   });
 
   it('does not attack when result would be unfavorable', async () => {
-    const scout = makeUnit({ id: 's1', ownerId: 'ai', type: 'scout', q: 0, r: 0, health: 1 });
+    const scout = makeUnit({ id: 's1', ownerId: 'ai', type: 'scout', q: 0, r: 0, health: 1, shields: 0 });
     const cruiser = makeUnit({ id: 'c1', ownerId: 'human', type: 'cruiser', q: 1, r: 0 });
 
     const state = makeState({

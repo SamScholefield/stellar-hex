@@ -166,7 +166,7 @@ export class ContextMenuComponent {
 
     if (selectedUnitId) {
       const attacker = units.get(selectedUnitId);
-      if (attacker && attacker.ownerId === currentPlayer.id && attacker.movementPoints > 0 && attacker.attack > 0) {
+      if (attacker && attacker.ownerId === currentPlayer.id && attacker.movementPoints >= 0 && attacker.weapon != null) {
         const unitAtTarget = unitIndex.get(hexKeyStr)?.find(u => u.ownerId !== currentPlayer.id);
         if (unitAtTarget) {
           const dist = hexDistance(
@@ -273,7 +273,7 @@ export class ContextMenuComponent {
             moveHereUnitId = selectedUnitId;
 
             // Also check for Attack Here: enemy at hex, outside attack range
-            if (attacker.attack > 0) {
+            if (attacker.weapon != null) {
               const visHexes = this.vision.visibleHexes();
               if (visHexes.has(hexKeyTarget)) {
                 const enemyAtTarget = unitIndex.get(hexKeyTarget)?.find(u => u.ownerId !== currentPlayer.id);

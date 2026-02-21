@@ -2,7 +2,7 @@ import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, Unit
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
-import { resolveCombat, CombatResult } from '../combat/combat-resolver';
+import { resolveCombat, CombatResult, maybePromote } from '../combat/combat-resolver';
 import { GameAction } from './actions';
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -182,7 +182,7 @@ function produceUnit(state: GameState, buildingId: string, unitType: UnitType): 
 
   // Add to production queue
   const buildings = new Map(state.buildings);
-  const queue = [...(building.productionQueue ?? []), { unitType, turnsRemaining: 2 }];
+  const queue = [...(building.productionQueue ?? []), { unitType, turnsRemaining: unitStats.buildTurns }];
   buildings.set(buildingId, { ...building, productionQueue: queue });
 
   return { ...state, players, buildings };
@@ -205,8 +205,8 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   // Cannot attack own units
   if (attacker.ownerId === defender.ownerId) return { newState: state, combat: null };
 
-  // Must have movement points
-  if (attacker.movementPoints <= 0) return { newState: state, combat: null };
+  // Must not have already attacked this turn (MP = -1 after attacking)
+  if (attacker.movementPoints < 0) return { newState: state, combat: null };
 
   // Check range
   const dist = hexDistance(
@@ -224,19 +224,27 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   if (combat.attackerDestroyed) {
     units.delete(attackerId);
   } else {
+    const newXp = attacker.xp + combat.attackerXpGain;
     units.set(attackerId, {
       ...attacker,
-      health: attacker.health - combat.attackerDamage,
-      movementPoints: 0,
+      health: attacker.health - (combat.attackerStrike ? combat.defenderStrike?.hullDamage ?? 0 : 0),
+      shields: Math.max(0, attacker.shields - (combat.defenderStrike?.shieldDamage ?? 0)),
+      movementPoints: -1,
+      xp: newXp,
+      veteranTier: maybePromote(attacker.veteranTier, newXp),
     });
   }
 
   if (combat.defenderDestroyed) {
     units.delete(targetId);
   } else {
+    const newXp = defender.xp + combat.defenderXpGain;
     units.set(targetId, {
       ...defender,
-      health: defender.health - combat.defenderDamage,
+      health: defender.health - combat.attackerStrike.hullDamage,
+      shields: Math.max(0, defender.shields - combat.attackerStrike.shieldDamage),
+      xp: newXp,
+      veteranTier: maybePromote(defender.veteranTier, newXp),
     });
   }
 
@@ -321,6 +329,13 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
           defense: unitStats.defense,
           range: unitStats.range,
           sightRange: unitStats.sightRange,
+          size: unitStats.size,
+          weapon: unitStats.weapon,
+          armor: unitStats.armor,
+          shields: unitStats.maxShields,
+          maxShields: unitStats.maxShields,
+          xp: 0,
+          veteranTier: 'standard',
         });
       } else {
         newQueue.push({ ...item, turnsRemaining: remaining });
@@ -329,10 +344,14 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     buildings.set(bId, { ...building, productionQueue: newQueue.length > 0 ? newQueue : undefined });
   }
 
-  // Refresh movement points for the next player's units
+  // Refresh movement points and regen shields for the next player's units
   for (const [id, unit] of units) {
     if (unit.ownerId === state.players[nextPlayerIndex].id) {
-      units.set(id, { ...unit, movementPoints: unit.maxMovementPoints });
+      units.set(id, {
+        ...unit,
+        movementPoints: unit.maxMovementPoints,
+        shields: Math.min(unit.shields + 1, unit.maxShields),
+      });
     }
   }
 

@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { UpperCasePipe } from '@angular/common';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 
 @Component({
   selector: 'app-unit-info-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [],
+  imports: [UpperCasePipe],
   template: `
     @if (unitData(); as unit) {
       <div class="panel">
@@ -23,20 +24,39 @@ import { GameStateService } from '../../core/state/game-state.service';
             </div>
             <span class="val">{{ unit.health }}/{{ unit.maxHealth }}</span>
           </div>
+          @if (unit.maxShields > 0) {
+            <div class="stat">
+              <span class="label">SH</span>
+              <div class="bar-bg">
+                <div class="bar-fill sh" [style.width.%]="(unit.shields / unit.maxShields) * 100"></div>
+              </div>
+              <span class="val">{{ unit.shields }}/{{ unit.maxShields }}</span>
+            </div>
+          }
           <div class="stat">
             <span class="label">MP</span>
             <div class="bar-bg">
-              <div class="bar-fill mp" [style.width.%]="(unit.movementPoints / unit.maxMovementPoints) * 100"></div>
+              <div class="bar-fill mp" [style.width.%]="((unit.movementPoints > 0 ? unit.movementPoints : 0) / unit.maxMovementPoints) * 100"></div>
             </div>
-            <span class="val">{{ unit.movementPoints }}/{{ unit.maxMovementPoints }}</span>
+            <span class="val">{{ unit.movementPoints > 0 ? unit.movementPoints : 0 }}/{{ unit.maxMovementPoints }}</span>
           </div>
         </div>
         <div class="combat-stats">
           <span class="cs">ATK {{ unit.attack }}</span>
-          <span class="cs">DEF {{ unit.defense }}</span>
+          <span class="cs">ARM {{ unit.armor }}</span>
           <span class="cs">RNG {{ unit.range }}</span>
           <span class="cs">VIS {{ unit.sightRange }}</span>
         </div>
+        @if (unit.weapon) {
+          <div class="extra-stats">
+            <span class="cs">{{ unit.weapon | uppercase }}</span>
+            <span class="cs">{{ unit.size | uppercase }}</span>
+            @if (unit.veteranTier !== 'standard') {
+              <span class="cs vet">{{ unit.veteranTier === 'improved' ? 'VET I' : 'VET II' }}</span>
+            }
+            <span class="cs xp">XP {{ unit.xp }}</span>
+          </div>
+        }
         <div class="coords">{{ unit.q }}, {{ unit.r }}</div>
       </div>
     }
@@ -95,6 +115,7 @@ import { GameStateService } from '../../core/state/game-state.service';
       transition: width 0.2s;
     }
     .bar-fill.hp { background: #22c55e; }
+    .bar-fill.sh { background: #60a5fa; }
     .bar-fill.mp { background: #3b82f6; }
     .val {
       font-size: 0.7rem;
@@ -103,7 +124,7 @@ import { GameStateService } from '../../core/state/game-state.service';
       width: 36px;
       text-align: right;
     }
-    .combat-stats {
+    .combat-stats, .extra-stats {
       display: flex;
       gap: 0.6rem;
       margin-bottom: 0.35rem;
@@ -112,6 +133,13 @@ import { GameStateService } from '../../core/state/game-state.service';
       font-size: 0.7rem;
       color: var(--text-secondary);
       font-weight: 600;
+    }
+    .cs.vet {
+      color: var(--accent-gold, #fbbf24);
+    }
+    .cs.xp {
+      color: var(--text-muted);
+      font-weight: 400;
     }
     .coords {
       font-size: 0.7rem;

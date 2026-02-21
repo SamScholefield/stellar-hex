@@ -8,6 +8,7 @@ import {
   DynamicObject,
   HexOverride,
   Anomaly,
+  UNIT_STATS,
 } from '../../models/game-state';
 import { GameStateService } from './game-state.service';
 import { EventLogService } from './event-log.service';
@@ -90,6 +91,26 @@ export function deserialize(json: string): {
   const data: SaveData = JSON.parse(json);
   const s = data.state;
 
+  // Migrate units: fill new combat fields from UNIT_STATS if missing
+  const rawUnits = new Map(s.units);
+  for (const [id, unit] of rawUnits) {
+    if (unit.weapon === undefined) {
+      const stats = UNIT_STATS[unit.type];
+      if (stats) {
+        rawUnits.set(id, {
+          ...unit,
+          size: stats.size,
+          weapon: stats.weapon,
+          armor: stats.armor,
+          shields: stats.maxShields,
+          maxShields: stats.maxShields,
+          xp: 0,
+          veteranTier: 'standard',
+        } as UnitData);
+      }
+    }
+  }
+
   const state: GameState = {
     turn: s.turn,
     currentPlayerIndex: s.currentPlayerIndex,
@@ -102,7 +123,7 @@ export function deserialize(json: string): {
       exploredHexes: new Set(p.exploredHexes),
       homeBaseId: p.homeBaseId,
     })),
-    units: new Map(s.units),
+    units: rawUnits,
     buildings: new Map(s.buildings),
     dynamicObjects: new Map(s.dynamicObjects),
     chunkOverrides: new Map(s.chunkOverrides),

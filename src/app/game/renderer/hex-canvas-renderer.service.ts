@@ -367,17 +367,52 @@ export class HexCanvasRendererService {
       ctx.stroke();
     }
 
+    // Shield bar (blue, above health bar when unit has shields)
+    let barY = y + r + 4;
+    if (unit.maxShields > 0) {
+      const barW = r * 2;
+      const barH = 2;
+      const barX = x - r;
+      const shieldRatio = unit.shields / unit.maxShields;
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = '#3b82f6';
+      ctx.fillRect(barX, barY, barW * shieldRatio, barH);
+      barY += barH + 1;
+    }
+
     // Health bar (only when damaged)
     if (unit.health < unit.maxHealth) {
       const barW = r * 2;
       const barH = 3;
       const barX = x - r;
-      const barY = y + r + 4;
       const ratio = unit.health / unit.maxHealth;
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(barX, barY, barW, barH);
       ctx.fillStyle = ratio > 0.5 ? '#22c55e' : ratio > 0.25 ? '#eab308' : '#ef4444';
       ctx.fillRect(barX, barY, barW * ratio, barH);
+      barY += barH + 1;
+    }
+
+    // Veteran stars (top-left of unit)
+    if (unit.veteranTier !== 'standard') {
+      const starCount = unit.veteranTier === 'improved' ? 1 : 2;
+      const starSize = 3;
+      for (let i = 0; i < starCount; i++) {
+        const sx = x - r + i * (starSize * 2 + 2);
+        const sy = y - r - 4;
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        for (let j = 0; j < 10; j++) {
+          const angle = (Math.PI / 5) * j - Math.PI / 2;
+          const dist = j % 2 === 0 ? starSize : starSize * 0.4;
+          const px = sx + dist * Math.cos(angle);
+          const py = sy + dist * Math.sin(angle);
+          if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
     }
   }
 
@@ -406,6 +441,31 @@ export class HexCanvasRendererService {
         // Pentagon
         for (let i = 0; i < 5; i++) {
           const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+          const px = x + r * Math.cos(angle);
+          const py = y + r * Math.sin(angle);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        break;
+      case 'corvette':
+        // Arrow pointing right
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x - r * 0.5, y - r * 0.7);
+        ctx.lineTo(x - r * 0.2, y);
+        ctx.lineTo(x - r * 0.5, y + r * 0.7);
+        break;
+      case 'frigate':
+        // Hexagon
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i;
+          const px = x + r * 0.85 * Math.cos(angle);
+          const py = y + r * 0.85 * Math.sin(angle);
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        break;
+      case 'battleship':
+        // Octagon
+        for (let i = 0; i < 8; i++) {
+          const angle = (Math.PI / 4) * i - Math.PI / 8;
           const px = x + r * Math.cos(angle);
           const py = y + r * Math.sin(angle);
           if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);

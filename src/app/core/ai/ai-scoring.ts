@@ -94,7 +94,7 @@ export function scoreAttack(
   enemies: UnitData[],
   seed: number,
 ): AttackScoreResult | null {
-  if (attacker.attack <= 0 || attacker.movementPoints <= 0) return null;
+  if (attacker.weapon == null || attacker.movementPoints < 0) return null;
 
   const attackerCoord: HexCoord = { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r };
   let bestResult: AttackScoreResult | null = null;
@@ -253,21 +253,41 @@ export function scoreProduction(
     for (const u of units.values()) {
       if (u.ownerId !== player.id) continue;
       if (u.type === 'scout') scoutCount++;
-      if (u.type === 'fighter' || u.type === 'cruiser') combatCount++;
+      if (u.type === 'fighter' || u.type === 'corvette' || u.type === 'frigate' || u.type === 'cruiser' || u.type === 'battleship') combatCount++;
     }
 
     let unitType: UnitType;
     let score: number;
 
-    if (enemyNearby && hasResources(player.resources, UNIT_STATS.fighter.cost)) {
-      unitType = 'fighter';
-      score = 80;
+    if (enemyNearby) {
+      // Escalate: try battleship > cruiser > frigate > corvette > fighter
+      if (hasResources(player.resources, UNIT_STATS.battleship.cost)) {
+        unitType = 'battleship';
+        score = 90;
+      } else if (hasResources(player.resources, UNIT_STATS.cruiser.cost)) {
+        unitType = 'cruiser';
+        score = 85;
+      } else if (hasResources(player.resources, UNIT_STATS.frigate.cost)) {
+        unitType = 'frigate';
+        score = 82;
+      } else if (hasResources(player.resources, UNIT_STATS.corvette.cost)) {
+        unitType = 'corvette';
+        score = 80;
+      } else if (hasResources(player.resources, UNIT_STATS.fighter.cost)) {
+        unitType = 'fighter';
+        score = 78;
+      } else {
+        continue;
+      }
     } else if (scoutCount < 2 && hasResources(player.resources, UNIT_STATS.scout.cost)) {
       unitType = 'scout';
       score = 60;
+    } else if (combatCount < 2 && hasResources(player.resources, UNIT_STATS.corvette.cost)) {
+      unitType = 'corvette';
+      score = 50;
     } else if (combatCount < 2 && hasResources(player.resources, UNIT_STATS.fighter.cost)) {
       unitType = 'fighter';
-      score = 50;
+      score = 45;
     } else if (hasResources(player.resources, UNIT_STATS.scout.cost)) {
       unitType = 'scout';
       score = 30;

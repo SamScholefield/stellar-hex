@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize, deserialize } from './game-save.service';
-import { GameState } from '../../models/game-state';
+import { GameState, UNIT_STATS } from '../../models/game-state';
 
 function makeTestState(): GameState {
+  const scoutStats = UNIT_STATS.scout;
+  const fighterStats = UNIT_STATS.fighter;
   return {
     turn: 5,
     currentPlayerIndex: 0,
@@ -31,17 +33,24 @@ function makeTestState(): GameState {
           id: 'scout-p0',
           name: 'Scout SC001',
           ownerId: 'p0',
-          type: 'scout',
+          type: 'scout' as const,
           q: 1,
           r: -1,
           movementPoints: 3,
-          maxMovementPoints: 4,
-          health: 8,
-          maxHealth: 8,
-          attack: 2,
-          defense: 1,
-          range: 1,
-          sightRange: 4,
+          maxMovementPoints: scoutStats.maxMovementPoints,
+          health: scoutStats.maxHealth,
+          maxHealth: scoutStats.maxHealth,
+          attack: scoutStats.attack,
+          defense: scoutStats.defense,
+          range: scoutStats.range,
+          sightRange: scoutStats.sightRange,
+          size: scoutStats.size,
+          weapon: scoutStats.weapon,
+          armor: scoutStats.armor,
+          shields: scoutStats.maxShields,
+          maxShields: scoutStats.maxShields,
+          xp: 0,
+          veteranTier: 'standard' as const,
         },
       ],
       [
@@ -50,17 +59,24 @@ function makeTestState(): GameState {
           id: 'fighter-p1',
           name: 'Fighter FI001',
           ownerId: 'p1',
-          type: 'fighter',
+          type: 'fighter' as const,
           q: 10,
           r: -5,
-          movementPoints: 3,
-          maxMovementPoints: 3,
-          health: 15,
-          maxHealth: 15,
-          attack: 6,
-          defense: 3,
-          range: 1,
-          sightRange: 2,
+          movementPoints: fighterStats.maxMovementPoints,
+          maxMovementPoints: fighterStats.maxMovementPoints,
+          health: fighterStats.maxHealth,
+          maxHealth: fighterStats.maxHealth,
+          attack: fighterStats.attack,
+          defense: fighterStats.defense,
+          range: fighterStats.range,
+          sightRange: fighterStats.sightRange,
+          size: fighterStats.size,
+          weapon: fighterStats.weapon,
+          armor: fighterStats.armor,
+          shields: fighterStats.maxShields,
+          maxShields: fighterStats.maxShields,
+          xp: 0,
+          veteranTier: 'standard' as const,
         },
       ],
     ]),
@@ -70,7 +86,7 @@ function makeTestState(): GameState {
         {
           id: 'mine-1',
           ownerId: 'p0',
-          type: 'mining_station',
+          type: 'mining_station' as const,
           q: 2,
           r: -1,
           health: 15,
@@ -85,11 +101,9 @@ function makeTestState(): GameState {
         'anomaly-1',
         {
           id: 'anomaly-1',
-          type: 'derelict_ship',
+          type: 'derelict_ship' as const,
           q: 5,
           r: -3,
-          reward: { energy: 50 },
-          discovered: false,
         },
       ],
     ]),
@@ -165,7 +179,7 @@ describe('serialize / deserialize', () => {
     });
   });
 
-  it('preserves unit stats', () => {
+  it('preserves unit stats including new combat fields', () => {
     const json = serialize(state, testCamera);
     const result = deserialize(json);
 
@@ -173,9 +187,10 @@ describe('serialize / deserialize', () => {
     expect(scout.type).toBe('scout');
     expect(scout.q).toBe(1);
     expect(scout.r).toBe(-1);
-    expect(scout.movementPoints).toBe(3);
-    expect(scout.health).toBe(8);
-    expect(scout.attack).toBe(2);
+    expect(scout.weapon).toBe('laser');
+    expect(scout.size).toBe('small');
+    expect(scout.xp).toBe(0);
+    expect(scout.veteranTier).toBe('standard');
   });
 
   it('handles empty Maps and Sets', () => {
@@ -194,5 +209,44 @@ describe('serialize / deserialize', () => {
   it('produces valid JSON string', () => {
     const json = serialize(state, testCamera);
     expect(() => JSON.parse(json)).not.toThrow();
+  });
+
+  it('migrates old save data missing weapon field', () => {
+    // Simulate old save format without new combat fields
+    const oldSave = {
+      state: {
+        turn: 3,
+        currentPlayerIndex: 0,
+        players: [{
+          id: 'p0', name: 'Player', color: '#5eead4',
+          resources: { energy: 50, minerals: 20, alloys: 10, credits: 15 },
+          isAI: false, exploredHexes: ['0,0'],
+        }],
+        units: [['u1', {
+          id: 'u1', name: 'Scout SC001', ownerId: 'p0', type: 'scout',
+          q: 0, r: 0, movementPoints: 4, maxMovementPoints: 4,
+          health: 8, maxHealth: 8, attack: 3, defense: 0, range: 1, sightRange: 4,
+          // Note: no weapon, size, armor, shields, xp, veteranTier
+        }]],
+        buildings: [],
+        dynamicObjects: [],
+        chunkOverrides: [],
+        anomalies: [],
+        seed: 42,
+      },
+      camera: { panX: 0, panY: 0, zoom: 1 },
+    };
+
+    const json = JSON.stringify(oldSave);
+    const result = deserialize(json);
+
+    const unit = result.state.units.get('u1')!;
+    expect(unit.weapon).toBe('laser');
+    expect(unit.size).toBe('small');
+    expect(unit.armor).toBe(0);
+    expect(unit.shields).toBe(0);
+    expect(unit.maxShields).toBe(0);
+    expect(unit.xp).toBe(0);
+    expect(unit.veteranTier).toBe('standard');
   });
 });

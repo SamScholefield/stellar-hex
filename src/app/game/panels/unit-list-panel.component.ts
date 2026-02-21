@@ -34,7 +34,7 @@ interface UnitGroup {
               >
                 <span class="unit-name">{{ unit.name }}</span>
                 <span class="hp">{{ unit.health }}/{{ unit.maxHealth }}</span>
-                <span class="mp" [class.active]="unit.movementPoints > 0">{{ unit.movementPoints }}MP</span>
+                <span class="mp" [class.active]="unit.movementPoints > 0">{{ unit.movementPoints > 0 ? unit.movementPoints : 0 }}MP</span>
                 <span class="coords">({{ unit.q }},{{ unit.r }})</span>
               </button>
             }

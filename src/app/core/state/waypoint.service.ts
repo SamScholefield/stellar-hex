@@ -71,8 +71,8 @@ export class WaypointService {
       this.clearWaypoint(unitId);
       return;
     }
-    // No MP yet — keep waypoint, will execute next turn
-    if (unit.movementPoints <= 0) return;
+    // Already attacked this turn — keep waypoint, will execute next turn
+    if (unit.movementPoints < 0) return;
 
     // Already at target?
     if (unit.q === wp.target.q && unit.r === wp.target.r && !wp.attackTargetId) {
@@ -105,7 +105,7 @@ export class WaypointService {
         { q: unit.q, r: unit.r, s: -unit.q - unit.r },
         targetCoord,
       );
-      if (dist <= unit.range && unit.attack > 0) {
+      if (dist <= unit.range && unit.weapon != null && unit.movementPoints >= 0) {
         await this.performAttack(unitId, wp.attackTargetId);
         this.clearWaypoint(unitId);
         return;
@@ -113,9 +113,11 @@ export class WaypointService {
     }
 
     // Build blocked set (enemy units block movement)
+    // Exclude the attack target so pathfinding can route toward it
     const blocked = new Set<string>();
     for (const u of units.values()) {
       if (u.id !== unitId && u.ownerId !== currentPlayer.id) {
+        if (wp.attackTargetId && u.id === wp.attackTargetId) continue;
         blocked.add(`${u.q},${u.r}`);
       }
     }
@@ -125,6 +127,18 @@ export class WaypointService {
     const override = getUnitCostOverride(unit.type);
 
     const path = findPartialPath(from, wp.target, unit.movementPoints, hexLookup, isBlocked, override);
+
+    // Don't move onto the attack target's hex — stop adjacent instead
+    if (path && wp.attackTargetId) {
+      const target = units.get(wp.attackTargetId);
+      if (target) {
+        const last = path[path.length - 1];
+        if (last.q === target.q && last.r === target.r) {
+          path.pop();
+        }
+      }
+    }
+
     if (path && path.length > 1) {
       const cost = pathCost(path, hexLookup, override);
       await this.animation.animateUnitMovement(unitId, path);
@@ -150,7 +164,7 @@ export class WaypointService {
           { q: freshUnit.q, r: freshUnit.r, s: -freshUnit.q - freshUnit.r },
           { q: target.q, r: target.r, s: -target.q - target.r },
         );
-        if (dist <= freshUnit.range && freshUnit.attack > 0 && freshUnit.movementPoints > 0) {
+        if (dist <= freshUnit.range && freshUnit.weapon != null && freshUnit.movementPoints >= 0) {
           await this.performAttack(unitId, wp.attackTargetId);
           this.clearWaypoint(unitId);
         }

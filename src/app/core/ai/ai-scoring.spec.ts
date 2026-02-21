@@ -17,6 +17,13 @@ function makeUnit(overrides: Partial<UnitData> & { id: string; ownerId: string; 
     defense: stats.defense,
     range: stats.range,
     sightRange: stats.sightRange,
+    size: stats.size,
+    weapon: stats.weapon,
+    armor: stats.armor,
+    shields: stats.maxShields,
+    maxShields: stats.maxShields,
+    xp: 0,
+    veteranTier: 'standard',
     ...overrides,
   };
 }
@@ -56,14 +63,14 @@ describe('scoreAttack', () => {
   });
 
   it('returns null when attack is unfavorable (would die)', () => {
-    const attacker = makeUnit({ id: 'a1', ownerId: 'p1', type: 'scout', q: 0, r: 0, health: 1 });
+    const attacker = makeUnit({ id: 'a1', ownerId: 'p1', type: 'scout', q: 0, r: 0, health: 1, shields: 0 });
     const enemy = makeUnit({ id: 'e1', ownerId: 'p2', type: 'cruiser', q: 1, r: 0 });
 
     const result = scoreAttack(attacker, [enemy], 42);
     expect(result).toBeNull();
   });
 
-  it('returns null for units with no attack', () => {
+  it('returns null for units with no weapon', () => {
     const attacker = makeUnit({ id: 'a1', ownerId: 'p1', type: 'colony_ship', q: 0, r: 0 });
     const enemy = makeUnit({ id: 'e1', ownerId: 'p2', type: 'scout', q: 1, r: 0 });
 
@@ -83,7 +90,6 @@ describe('scoreBuild', () => {
     hexes.set('1,0', { q: 1, r: 0, object: { type: 'asteroid', size: 1 } });
     hexes.set('0,0', { q: 0, r: 0, object: { type: 'empty', size: 0 } });
 
-    // Unit at the candidate build hex (1,0)
     const units = new Map([['u1', makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0 })]]);
     const buildings = new Map<string, BuildingData>();
 
@@ -102,8 +108,6 @@ describe('scoreBuild', () => {
 
     const hexes = new Map<string, HexData>();
     hexes.set('1,0', { q: 1, r: 0, object: { type: 'asteroid', size: 1 } });
-    // No hex data for (0,0) — so no building can be placed there
-    // Unit at (0,0) but candidate asteroid hex is (1,0) — no unit there
     const units = new Map([['u1', makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })]]);
     const buildings = new Map<string, BuildingData>();
 
@@ -121,7 +125,6 @@ describe('scoreBuild', () => {
     const hexes = new Map<string, HexData>();
     hexes.set('1,0', { q: 1, r: 0, object: { type: 'asteroid', size: 1 } });
 
-    // Unit at the candidate hex
     const units = new Map([['u1', makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0 })]]);
     const buildings = new Map<string, BuildingData>();
 
@@ -131,7 +134,7 @@ describe('scoreBuild', () => {
 });
 
 describe('scoreProduction', () => {
-  it('picks fighter when enemies nearby', () => {
+  it('picks combat unit when enemies nearby', () => {
     const player = makePlayer({ id: 'p1' });
     const starbase: BuildingData = {
       id: 'b1', ownerId: 'p1', type: 'starbase',
@@ -142,7 +145,8 @@ describe('scoreProduction', () => {
 
     const result = scoreProduction(player, buildings, units, true);
     expect(result).not.toBeNull();
-    expect(result!.unitType).toBe('fighter');
+    // Should pick the best combat unit the AI can afford
+    expect(['fighter', 'corvette', 'frigate', 'cruiser', 'battleship']).toContain(result!.unitType);
     expect(result!.buildingId).toBe('b1');
   });
 
@@ -164,7 +168,6 @@ describe('scoreProduction', () => {
 describe('scoreExplore', () => {
   it('returns target toward unexplored area', () => {
     const unit = makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 });
-    // Mark center and immediate surroundings as explored, leave outer ring unexplored
     const explored = new Set<string>();
     explored.add('0,0');
     explored.add('1,0');
@@ -183,7 +186,6 @@ describe('scoreExplore', () => {
 
   it('returns null when all hexes in range are explored', () => {
     const unit = makeUnit({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 });
-    // Mark everything in a large range as explored
     const explored = new Set<string>();
     for (let q = -10; q <= 10; q++) {
       for (let r = -10; r <= 10; r++) {

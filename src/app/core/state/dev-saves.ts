@@ -37,6 +37,13 @@ function makeUnit(
     defense: stats.defense,
     range: stats.range,
     sightRange: stats.sightRange,
+    size: stats.size,
+    weapon: stats.weapon,
+    armor: stats.armor,
+    shields: stats.maxShields,
+    maxShields: stats.maxShields,
+    xp: 0,
+    veteranTier: 'standard',
   };
 }
 
@@ -71,14 +78,15 @@ function buildCombatScenario(): string {
   addUnit('dev-p0-scout-1', 'p0', 'scout', 0, 0);
   addUnit('dev-p0-scout-2', 'p0', 'scout', 2, -1);
   addUnit('dev-p0-fighter-1', 'p0', 'fighter', 1, 0);
-  addUnit('dev-p0-fighter-2', 'p0', 'fighter', -1, 1);
+  addUnit('dev-p0-corvette-1', 'p0', 'corvette', -1, 1);
   addUnit('dev-p0-cruiser-1', 'p0', 'cruiser', 0, 1);
+  addUnit('dev-p0-frigate-1', 'p0', 'frigate', -1, 2);
 
   // AI units
   addUnit('dev-p1-fighter-1', 'p1', 'fighter', 4, -2);
-  addUnit('dev-p1-fighter-2', 'p1', 'fighter', 3, -1);
+  addUnit('dev-p1-corvette-1', 'p1', 'corvette', 3, -1);
   addUnit('dev-p1-cruiser-1', 'p1', 'cruiser', 5, -3);
-  addUnit('dev-p1-scout-1', 'p1', 'scout', 6, -3);
+  addUnit('dev-p1-frigate-1', 'p1', 'frigate', 6, -3);
 
   const buildings = new Map<string, BuildingData>();
   const sb0 = makeBuilding('dev-p0-starbase', 'p0', 'starbase', 0, 2);
