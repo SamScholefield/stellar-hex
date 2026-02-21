@@ -18,8 +18,12 @@ import { EconomyService } from '../../core/economy/economy.service';
     </div>
   `,
   styles: `
+    :host {
+      display: flex;
+    }
     .bar {
       display: flex;
+      align-items: center;
       gap: 1.25rem;
       background: rgba(10, 10, 26, 0.85);
       border: 1px solid #2a4a5a;

@@ -28,26 +28,28 @@ import { BuildingData, UnitType } from '../../models/game-state';
     <app-toast-container />
     <div class="hud-top">
       <app-resource-bar />
-      @if (homeBase(); as hb) {
-        <button class="home-btn" (click)="focusHome(hb)">&#8962; Home</button>
-      }
-      <button class="help-btn" (click)="onHelp()">?</button>
-      <app-turn-controls />
+      <div class="hud-top-center">
+        @if (homeBase(); as hb) {
+          <button class="home-btn" (click)="focusHome(hb)">&#8962; Home</button>
+        }
+        <button class="help-btn" (click)="onHelp()">?</button>
+      </div>
     </div>
     <div class="hud-unit-panel">
       <app-unit-info-panel />
       @if (selectedStarbase(); as sb) {
         <app-production-menu [building]="sb" [homeBaseId]="gameState.homeBaseId()" (produceSelected)="onProduce($event)" (setHomeSelected)="onSetHome(sb)" />
       }
+    </div>
+    <app-turn-controls class="hud-turn" />
+    <div class="hud-right-panels">
       <app-unit-list-panel />
       <app-building-list-panel />
     </div>
+    <app-event-log class="hud-bottom-right" />
     <div class="hud-bottom-left">
       <app-minimap />
       <app-hex-info-panel />
-    </div>
-    <div class="hud-bottom-right">
-      <app-event-log />
     </div>
     @if (aiExecuting()) {
       <div class="ai-overlay">
@@ -73,10 +75,18 @@ import { BuildingData, UnitType } from '../../models/game-state';
       display: contents;
     }
     .hud-top {
-      grid-column: 1 / -1;
+      grid-row: 1;
+      grid-column: 1 / 3;
       display: flex;
-      justify-content: space-between;
+      align-items: stretch;
       pointer-events: auto;
+    }
+    .hud-top-center {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      gap: 0.5rem;
     }
     .hud-unit-panel {
       grid-row: 2;
@@ -84,6 +94,22 @@ import { BuildingData, UnitType } from '../../models/game-state';
       align-self: start;
       pointer-events: auto;
       width: 200px;
+    }
+    .hud-turn {
+      grid-row: 1;
+      grid-column: 3;
+      pointer-events: auto;
+      justify-self: end;
+    }
+    .hud-right-panels {
+      grid-row: 2;
+      grid-column: 3;
+      align-self: start;
+      justify-self: end;
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
     .hud-bottom-left {
       grid-row: 3;
@@ -98,9 +124,10 @@ import { BuildingData, UnitType } from '../../models/game-state';
       grid-row: 3;
       grid-column: 3;
       align-self: end;
+      justify-self: end;
       pointer-events: auto;
     }
-    .home-btn {
+.home-btn {
       background: rgba(10, 10, 26, 0.85);
       border: 1px solid #2a4a5a;
       border-radius: 0.5rem;
@@ -117,9 +144,8 @@ import { BuildingData, UnitType } from '../../models/game-state';
     .help-btn {
       background: rgba(10, 10, 26, 0.85);
       border: 1px solid #2a4a5a;
-      border-radius: 50%;
-      width: 28px;
-      height: 28px;
+      border-radius: 0.5rem;
+      padding: 0.4rem 0.75rem;
       color: #9ca3af;
       font-size: 0.85rem;
       font-weight: 700;

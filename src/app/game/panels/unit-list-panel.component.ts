@@ -51,7 +51,7 @@ interface UnitGroup {
       border: 1px solid #2a4a5a;
       border-radius: 0.5rem;
       overflow: hidden;
-      max-width: 200px;
+      width: 100%;
     }
     .header {
       display: flex;

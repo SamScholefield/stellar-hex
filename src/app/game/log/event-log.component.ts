@@ -46,7 +46,7 @@ import { hexToPixel } from '../../shared/hex/hex-math';
   `,
   styles: `
     .log-panel {
-      width: 240px;
+      width: 100%;
       max-height: 200px;
       background: rgba(10, 10, 26, 0.85);
       border: 1px solid #2a4a5a;
