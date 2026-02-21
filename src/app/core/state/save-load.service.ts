@@ -10,6 +10,7 @@ interface SerializedPlayer {
   resources: PlayerState['resources'];
   isAI: boolean;
   exploredHexes: string[];
+  eliminated?: boolean;
 }
 
 interface SerializedGameState {
@@ -41,6 +42,7 @@ export class SaveLoadService {
         resources: p.resources,
         isAI: p.isAI,
         exploredHexes: [...p.exploredHexes],
+        eliminated: p.eliminated,
       })),
       units: [...state.units.entries()],
       buildings: [...state.buildings.entries()],
@@ -74,6 +76,7 @@ export class SaveLoadService {
         resources: p.resources,
         isAI: p.isAI,
         exploredHexes: new Set(p.exploredHexes),
+        eliminated: p.eliminated ?? false,
       })),
       units: new Map(serialized.units),
       buildings: new Map(serialized.buildings),

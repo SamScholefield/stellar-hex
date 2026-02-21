@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { computeIncome, computeMiningDroneIncome } from './economy.service';
-import { BuildingData, UnitData, UNIT_STATS } from '../../models/game-state';
+import { computeIncome, computeMiningDroneIncome, computeUpkeep, computeNetIncome } from './economy.service';
+import { BuildingData, Resources, UnitData, UNIT_STATS } from '../../models/game-state';
 import { HexData, StellarObjectType } from '../../models/hex-data';
 
 function makeUnit(overrides: Partial<UnitData> & { id: string; ownerId: string; q: number; r: number }): UnitData {
@@ -171,5 +171,55 @@ describe('computeIncome', () => {
   it('returns zero income with no buildings', () => {
     const income = computeIncome(new Map(), 'p1');
     expect(income).toEqual({ energy: 0, minerals: 0, alloys: 0, credits: 0 });
+  });
+});
+
+describe('computeUpkeep', () => {
+  it('sums correct costs for player units', () => {
+    const units = new Map<string, UnitData>([
+      ['u1', makeUnit({ id: 'u1', ownerId: 'p1', q: 0, r: 0, type: 'fighter' })],
+      ['u2', makeUnit({ id: 'u2', ownerId: 'p1', q: 1, r: 0, type: 'cruiser' })],
+    ]);
+    const upkeep = computeUpkeep(units, 'p1');
+    // fighter: 2 energy, cruiser: 5 energy + 2 credits
+    expect(upkeep.energy).toBe(7);
+    expect(upkeep.credits).toBe(2);
+    expect(upkeep.minerals).toBe(0);
+    expect(upkeep.alloys).toBe(0);
+  });
+
+  it('returns zeros for scouts and mining_drones', () => {
+    const units = new Map<string, UnitData>([
+      ['u1', makeUnit({ id: 'u1', ownerId: 'p1', q: 0, r: 0, type: 'scout' })],
+      ['u2', makeUnit({ id: 'u2', ownerId: 'p1', q: 1, r: 0, type: 'mining_drone' })],
+    ]);
+    const upkeep = computeUpkeep(units, 'p1');
+    expect(upkeep).toEqual({ energy: 0, minerals: 0, alloys: 0, credits: 0 });
+  });
+
+  it('ignores units belonging to other players', () => {
+    const units = new Map<string, UnitData>([
+      ['u1', makeUnit({ id: 'u1', ownerId: 'p2', q: 0, r: 0, type: 'battleship' })],
+    ]);
+    const upkeep = computeUpkeep(units, 'p1');
+    expect(upkeep).toEqual({ energy: 0, minerals: 0, alloys: 0, credits: 0 });
+  });
+});
+
+describe('computeNetIncome', () => {
+  it('produces correct deltas including negative values', () => {
+    const income: Resources = { energy: 5, minerals: 3, alloys: 2, credits: 1 };
+    const upkeep: Resources = { energy: 8, minerals: 0, alloys: 0, credits: 4 };
+    const net = computeNetIncome(income, upkeep);
+    expect(net.energy).toBe(-3);
+    expect(net.minerals).toBe(3);
+    expect(net.alloys).toBe(2);
+    expect(net.credits).toBe(-3);
+  });
+
+  it('returns zero net when income equals upkeep', () => {
+    const res: Resources = { energy: 5, minerals: 3, alloys: 2, credits: 1 };
+    const net = computeNetIncome(res, res);
+    expect(net).toEqual({ energy: 0, minerals: 0, alloys: 0, credits: 0 });
   });
 });

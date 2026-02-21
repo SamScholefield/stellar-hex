@@ -37,8 +37,8 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     turn: 1,
     currentPlayerIndex: 1,
     players: [
-      { id: 'human', name: 'Human', color: '#00f', resources: { energy: 100, minerals: 50, alloys: 30, credits: 30 }, isAI: false, exploredHexes: new Set() },
-      { id: 'ai', name: 'AI', color: '#f00', resources: { energy: 100, minerals: 50, alloys: 30, credits: 30 }, isAI: true, exploredHexes: new Set(['0,0', '1,0', '2,0', '3,0', '4,0', '5,0']) },
+      { id: 'human', name: 'Human', color: '#00f', resources: { energy: 100, minerals: 50, alloys: 30, credits: 30 }, isAI: false, exploredHexes: new Set(), eliminated: false },
+      { id: 'ai', name: 'AI', color: '#f00', resources: { energy: 100, minerals: 50, alloys: 30, credits: 30 }, isAI: true, exploredHexes: new Set(['0,0', '1,0', '2,0', '3,0', '4,0', '5,0']), eliminated: false },
     ],
     units: new Map(),
     buildings: new Map(),

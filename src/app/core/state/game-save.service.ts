@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   GameState,
+  GameOverState,
   PlayerState,
   UnitData,
   BuildingData,
@@ -42,6 +43,7 @@ interface SerializedGameState {
   chunkOverrides: [string, HexOverride[]][];
   anomalies: [string, Anomaly][];
   seed: number;
+  gameOver?: GameOverState;
 }
 
 interface SerializedPlayer {
@@ -52,6 +54,7 @@ interface SerializedPlayer {
   isAI: boolean;
   exploredHexes: string[];
   homeBaseId?: string;
+  eliminated?: boolean;
 }
 
 export function serialize(
@@ -70,6 +73,7 @@ export function serialize(
         isAI: p.isAI,
         exploredHexes: [...p.exploredHexes],
         homeBaseId: p.homeBaseId,
+        eliminated: p.eliminated,
       })),
       units: [...state.units.entries()],
       buildings: [...state.buildings.entries()],
@@ -77,6 +81,7 @@ export function serialize(
       chunkOverrides: [...state.chunkOverrides.entries()],
       anomalies: [...state.anomalies.entries()],
       seed: state.seed,
+      gameOver: state.gameOver,
     },
     camera,
     savedAt: new Date().toISOString(),
@@ -122,6 +127,7 @@ export function deserialize(json: string): {
       isAI: p.isAI,
       exploredHexes: new Set(p.exploredHexes),
       homeBaseId: p.homeBaseId,
+      eliminated: p.eliminated ?? false,
     })),
     units: rawUnits,
     buildings: new Map(s.buildings),
@@ -129,6 +135,7 @@ export function deserialize(json: string): {
     chunkOverrides: new Map(s.chunkOverrides),
     anomalies: new Map(s.anomalies),
     seed: s.seed,
+    gameOver: s.gameOver,
   };
 
   return { state, camera: data.camera };

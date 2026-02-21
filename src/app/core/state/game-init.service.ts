@@ -82,6 +82,7 @@ export class GameInitService {
         resources: makeStartResources(),
         isAI: false,
         exploredHexes: new Set(),
+        eliminated: false,
       },
     ];
 
@@ -93,6 +94,7 @@ export class GameInitService {
         resources: makeStartResources(),
         isAI: true,
         exploredHexes: new Set(),
+        eliminated: false,
       });
     }
 

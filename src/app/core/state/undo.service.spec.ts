@@ -8,7 +8,7 @@ function makeState(turn: number): GameState {
   return {
     turn,
     currentPlayerIndex: 0,
-    players: [{ id: 'p1', name: 'P1', color: '#fff', resources: { energy: 100, minerals: 50, alloys: 20, credits: 10 }, isAI: false, exploredHexes: new Set() }],
+    players: [{ id: 'p1', name: 'P1', color: '#fff', resources: { energy: 100, minerals: 50, alloys: 20, credits: 10 }, isAI: false, exploredHexes: new Set(), eliminated: false }],
     units: new Map(),
     buildings: new Map(),
     dynamicObjects: new Map(),

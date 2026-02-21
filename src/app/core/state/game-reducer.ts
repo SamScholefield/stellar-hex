@@ -1,4 +1,4 @@
-import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName } from '../../models/game-state';
+import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName, UNIT_UPKEEP, PlayerState, UnitData, GameOverState, ECONOMIC_VICTORY_CREDITS } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
@@ -252,6 +252,9 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
 }
 
 function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState {
+  // If game is already over, don't process further turns
+  if (state.gameOver) return state;
+
   const currentPlayerIndex = state.currentPlayerIndex;
   const currentPlayer = state.players[currentPlayerIndex];
   const nextPlayerIndex = (currentPlayerIndex + 1) % state.players.length;
@@ -259,7 +262,9 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
 
   // Collect income from current player's buildings before switching
   let players = state.players;
-  if (currentPlayer) {
+  let units = new Map(state.units);
+
+  if (currentPlayer && !currentPlayer.eliminated) {
     const income = { energy: 0, minerals: 0, alloys: 0, credits: 0 };
     for (const building of state.buildings.values()) {
       if (building.ownerId !== currentPlayer.id) continue;
@@ -277,24 +282,46 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     income.alloys += miningYields?.alloys ?? 0;
     income.credits += miningYields?.credits ?? 0;
 
+    // Compute upkeep
+    const upkeep = computeUpkeepForPlayer(state.units, currentPlayer.id);
+
+    // Apply income then subtract upkeep
+    const newResources = {
+      energy: currentPlayer.resources.energy + income.energy - upkeep.energy,
+      minerals: currentPlayer.resources.minerals + income.minerals - upkeep.minerals,
+      alloys: currentPlayer.resources.alloys + income.alloys - upkeep.alloys,
+      credits: currentPlayer.resources.credits + income.credits - upkeep.credits,
+    };
+
+    // Attrition: if any resource is negative, damage all player's units by 2
+    const isBankrupt = newResources.energy < 0 || newResources.minerals < 0
+      || newResources.alloys < 0 || newResources.credits < 0;
+
+    if (isBankrupt) {
+      for (const [id, unit] of units) {
+        if (unit.ownerId !== currentPlayer.id) continue;
+        const newHealth = unit.health - 2;
+        if (newHealth <= 0) {
+          units.delete(id);
+        } else {
+          units.set(id, { ...unit, health: newHealth });
+        }
+      }
+    }
+
+    // Clamp resources to 0
+    newResources.energy = Math.max(0, newResources.energy);
+    newResources.minerals = Math.max(0, newResources.minerals);
+    newResources.alloys = Math.max(0, newResources.alloys);
+    newResources.credits = Math.max(0, newResources.credits);
+
     players = state.players.map((p, i) =>
-      i === currentPlayerIndex
-        ? {
-            ...p,
-            resources: {
-              energy: p.resources.energy + income.energy,
-              minerals: p.resources.minerals + income.minerals,
-              alloys: p.resources.alloys + income.alloys,
-              credits: p.resources.credits + income.credits,
-            },
-          }
-        : p
+      i === currentPlayerIndex ? { ...p, resources: newResources } : p
     );
   }
 
   // Process production queues for current player's starbases
   let buildings = state.buildings;
-  let units = new Map(state.units);
   let buildingsChanged = false;
 
   for (const [bId, building] of state.buildings) {
@@ -355,6 +382,18 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     }
   }
 
+  // Elimination check: mark players with no units AND no buildings as eliminated
+  players = players.map(p => {
+    if (p.eliminated) return p;
+    if (shouldEliminate(p, units, buildings)) {
+      return { ...p, eliminated: true };
+    }
+    return p;
+  });
+
+  // Victory check
+  const gameOver = checkVictory(players, units, buildings);
+
   let result: GameState = {
     ...state,
     turn: nextTurn,
@@ -362,6 +401,7 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     players,
     units,
     buildings,
+    gameOver: gameOver ?? state.gameOver,
   };
 
   if (nextPlayerIndex === 0) {
@@ -428,6 +468,48 @@ function collectAnomaly(state: GameState, anomalyId: string, unitId: string): Ga
   anomalies.delete(anomalyId);
 
   return { ...state, players, anomalies };
+}
+
+export function computeUpkeepForPlayer(units: Map<string, UnitData>, playerId: string): Resources {
+  const upkeep: Resources = { energy: 0, minerals: 0, alloys: 0, credits: 0 };
+  for (const unit of units.values()) {
+    if (unit.ownerId !== playerId) continue;
+    const cost = UNIT_UPKEEP[unit.type];
+    if (!cost) continue;
+    upkeep.energy += cost.energy ?? 0;
+    upkeep.minerals += cost.minerals ?? 0;
+    upkeep.alloys += cost.alloys ?? 0;
+    upkeep.credits += cost.credits ?? 0;
+  }
+  return upkeep;
+}
+
+export function shouldEliminate(player: PlayerState, units: Map<string, UnitData>, buildings: Map<string, BuildingData>): boolean {
+  if (player.eliminated) return false;
+  for (const u of units.values()) {
+    if (u.ownerId === player.id) return false;
+  }
+  for (const b of buildings.values()) {
+    if (b.ownerId === player.id) return false;
+  }
+  return true;
+}
+
+export function checkVictory(players: PlayerState[], units: Map<string, UnitData>, buildings: Map<string, BuildingData>): GameOverState | undefined {
+  // Economic victory
+  for (const p of players) {
+    if (!p.eliminated && p.resources.credits >= ECONOMIC_VICTORY_CREDITS) {
+      return { winnerId: p.id, reason: 'economic' };
+    }
+  }
+
+  // Domination victory
+  const alive = players.filter(p => !p.eliminated);
+  if (alive.length === 1) {
+    return { winnerId: alive[0].id, reason: 'domination' };
+  }
+
+  return undefined;
 }
 
 function advanceComets(state: GameState): GameState {

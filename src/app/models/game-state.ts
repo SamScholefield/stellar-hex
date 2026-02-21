@@ -40,6 +40,7 @@ export interface PlayerState {
   isAI: boolean;
   exploredHexes: Set<string>;
   homeBaseId?: string;
+  eliminated: boolean;
 }
 
 export type ShipSize = 'small' | 'medium' | 'large';
@@ -103,6 +104,17 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
   colony_ship:  { maxMovementPoints: 2, maxHealth: 12, attack: 0,  defense: 0,  range: 0, sightRange: 2, cost: { energy: 40, alloys: 20, credits: 30 },         size: 'medium', weapon: null,      armor: 0, maxShields: 0,  buildTurns: 2 },
   mining_drone: { maxMovementPoints: 2, maxHealth: 6,  attack: 0,  defense: 0,  range: 0, sightRange: 1, cost: { energy: 15, minerals: 10 },                    size: 'small',  weapon: null,      armor: 0, maxShields: 0,  buildTurns: 2 },
 };
+
+export const UNIT_UPKEEP: Partial<Record<UnitType, Partial<Resources>>> = {
+  fighter:     { energy: 2 },
+  corvette:    { energy: 3 },
+  frigate:     { energy: 4, credits: 1 },
+  cruiser:     { energy: 5, credits: 2 },
+  battleship:  { energy: 8, credits: 4 },
+  colony_ship: { energy: 3 },
+};
+
+export const ECONOMIC_VICTORY_CREDITS = 500;
 
 export interface UnitData {
   id: string;
@@ -207,6 +219,13 @@ export interface Anomaly {
   r: number;
 }
 
+export type VictoryReason = 'domination' | 'economic';
+
+export interface GameOverState {
+  winnerId: string;
+  reason: VictoryReason;
+}
+
 export interface GameState {
   turn: number;
   currentPlayerIndex: number;
@@ -217,4 +236,5 @@ export interface GameState {
   chunkOverrides: Map<string, HexOverride[]>;
   anomalies: Map<string, Anomaly>;
   seed: number;
+  gameOver?: GameOverState;
 }

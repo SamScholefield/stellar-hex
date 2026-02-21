@@ -1,5 +1,5 @@
 import { computed, Injectable, signal } from '@angular/core';
-import { GameState, PlayerState, Resources, UnitData, BuildingData } from '../../models/game-state';
+import { GameState, GameOverState, PlayerState, Resources, UnitData, BuildingData } from '../../models/game-state';
 import { HexData } from '../../models/hex-data';
 import { computeMiningDroneIncome } from '../economy/economy.service';
 import { GameAction } from './actions';
@@ -38,6 +38,7 @@ export class GameStateService {
   readonly players = computed(() => this._gameState().players);
   readonly anomalies = computed(() => this._gameState().anomalies);
   readonly homeBaseId = computed(() => this.currentPlayer()?.homeBaseId ?? null);
+  readonly gameOver = computed<GameOverState | undefined>(() => this._gameState().gameOver);
 
   readonly unitsAtHex = computed<Map<string, UnitData[]>>(() => {
     const index = new Map<string, UnitData[]>();

@@ -35,6 +35,7 @@ function makePlayer(overrides: Partial<PlayerState> & { id: string }): PlayerSta
     resources: { energy: 100, minerals: 50, alloys: 30, credits: 30 },
     isAI: true,
     exploredHexes: new Set(),
+    eliminated: false,
     ...overrides,
   };
 }
@@ -160,6 +161,41 @@ describe('scoreProduction', () => {
     const units = new Map<string, UnitData>();
 
     const result = scoreProduction(player, buildings, units, false);
+    expect(result).not.toBeNull();
+    expect(result!.unitType).toBe('scout');
+  });
+
+  it('avoids expensive units when upkeep would bankrupt', () => {
+    const player = makePlayer({ id: 'p1', resources: { energy: 200, minerals: 100, alloys: 100, credits: 100 } });
+    const starbase: BuildingData = {
+      id: 'b1', ownerId: 'p1', type: 'starbase',
+      q: 0, r: 0, health: 50, maxHealth: 50,
+    };
+    const buildings = new Map([['b1', starbase]]);
+    const units = new Map<string, UnitData>();
+
+    // netEnergyIncome = -3 means already running a deficit
+    // battleship upkeep = 8 energy → -3 - 8 = -11 < -5, should skip
+    // cruiser upkeep = 5 energy → -3 - 5 = -8 < -5, should skip
+    // frigate upkeep = 4 energy → -3 - 4 = -7 < -5, should skip
+    // corvette upkeep = 3 energy → -3 - 3 = -6 < -5, should skip
+    // fighter upkeep = 2 energy → -3 - 2 = -5 >= -5, OK
+    const result = scoreProduction(player, buildings, units, true, -3);
+    expect(result).not.toBeNull();
+    expect(result!.unitType).toBe('fighter');
+  });
+
+  it('still picks scout even with low income (scouts have no upkeep)', () => {
+    const player = makePlayer({ id: 'p1' });
+    const starbase: BuildingData = {
+      id: 'b1', ownerId: 'p1', type: 'starbase',
+      q: 0, r: 0, health: 50, maxHealth: 50,
+    };
+    const buildings = new Map([['b1', starbase]]);
+    const units = new Map<string, UnitData>();
+
+    // Very negative net energy — should still pick scout as it has no upkeep
+    const result = scoreProduction(player, buildings, units, false, -20);
     expect(result).not.toBeNull();
     expect(result!.unitType).toBe('scout');
   });

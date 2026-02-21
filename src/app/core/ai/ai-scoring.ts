@@ -8,6 +8,7 @@ import {
   Resources,
   BUILDING_STATS,
   UNIT_STATS,
+  UNIT_UPKEEP,
   PlayerState,
   GameState,
 } from '../../models/game-state';
@@ -232,12 +233,15 @@ export function scoreBuild(
 
 /**
  * Score unit production for starbases.
+ * netEnergyIncome: current net energy income (income - existing upkeep).
+ * If adding a unit's upkeep would push net energy below -5, skip it.
  */
 export function scoreProduction(
   player: PlayerState,
   buildings: Map<string, BuildingData>,
   units: Map<string, UnitData>,
   enemyNearby: boolean,
+  netEnergyIncome?: number,
 ): ProductionScoreResult | null {
   let bestResult: ProductionScoreResult | null = null;
 
@@ -261,19 +265,19 @@ export function scoreProduction(
 
     if (enemyNearby) {
       // Escalate: try battleship > cruiser > frigate > corvette > fighter
-      if (hasResources(player.resources, UNIT_STATS.battleship.cost)) {
+      if (hasResources(player.resources, UNIT_STATS.battleship.cost) && canSustainUpkeep('battleship', netEnergyIncome)) {
         unitType = 'battleship';
         score = 90;
-      } else if (hasResources(player.resources, UNIT_STATS.cruiser.cost)) {
+      } else if (hasResources(player.resources, UNIT_STATS.cruiser.cost) && canSustainUpkeep('cruiser', netEnergyIncome)) {
         unitType = 'cruiser';
         score = 85;
-      } else if (hasResources(player.resources, UNIT_STATS.frigate.cost)) {
+      } else if (hasResources(player.resources, UNIT_STATS.frigate.cost) && canSustainUpkeep('frigate', netEnergyIncome)) {
         unitType = 'frigate';
         score = 82;
-      } else if (hasResources(player.resources, UNIT_STATS.corvette.cost)) {
+      } else if (hasResources(player.resources, UNIT_STATS.corvette.cost) && canSustainUpkeep('corvette', netEnergyIncome)) {
         unitType = 'corvette';
         score = 80;
-      } else if (hasResources(player.resources, UNIT_STATS.fighter.cost)) {
+      } else if (hasResources(player.resources, UNIT_STATS.fighter.cost) && canSustainUpkeep('fighter', netEnergyIncome)) {
         unitType = 'fighter';
         score = 78;
       } else {
@@ -282,10 +286,10 @@ export function scoreProduction(
     } else if (scoutCount < 2 && hasResources(player.resources, UNIT_STATS.scout.cost)) {
       unitType = 'scout';
       score = 60;
-    } else if (combatCount < 2 && hasResources(player.resources, UNIT_STATS.corvette.cost)) {
+    } else if (combatCount < 2 && hasResources(player.resources, UNIT_STATS.corvette.cost) && canSustainUpkeep('corvette', netEnergyIncome)) {
       unitType = 'corvette';
       score = 50;
-    } else if (combatCount < 2 && hasResources(player.resources, UNIT_STATS.fighter.cost)) {
+    } else if (combatCount < 2 && hasResources(player.resources, UNIT_STATS.fighter.cost) && canSustainUpkeep('fighter', netEnergyIncome)) {
       unitType = 'fighter';
       score = 45;
     } else if (hasResources(player.resources, UNIT_STATS.scout.cost)) {
@@ -301,6 +305,13 @@ export function scoreProduction(
   }
 
   return bestResult;
+}
+
+function canSustainUpkeep(unitType: UnitType, netEnergyIncome?: number): boolean {
+  if (netEnergyIncome === undefined) return true;
+  const upkeep = UNIT_UPKEEP[unitType];
+  const additionalEnergy = upkeep?.energy ?? 0;
+  return (netEnergyIncome - additionalEnergy) >= -5;
 }
 
 function hasResources(resources: Resources, cost: Partial<Resources>): boolean {

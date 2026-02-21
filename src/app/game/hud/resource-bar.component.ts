@@ -8,10 +8,10 @@ import { EconomyService } from '../../core/economy/economy.service';
   template: `
     <div class="bar">
       @if (resources(); as r) {
-        <span class="res"><span class="label">Energy</span> {{ r.energy }} <span class="income" [class.positive]="inc().energy > 0">+{{ inc().energy }}</span></span>
-        <span class="res"><span class="label">Minerals</span> {{ r.minerals }} <span class="income" [class.positive]="inc().minerals > 0">+{{ inc().minerals }}</span></span>
-        <span class="res"><span class="label">Alloys</span> {{ r.alloys }} <span class="income" [class.positive]="inc().alloys > 0">+{{ inc().alloys }}</span></span>
-        <span class="res"><span class="label">Credits</span> {{ r.credits }} <span class="income" [class.positive]="inc().credits > 0">+{{ inc().credits }}</span></span>
+        <span class="res"><span class="label">Energy</span> {{ r.energy }} <span class="income" [class.positive]="net().energy > 0" [class.negative]="net().energy < 0">{{ net().energy >= 0 ? '+' : '' }}{{ net().energy }}</span></span>
+        <span class="res"><span class="label">Minerals</span> {{ r.minerals }} <span class="income" [class.positive]="net().minerals > 0" [class.negative]="net().minerals < 0">{{ net().minerals >= 0 ? '+' : '' }}{{ net().minerals }}</span></span>
+        <span class="res"><span class="label">Alloys</span> {{ r.alloys }} <span class="income" [class.positive]="net().alloys > 0" [class.negative]="net().alloys < 0">{{ net().alloys >= 0 ? '+' : '' }}{{ net().alloys }}</span></span>
+        <span class="res"><span class="label">Credits</span> {{ r.credits }} <span class="income" [class.positive]="net().credits > 0" [class.negative]="net().credits < 0">{{ net().credits >= 0 ? '+' : '' }}{{ net().credits }}</span></span>
       } @else {
         <span class="res">--</span>
       }
@@ -47,11 +47,14 @@ import { EconomyService } from '../../core/economy/economy.service';
     .income.positive {
       color: var(--accent-teal);
     }
+    .income.negative {
+      color: var(--accent-red, #f87171);
+    }
   `,
 })
 export class ResourceBarComponent {
   private readonly gameState = inject(GameStateService);
   private readonly economy = inject(EconomyService);
   readonly resources = this.gameState.resources;
-  readonly inc = this.economy.income;
+  readonly net = this.economy.netIncome;
 }

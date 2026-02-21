@@ -20,7 +20,7 @@ import { EventLogService } from '../../core/state/event-log.service';
         @if (undo.canUndo()) {
           <button class="undo-btn" (click)="undoAction()">Undo</button>
         }
-        <button class="end-turn" [style.visibility]="aiExecuting() ? 'hidden' : 'visible'" (click)="endTurn()">End Turn</button>
+        <button class="end-turn" [style.visibility]="aiExecuting() ? 'hidden' : 'visible'" [disabled]="!!gameOver()" (click)="endTurn()">End Turn</button>
         @if (aiExecuting()) {
           <span class="ai-thinking">AI thinking...</span>
         }
@@ -63,8 +63,12 @@ import { EventLogService } from '../../core/state/event-log.service';
       cursor: pointer;
       transition: background 0.15s;
     }
-    .end-turn:hover {
+    .end-turn:hover:not(:disabled) {
       background: var(--btn-border);
+    }
+    .end-turn:disabled {
+      opacity: 0.4;
+      cursor: default;
     }
     .undo-btn {
       padding: 0.3rem 0.6rem;
@@ -109,6 +113,7 @@ export class TurnControlsComponent {
   readonly turn = this.gameState.turn;
   readonly currentPlayer = this.gameState.currentPlayer;
   readonly aiExecuting = this.ai.executing;
+  readonly gameOver = this.gameState.gameOver;
 
   undoAction(): void {
     this.audio.playClick();

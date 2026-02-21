@@ -117,11 +117,30 @@ export class GameComponent implements OnDestroy {
       if (key === this.lastTurnKey) return;
       this.lastTurnKey = key;
 
+      // Skip if game is over
+      const gameOver = this.gameState.gameOver();
+      if (gameOver) {
+        const winnerName = this.gameState.playerNames().get(gameOver.winnerId) ?? 'Unknown';
+        const reason = gameOver.reason === 'domination' ? 'Domination' : 'Economic';
+        untracked(() => {
+          this.eventLog.push({ turn, message: `Game Over: ${winnerName} wins by ${reason} Victory!` });
+        });
+        return;
+      }
+
       untracked(() => this.selection.deselectUnits());
 
       if (player.isAI) {
-        this.eventLog.push({ turn, message: `[AI] ${player.name} is thinking...` });
-        untracked(() => this.ai.executeTurn(player.id));
+        if (player.eliminated) {
+          // Skip eliminated AI players — just end their turn
+          untracked(() => {
+            const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+            this.gameState.dispatchEndTurn(hexLookup);
+          });
+        } else {
+          this.eventLog.push({ turn, message: `[AI] ${player.name} is thinking...` });
+          untracked(() => this.ai.executeTurn(player.id));
+        }
       } else {
         this.eventLog.push({ turn, message: `${player.name}'s turn begins` });
         if (turn > 1) {

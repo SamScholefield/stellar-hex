@@ -102,6 +102,7 @@ function buildCombatScenario(): string {
       resources: { energy: 80, minerals: 40, alloys: 15, credits: 30 },
       isAI: false,
       exploredHexes: exploredSet(0, 0, 6),
+      eliminated: false,
     },
     {
       id: 'p1',
@@ -110,6 +111,7 @@ function buildCombatScenario(): string {
       resources: { energy: 60, minerals: 30, alloys: 10, credits: 20 },
       isAI: true,
       exploredHexes: exploredSet(5, -3, 6),
+      eliminated: false,
     },
   ];
 
@@ -175,6 +177,7 @@ function buildEconomyScenario(): string {
       resources: { energy: 200, minerals: 80, alloys: 40, credits: 100 },
       isAI: false,
       exploredHexes: exploredSet(0, 0, 10),
+      eliminated: false,
     },
     {
       id: 'p1',
@@ -183,6 +186,7 @@ function buildEconomyScenario(): string {
       resources: { energy: 100, minerals: 40, alloys: 15, credits: 50 },
       isAI: true,
       exploredHexes: exploredSet(20, -10, 6),
+      eliminated: false,
     },
   ];
 

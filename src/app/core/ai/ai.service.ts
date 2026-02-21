@@ -3,7 +3,7 @@ import { GameStateService } from '../state/game-state.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { AnimationService } from '../../game/renderer/animation.service';
 import { EventLogService } from '../state/event-log.service';
-import { ANOMALY_REWARDS, PlayerState, UnitData } from '../../models/game-state';
+import { ANOMALY_REWARDS, BUILDING_STATS, PlayerState, UnitData, UNIT_UPKEEP } from '../../models/game-state';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
 import { findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
@@ -27,6 +27,12 @@ export class AIService {
   readonly executing = this._executing.asReadonly();
 
   async executeTurn(playerId: string): Promise<void> {
+    // Skip if game is over or player is eliminated
+    const state = this.gameState.getState();
+    if (state.gameOver) return;
+    const player = state.players.find(p => p.id === playerId);
+    if (!player || player.eliminated) return;
+
     this._executing.set(true);
     try {
       const minWait = delay(1000);
@@ -181,7 +187,8 @@ export class AIService {
     const prodPlayer = prodState.players.find(p => p.id === playerId);
     if (prodPlayer) {
       const enemyNearby = this.hasEnemyNearby(playerId, prodState);
-      const prodResult = scoreProduction(prodPlayer, prodState.buildings, prodState.units, enemyNearby);
+      const netEnergy = this.computeNetEnergyIncome(prodPlayer, prodState);
+      const prodResult = scoreProduction(prodPlayer, prodState.buildings, prodState.units, enemyNearby, netEnergy);
       if (prodResult) {
         this.gameState.dispatch({
           type: 'PRODUCE_UNIT',
@@ -274,6 +281,22 @@ export class AIService {
         break;
       }
     }
+  }
+
+  private computeNetEnergyIncome(player: PlayerState, state: import('../../models/game-state').GameState): number {
+    let income = 0;
+    for (const b of state.buildings.values()) {
+      if (b.ownerId !== player.id) continue;
+      const stats = BUILDING_STATS[b.type];
+      if (stats?.yield.energy) income += stats.yield.energy;
+    }
+    let upkeep = 0;
+    for (const u of state.units.values()) {
+      if (u.ownerId !== player.id) continue;
+      const cost = UNIT_UPKEEP[u.type];
+      if (cost?.energy) upkeep += cost.energy;
+    }
+    return income - upkeep;
   }
 
   private hasEnemyNearby(playerId: string, state: import('../../models/game-state').GameState): boolean {

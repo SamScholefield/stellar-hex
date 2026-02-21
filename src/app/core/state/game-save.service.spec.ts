@@ -15,7 +15,7 @@ function makeTestState(): GameState {
         color: '#5eead4',
         resources: { energy: 80, minerals: 30, alloys: 10, credits: 40 },
         isAI: false,
-        exploredHexes: new Set(['0,0', '1,-1', '2,-1']),
+        eliminated: false, exploredHexes: new Set(['0,0', '1,-1', '2,-1']),
       },
       {
         id: 'p1',
@@ -23,7 +23,7 @@ function makeTestState(): GameState {
         color: '#f87171',
         resources: { energy: 60, minerals: 20, alloys: 5, credits: 25 },
         isAI: true,
-        exploredHexes: new Set(['10,-5', '11,-5']),
+        eliminated: false, exploredHexes: new Set(['10,-5', '11,-5']),
       },
     ],
     units: new Map([
@@ -209,6 +209,42 @@ describe('serialize / deserialize', () => {
   it('produces valid JSON string', () => {
     const json = serialize(state, testCamera);
     expect(() => JSON.parse(json)).not.toThrow();
+  });
+
+  it('migrates old save data missing eliminated and gameOver fields', () => {
+    const oldSave = {
+      state: {
+        turn: 3,
+        currentPlayerIndex: 0,
+        players: [{
+          id: 'p0', name: 'Player', color: '#5eead4',
+          resources: { energy: 50, minerals: 20, alloys: 10, credits: 15 },
+          isAI: false, exploredHexes: ['0,0'],
+          // Note: no eliminated field
+        }],
+        units: [],
+        buildings: [],
+        dynamicObjects: [],
+        chunkOverrides: [],
+        anomalies: [],
+        seed: 42,
+        // Note: no gameOver field
+      },
+      camera: { panX: 0, panY: 0, zoom: 1 },
+    };
+
+    const json = JSON.stringify(oldSave);
+    const result = deserialize(json);
+
+    expect(result.state.players[0].eliminated).toBe(false);
+    expect(result.state.gameOver).toBeUndefined();
+  });
+
+  it('preserves eliminated and gameOver when present', () => {
+    const json = serialize(state, testCamera);
+    const result = deserialize(json);
+    expect(result.state.players[0].eliminated).toBe(false);
+    expect(result.state.gameOver).toBeUndefined();
   });
 
   it('migrates old save data missing weapon field', () => {

@@ -1,5 +1,5 @@
 import { computed, inject, Injectable } from '@angular/core';
-import { BuildingData, BUILDING_STATS, Resources, UnitData } from '../../models/game-state';
+import { BuildingData, BUILDING_STATS, Resources, UnitData, UNIT_UPKEEP } from '../../models/game-state';
 import { HexData } from '../../models/hex-data';
 import { GameStateService } from '../state/game-state.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
@@ -43,6 +43,29 @@ export function computeMiningDroneIncome(
   return income;
 }
 
+export function computeUpkeep(units: Map<string, UnitData>, playerId: string): Resources {
+  const upkeep: Resources = { energy: 0, minerals: 0, alloys: 0, credits: 0 };
+  for (const unit of units.values()) {
+    if (unit.ownerId !== playerId) continue;
+    const cost = UNIT_UPKEEP[unit.type];
+    if (!cost) continue;
+    upkeep.energy += cost.energy ?? 0;
+    upkeep.minerals += cost.minerals ?? 0;
+    upkeep.alloys += cost.alloys ?? 0;
+    upkeep.credits += cost.credits ?? 0;
+  }
+  return upkeep;
+}
+
+export function computeNetIncome(income: Resources, upkeep: Resources): Resources {
+  return {
+    energy: income.energy - upkeep.energy,
+    minerals: income.minerals - upkeep.minerals,
+    alloys: income.alloys - upkeep.alloys,
+    credits: income.credits - upkeep.credits,
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class EconomyService {
   private readonly gameState = inject(GameStateService);
@@ -65,4 +88,14 @@ export class EconomyService {
       credits: buildingIncome.credits + (miningIncome.credits ?? 0),
     };
   });
+
+  readonly upkeep = computed<Resources>(() => {
+    const player = this.gameState.currentPlayer();
+    if (!player) return { energy: 0, minerals: 0, alloys: 0, credits: 0 };
+    return computeUpkeep(this.gameState.units(), player.id);
+  });
+
+  readonly netIncome = computed<Resources>(() =>
+    computeNetIncome(this.income(), this.upkeep())
+  );
 }

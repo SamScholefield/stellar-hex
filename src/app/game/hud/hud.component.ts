@@ -9,7 +9,7 @@ import { ProductionMenuComponent } from '../panels/production-menu.component';
 import { UnitListPanelComponent } from '../panels/unit-list-panel.component';
 import { BuildingListPanelComponent } from '../panels/building-list-panel.component';
 import { MinimapComponent } from './minimap.component';
-
+import { GameOverOverlayComponent } from '../overlays/game-over-overlay.component';
 
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
@@ -24,7 +24,7 @@ import { BuildingData, UnitType } from '../../models/game-state';
 @Component({
   selector: 'app-hud',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent],
+  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent, GameOverOverlayComponent],
   template: `
     <div class="hud-top">
       <app-resource-bar />
@@ -61,6 +61,9 @@ import { BuildingData, UnitType } from '../../models/game-state';
           <span>Opponent is acting...</span>
         </div>
       </div>
+    }
+    @if (gameOver()) {
+      <app-game-over-overlay />
     }
   `,
   styles: `
@@ -210,6 +213,7 @@ export class HudComponent {
   private readonly undo = inject(UndoService);
 
   readonly aiExecuting = this.ai.executing;
+  readonly gameOver = this.gameState.gameOver;
 
   readonly homeBase = computed<BuildingData | null>(() => {
     const id = this.gameState.homeBaseId();

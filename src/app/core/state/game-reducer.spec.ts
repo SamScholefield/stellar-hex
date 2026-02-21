@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { gameReducer } from './game-reducer';
-import { GameState, DynamicObject, Resources, UnitData, BuildingData, BUILDING_STATS, UNIT_STATS, Anomaly } from '../../models/game-state';
+import { gameReducer, computeUpkeepForPlayer, shouldEliminate, checkVictory } from './game-reducer';
+import { GameState, DynamicObject, Resources, UnitData, BuildingData, BUILDING_STATS, UNIT_STATS, Anomaly, ECONOMIC_VICTORY_CREDITS } from '../../models/game-state';
 
 function makeResources(overrides: Partial<Resources> = {}): Resources {
   return { energy: 100, minerals: 50, alloys: 20, credits: 30, ...overrides };
@@ -11,8 +11,8 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     turn: 1,
     currentPlayerIndex: 0,
     players: [
-      { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources(), isAI: false, exploredHexes: new Set<string>() },
-      { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set<string>() },
+      { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false },
+      { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: false },
     ],
     units: new Map(),
     buildings: new Map(),
@@ -239,8 +239,8 @@ describe('gameReducer', () => {
       const state = makeState({
         units,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 5 }), isAI: false, exploredHexes: new Set() },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set() },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 5 }), isAI: false, exploredHexes: new Set(), eliminated: false },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
         ],
       });
       const hex = { q: 0, r: 0, s: 0 };
@@ -420,8 +420,8 @@ describe('gameReducer', () => {
       const state = makeState({
         buildings,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 200, alloys: 100, credits: 100 }), isAI: false, exploredHexes: new Set() },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set() },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 200, alloys: 100, credits: 100 }), isAI: false, exploredHexes: new Set(), eliminated: false },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
         ],
       });
 
@@ -448,8 +448,8 @@ describe('gameReducer', () => {
       const state = makeState({
         buildings,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 0 }), isAI: false, exploredHexes: new Set() },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set() },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 0 }), isAI: false, exploredHexes: new Set(), eliminated: false },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
         ],
       });
       const next = gameReducer(state, { type: 'PRODUCE_UNIT', buildingId: 'b1', unitType: 'scout' });
@@ -690,6 +690,212 @@ describe('gameReducer', () => {
       gameReducer(state, { type: 'COLLECT_ANOMALY', anomalyId: 'a1', unitId: 'u1' });
       expect(state.anomalies.size).toBe(1);
       expect(state.players[0].resources.minerals).toBe(50);
+    });
+  });
+
+  describe('END_TURN upkeep and attrition', () => {
+    it('deducts upkeep from resources', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p1', type: 'corvette', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      // fighter upkeep: 2 energy, corvette: 3 energy = 5 total
+      expect(next.players[0].resources.energy).toBe(100 - 5);
+    });
+
+    it('applies attrition (2 dmg) when resource goes negative', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'battleship', q: 0, r: 0 })],
+      ]);
+      // battleship upkeep: 8 energy, 4 credits. Give player only 3 energy, 0 buildings
+      const state = makeState({
+        units,
+        players: [
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 3 }), isAI: false, exploredHexes: new Set(), eliminated: false },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+        ],
+      });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      const unit = next.units.get('u1');
+      expect(unit).toBeDefined();
+      expect(unit!.health).toBe(UNIT_STATS.battleship.maxHealth - 2);
+    });
+
+    it('removes dead units from attrition', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'battleship', q: 0, r: 0, health: 1 })],
+      ]);
+      const state = makeState({
+        units,
+        players: [
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 3 }), isAI: false, exploredHexes: new Set(), eliminated: false },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+        ],
+      });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      expect(next.units.has('u1')).toBe(false);
+    });
+
+    it('clamps resources to 0', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'battleship', q: 0, r: 0 })],
+      ]);
+      // battleship: 8 energy, 4 credits upkeep
+      const state = makeState({
+        units,
+        players: [
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 3, credits: 2 }), isAI: false, exploredHexes: new Set(), eliminated: false },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+        ],
+      });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      expect(next.players[0].resources.energy).toBe(0);
+      expect(next.players[0].resources.credits).toBe(0);
+    });
+
+    it('does not apply upkeep for scouts and mining_drones', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p1', type: 'mining_drone', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      // No upkeep for scouts or mining_drones
+      expect(next.players[0].resources.energy).toBe(100);
+    });
+  });
+
+  describe('END_TURN elimination and victory', () => {
+    it('sets eliminated when player has no units or buildings', () => {
+      // p1 has no units or buildings, p2 has a unit
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p2', type: 'scout', q: 5, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      expect(next.players[0].eliminated).toBe(true);
+      expect(next.players[1].eliminated).toBe(false);
+    });
+
+    it('sets domination victory when one player remains', () => {
+      // p2 already eliminated, p1 has no units/buildings → both eliminated? No.
+      // Better: p2 eliminated, p1 has a unit
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })],
+      ]);
+      const state = makeState({
+        units,
+        players: [
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources(), isAI: false, exploredHexes: new Set(), eliminated: false },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: true },
+        ],
+      });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      expect(next.gameOver).toBeDefined();
+      expect(next.gameOver!.reason).toBe('domination');
+      expect(next.gameOver!.winnerId).toBe('p1');
+    });
+
+    it('sets economic victory when credits reach threshold', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p2', type: 'scout', q: 5, r: 0 })],
+      ]);
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'colony', q: 0, r: 1, health: 30, maxHealth: 30 }],
+      ]);
+      const state = makeState({
+        units,
+        buildings,
+        players: [
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ credits: ECONOMIC_VICTORY_CREDITS - 2 }), isAI: false, exploredHexes: new Set(), eliminated: false },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+        ],
+      });
+      // Colony yields 2 credits, so after income p1 should have >= ECONOMIC_VICTORY_CREDITS
+      const next = gameReducer(state, { type: 'END_TURN' });
+      expect(next.gameOver).toBeDefined();
+      expect(next.gameOver!.reason).toBe('economic');
+      expect(next.gameOver!.winnerId).toBe('p1');
+    });
+
+    it('does not process turn if gameOver already set', () => {
+      const state = makeState({
+        gameOver: { winnerId: 'p1', reason: 'domination' },
+      });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      expect(next.currentPlayerIndex).toBe(0); // unchanged
+      expect(next.turn).toBe(1); // unchanged
+    });
+  });
+
+  describe('pure helpers', () => {
+    it('computeUpkeepForPlayer sums upkeep for player units', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p1', type: 'cruiser', q: 1, r: 0 })],
+        ['u3', makeUnitData({ id: 'u3', ownerId: 'p2', type: 'battleship', q: 5, r: 0 })],
+      ]);
+      const upkeep = computeUpkeepForPlayer(units, 'p1');
+      // fighter: 2 energy, cruiser: 5 energy + 2 credits
+      expect(upkeep.energy).toBe(7);
+      expect(upkeep.credits).toBe(2);
+      expect(upkeep.minerals).toBe(0);
+    });
+
+    it('shouldEliminate returns true when player has no units or buildings', () => {
+      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false };
+      expect(shouldEliminate(player, new Map(), new Map())).toBe(true);
+    });
+
+    it('shouldEliminate returns false when player has units', () => {
+      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false };
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })],
+      ]);
+      expect(shouldEliminate(player, units, new Map())).toBe(false);
+    });
+
+    it('shouldEliminate returns false when player has buildings', () => {
+      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false };
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
+      ]);
+      expect(shouldEliminate(player, new Map(), buildings)).toBe(false);
+    });
+
+    it('shouldEliminate returns false if already eliminated', () => {
+      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: true };
+      expect(shouldEliminate(player, new Map(), new Map())).toBe(false);
+    });
+
+    it('checkVictory returns domination when one player left', () => {
+      const players = [
+        { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false },
+        { id: 'p2', name: 'P2', color: '#f00', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: true },
+      ];
+      const result = checkVictory(players, new Map(), new Map());
+      expect(result).toEqual({ winnerId: 'p1', reason: 'domination' });
+    });
+
+    it('checkVictory returns economic when credits threshold met', () => {
+      const players = [
+        { id: 'p1', name: 'P1', color: '#fff', resources: makeResources({ credits: ECONOMIC_VICTORY_CREDITS }), isAI: false, exploredHexes: new Set<string>(), eliminated: false },
+        { id: 'p2', name: 'P2', color: '#f00', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: false },
+      ];
+      const result = checkVictory(players, new Map(), new Map());
+      expect(result).toEqual({ winnerId: 'p1', reason: 'economic' });
+    });
+
+    it('checkVictory returns undefined when no victory condition met', () => {
+      const players = [
+        { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false },
+        { id: 'p2', name: 'P2', color: '#f00', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: false },
+      ];
+      const result = checkVictory(players, new Map(), new Map());
+      expect(result).toBeUndefined();
     });
   });
 });
