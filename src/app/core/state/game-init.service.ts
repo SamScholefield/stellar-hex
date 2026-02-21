@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { GameState, PlayerState, Resources, UnitData, UnitType, UNIT_STATS } from '../../models/game-state';
+import { GameState, PlayerState, Resources, UnitData, UnitType, UNIT_STATS, generateUnitName } from '../../models/game-state';
 import { GameStateService } from './game-state.service';
 import { GameSaveService } from './game-save.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
@@ -33,10 +33,10 @@ function makeStartResources(): Resources {
   return { energy: 100, minerals: 50, alloys: 20, credits: 50 };
 }
 
-function makeUnit(id: string, ownerId: string, type: UnitType, q: number, r: number): UnitData {
+function makeUnit(id: string, name: string, ownerId: string, type: UnitType, q: number, r: number): UnitData {
   const stats = UNIT_STATS[type];
   return {
-    id, ownerId, type, q, r,
+    id, name, ownerId, type, q, r,
     movementPoints: stats.maxMovementPoints,
     maxMovementPoints: stats.maxMovementPoints,
     health: stats.maxHealth,
@@ -90,7 +90,8 @@ export class GameInitService {
       const pos = this.findSpawnNearPlanet(base.q, base.r, takenPositions);
       takenPositions.add(`${pos.q},${pos.r}`);
 
-      const unit = makeUnit(`scout-${players[i].id}`, players[i].id, 'scout', pos.q, pos.r);
+      const name = generateUnitName('scout', units);
+      const unit = makeUnit(`scout-${players[i].id}`, name, players[i].id, 'scout', pos.q, pos.r);
       units.set(unit.id, unit);
 
       // Reveal starting area

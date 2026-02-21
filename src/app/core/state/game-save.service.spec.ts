@@ -29,6 +29,7 @@ function makeTestState(): GameState {
         'scout-p0',
         {
           id: 'scout-p0',
+          name: 'Scout SC001',
           ownerId: 'p0',
           type: 'scout',
           q: 1,
@@ -47,6 +48,7 @@ function makeTestState(): GameState {
         'fighter-p1',
         {
           id: 'fighter-p1',
+          name: 'Fighter FI001',
           ownerId: 'p1',
           type: 'fighter',
           q: 10,

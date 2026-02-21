@@ -1,4 +1,4 @@
-import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly } from '../../models/game-state';
+import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
@@ -305,8 +305,10 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
         // Spawn unit at building location
         const unitStats = UNIT_STATS[item.unitType];
         const unitId = `u_${building.q}_${building.r}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const unitName = generateUnitName(item.unitType, units);
         units.set(unitId, {
           id: unitId,
+          name: unitName,
           ownerId: building.ownerId,
           type: item.unitType,
           q: building.q,

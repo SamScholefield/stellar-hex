@@ -64,6 +64,7 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
 
 export interface UnitData {
   id: string;
+  name: string;
   ownerId: string;
   type: UnitType;
   q: number;
@@ -76,6 +77,32 @@ export interface UnitData {
   defense: number;
   range: number;
   sightRange: number;
+}
+
+const UNIT_TYPE_PREFIX: Record<UnitType, string> = {
+  scout: 'SC',
+  fighter: 'FI',
+  cruiser: 'CR',
+  colony_ship: 'CO',
+  mining_drone: 'MD',
+};
+
+const UNIT_TYPE_LABEL: Record<UnitType, string> = {
+  scout: 'Scout',
+  fighter: 'Fighter',
+  cruiser: 'Cruiser',
+  colony_ship: 'Colony Ship',
+  mining_drone: 'Mining Drone',
+};
+
+/** Generate a display name like "Scout SC003" based on existing units of the same type. */
+export function generateUnitName(type: UnitType, existingUnits: Map<string, UnitData>): string {
+  let count = 0;
+  for (const u of existingUnits.values()) {
+    if (u.type === type) count++;
+  }
+  const num = String(count + 1).padStart(3, '0');
+  return `${UNIT_TYPE_LABEL[type]} ${UNIT_TYPE_PREFIX[type]}${num}`;
 }
 
 export interface BuildingData {

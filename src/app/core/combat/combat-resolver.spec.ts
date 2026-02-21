@@ -5,6 +5,7 @@ import { UnitData } from '../../models/game-state';
 function makeUnit(overrides: Partial<UnitData> = {}): UnitData {
   return {
     id: 'u1',
+    name: overrides.name ?? 'Fighter FI001',
     ownerId: 'p1',
     type: 'fighter',
     q: 0,

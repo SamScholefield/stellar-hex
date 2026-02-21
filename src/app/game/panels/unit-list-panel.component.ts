@@ -32,6 +32,7 @@ interface UnitGroup {
                 [class.has-mp]="unit.movementPoints > 0"
                 (click)="selectUnit(unit)"
               >
+                <span class="unit-name">{{ unit.name }}</span>
                 <span class="hp">{{ unit.health }}/{{ unit.maxHealth }}</span>
                 <span class="mp" [class.active]="unit.movementPoints > 0">{{ unit.movementPoints }}MP</span>
                 <span class="coords">({{ unit.q }},{{ unit.r }})</span>
@@ -97,6 +98,7 @@ interface UnitGroup {
     .unit-row:hover { background: var(--hover-bg); }
     .unit-row.selected { background: var(--selected-bg); }
     .unit-row.has-mp { color: var(--text-primary); }
+    .unit-name { font-weight: 600; min-width: 70px; }
     .hp { color: var(--accent-green); }
     .mp { color: var(--text-muted); }
     .mp.active { color: var(--accent-amber); }

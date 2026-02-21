@@ -290,33 +290,43 @@ export class GameViewportComponent implements OnDestroy {
     // If a unit is selected and shift is not held, try to move or delegate to popup
     if (selectedUnitId && !event.shiftKey) {
       const unit = this.gameState.units().get(selectedUnitId);
-      if (unit && unit.ownerId === this.gameState.currentPlayer()?.id && unit.movementPoints > 0) {
-        const hexKey = `${hex.q},${hex.r}`;
-        const unitsAtHex = this.gameState.unitsAtHex().get(hexKey) ?? [];
-
-        if (unitsAtHex.length === 0) {
-          // Empty hex — try direct movement
-          const from = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
-          const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-          const blocked = this.blockedHexSet();
-          const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
-
-          const override = getUnitCostOverride(unit.type);
-          const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);
-          if (path && path.length > 1) {
-            this.audio.playClick();
-            const cost = pathCost(path, hexLookup, override);
-            this.animation.animateUnitMovement(selectedUnitId, path).then(() => {
-              this.undo.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path, cost });
-              this.selection.selectUnit(selectedUnitId);
-            });
-            return;
-          }
-        } else {
-          // Occupied hex — delegate to click popup
+      if (unit && unit.ownerId === this.gameState.currentPlayer()?.id) {
+        // Waypoint target hex — delegate to popup for cancel confirmation
+        const wp = this.waypointSvc.getWaypoint(selectedUnitId);
+        if (wp && wp.target.q === hex.q && wp.target.r === hex.r) {
           this.showClickPopup.emit({ clientX: event.clientX, clientY: event.clientY });
           this.audio.playClick();
           return;
+        }
+
+        if (unit.movementPoints > 0) {
+          const hexKey = `${hex.q},${hex.r}`;
+          const unitsAtHex = this.gameState.unitsAtHex().get(hexKey) ?? [];
+
+          if (unitsAtHex.length === 0) {
+            // Empty hex — try direct movement
+            const from = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+            const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+            const blocked = this.blockedHexSet();
+            const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
+
+            const override = getUnitCostOverride(unit.type);
+            const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);
+            if (path && path.length > 1) {
+              this.audio.playClick();
+              const cost = pathCost(path, hexLookup, override);
+              this.animation.animateUnitMovement(selectedUnitId, path).then(() => {
+                this.undo.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path, cost });
+                this.selection.selectUnit(selectedUnitId);
+              });
+              return;
+            }
+          } else {
+            // Occupied hex — delegate to click popup
+            this.showClickPopup.emit({ clientX: event.clientX, clientY: event.clientY });
+            this.audio.playClick();
+            return;
+          }
         }
       }
     }

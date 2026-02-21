@@ -203,7 +203,8 @@ export class HexCanvasRendererService {
       for (const wp of waypoints.values()) {
         const unit = units.get(wp.unitId);
         if (!unit || unit.ownerId !== currentPlayerId) continue;
-        this.drawWaypointIndicator(ctx, unit, wp, hexSize);
+        const isSelected = wp.unitId === selectedUnitId;
+        this.drawWaypointIndicator(ctx, unit, wp, hexSize, isSelected);
       }
     }
 
@@ -587,12 +588,15 @@ export class HexCanvasRendererService {
     unit: UnitData,
     wp: Waypoint,
     hexSize: number,
+    isSelected: boolean,
   ): void {
     const from = hexToPixel(unit.q, unit.r, hexSize);
     const to = hexToPixel(wp.target.q, wp.target.r, hexSize);
     const isAttack = !!wp.attackTargetId;
-    const color = isAttack ? 'rgba(239, 68, 68, 0.6)' : 'rgba(59, 130, 246, 0.6)';
-    const solidColor = isAttack ? '#ef4444' : '#3b82f6';
+    const alpha = isSelected ? 0.6 : 0.25;
+    const solidAlpha = isSelected ? 1.0 : 0.35;
+    const color = isAttack ? `rgba(239, 68, 68, ${alpha})` : `rgba(59, 130, 246, ${alpha})`;
+    const solidColor = isAttack ? `rgba(239, 68, 68, ${solidAlpha})` : `rgba(59, 130, 246, ${solidAlpha})`;
 
     // Dashed line from unit to target
     ctx.beginPath();

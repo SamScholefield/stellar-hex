@@ -50,7 +50,7 @@ describe('gameReducer', () => {
         [
           'u1',
           {
-            id: 'u1', ownerId: 'p2', type: 'scout', q: 0, r: 0,
+            id: 'u1', name: 'Scout SC001', ownerId: 'p2', type: 'scout', q: 0, r: 0,
             movementPoints: 0, maxMovementPoints: 3,
             health: 10, maxHealth: 10, attack: 2, defense: 1, range: 1, sightRange: 3,
           },
@@ -58,7 +58,7 @@ describe('gameReducer', () => {
         [
           'u2',
           {
-            id: 'u2', ownerId: 'p1', type: 'scout', q: 1, r: 0,
+            id: 'u2', name: 'Scout SC002', ownerId: 'p1', type: 'scout', q: 1, r: 0,
             movementPoints: 0, maxMovementPoints: 3,
             health: 10, maxHealth: 10, attack: 2, defense: 1, range: 1, sightRange: 3,
           },
@@ -134,7 +134,7 @@ describe('gameReducer', () => {
     it('moves unit to destination and deducts movement points', () => {
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0,
+          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
           movementPoints: 4, maxMovementPoints: 4,
           health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
         }],
@@ -155,7 +155,7 @@ describe('gameReducer', () => {
     it('deducts terrain-weighted cost for nebula movement', () => {
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0,
+          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
           movementPoints: 4, maxMovementPoints: 4,
           health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
         }],
@@ -173,7 +173,7 @@ describe('gameReducer', () => {
     it('does not mutate original state', () => {
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0,
+          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
           movementPoints: 3, maxMovementPoints: 3,
           health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
         }],
@@ -194,7 +194,7 @@ describe('gameReducer', () => {
     it('returns same state when not enough movement points', () => {
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0,
+          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
           movementPoints: 1, maxMovementPoints: 4,
           health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
         }],
@@ -215,7 +215,7 @@ describe('gameReducer', () => {
     it('places building and deducts resources', () => {
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: 'scout', q: 5, r: 3,
+          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 5, r: 3,
           movementPoints: 3, maxMovementPoints: 3,
           health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
         }],
@@ -237,7 +237,7 @@ describe('gameReducer', () => {
     it('rejects placement with insufficient resources', () => {
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0,
+          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
           movementPoints: 3, maxMovementPoints: 3,
           health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
         }],
@@ -257,7 +257,7 @@ describe('gameReducer', () => {
     it('rejects placement on wrong hex type', () => {
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0,
+          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 0, r: 0,
           movementPoints: 3, maxMovementPoints: 3,
           health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
         }],
@@ -271,7 +271,7 @@ describe('gameReducer', () => {
     it('rejects duplicate building at same hex', () => {
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: 'scout', q: 5, r: 3,
+          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: 'scout', q: 5, r: 3,
           movementPoints: 3, maxMovementPoints: 3,
           health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
         }],
@@ -288,7 +288,7 @@ describe('gameReducer', () => {
     it('consumes colony_ship when building colony', () => {
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: 'colony_ship', q: 2, r: 4,
+          id: 'u1', name: 'Colony Ship CO001', ownerId: 'p1', type: 'colony_ship', q: 2, r: 4,
           movementPoints: 2, maxMovementPoints: 2,
           health: 12, maxHealth: 12, attack: 0, defense: 2, range: 0, sightRange: 2,
         }],
@@ -465,13 +465,13 @@ describe('gameReducer', () => {
       const dist = opts.distance ?? 1;
       const units = new Map<string, UnitData>([
         ['attacker', {
-          id: 'attacker', ownerId: 'p1', type: 'fighter', q: 0, r: 0,
+          id: 'attacker', name: 'Fighter FI001', ownerId: 'p1', type: 'fighter', q: 0, r: 0,
           movementPoints: opts.attackerMp ?? 3, maxMovementPoints: 3,
           health: opts.attackerHealth ?? 15, maxHealth: 15,
           attack: 6, defense: 3, range: opts.attackerRange ?? 1, sightRange: 2,
         }],
         ['defender', {
-          id: 'defender', ownerId: opts.sameOwner ? 'p1' : 'p2', type: 'fighter', q: dist, r: 0,
+          id: 'defender', name: 'Fighter FI002', ownerId: opts.sameOwner ? 'p1' : 'p2', type: 'fighter', q: dist, r: 0,
           movementPoints: 3, maxMovementPoints: 3,
           health: opts.defenderHealth ?? 15, maxHealth: 15,
           attack: 6, defense: 3, range: opts.defenderRange ?? 1, sightRange: 2,
@@ -548,7 +548,7 @@ describe('gameReducer', () => {
       const anomaly: Anomaly = { id: 'a1', type: 'resource_cache', q: 3, r: 2 };
       const units = new Map<string, UnitData>([
         ['u1', {
-          id: 'u1', ownerId: 'p1', type: (opts.unitType ?? 'scout') as any, q: opts.unitQ ?? 3, r: opts.unitR ?? 2,
+          id: 'u1', name: 'Scout SC001', ownerId: 'p1', type: (opts.unitType ?? 'scout') as any, q: opts.unitQ ?? 3, r: opts.unitR ?? 2,
           movementPoints: opts.mp ?? 4, maxMovementPoints: 4,
           health: 8, maxHealth: 8, attack: 2, defense: 1, range: 1, sightRange: 4,
         }],

@@ -5,6 +5,7 @@ import { HexData, StellarObjectType } from '../../models/hex-data';
 
 function makeUnit(overrides: Partial<UnitData> & { id: string; ownerId: string; q: number; r: number }): UnitData {
   return {
+    name: overrides.name ?? 'Mining Drone MD001',
     type: 'mining_drone',
     movementPoints: 2,
     maxMovementPoints: 2,

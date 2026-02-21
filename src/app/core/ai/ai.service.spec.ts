@@ -10,6 +10,7 @@ import { GameState, UnitData, PlayerState, UNIT_STATS } from '../../models/game-
 function makeUnit(overrides: Partial<UnitData> & { id: string; ownerId: string; type: UnitData['type'] }): UnitData {
   const stats = UNIT_STATS[overrides.type];
   return {
+    name: overrides.name ?? `${overrides.type} T001`,
     q: 0,
     r: 0,
     movementPoints: stats.maxMovementPoints,

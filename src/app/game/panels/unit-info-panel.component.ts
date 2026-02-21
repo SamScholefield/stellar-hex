@@ -1,18 +1,19 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
-import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 
 @Component({
   selector: 'app-unit-info-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormatNamePipe],
+  imports: [],
   template: `
     @if (unitData(); as unit) {
       <div class="panel">
         <div class="header">
-          <span class="unit-type">{{ unit.type | formatName }}</span>
-          <span class="owner">{{ ownerName(unit.ownerId) }}</span>
+          <span class="unit-type">{{ unit.name }}</span>
+          @if (isEnemy(unit.ownerId)) {
+            <span class="owner">{{ ownerName(unit.ownerId) }}</span>
+          }
         </div>
         <div class="stats">
           <div class="stat">
@@ -123,6 +124,10 @@ export class UnitInfoPanelComponent {
   private readonly gameState = inject(GameStateService);
 
   readonly unitData = this.selection.selectedUnitData;
+
+  isEnemy(ownerId: string): boolean {
+    return ownerId !== this.gameState.humanPlayer()?.id;
+  }
 
   ownerName(ownerId: string): string {
     return this.gameState.playerNames().get(ownerId) ?? ownerId;

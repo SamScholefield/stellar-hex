@@ -18,7 +18,7 @@ import { findPath, getReachableHexes, getUnitCostOverride, pathCost } from '../.
 const HEX_SIZE = 30;
 
 interface PopupOption {
-  kind: 'attack' | 'move' | 'select';
+  kind: 'attack' | 'move' | 'select' | 'cancel_waypoint';
   label: string;
   unitId: string;
   targetId?: string;
@@ -48,6 +48,7 @@ export interface ClickPopupState {
             class="option"
             [class.attack]="opt.kind === 'attack'"
             [class.move]="opt.kind === 'move'"
+            [class.cancel]="opt.kind === 'cancel_waypoint'"
             (click)="onOption(opt); $event.stopPropagation()"
           >{{ opt.label }}</button>
         }
@@ -84,6 +85,9 @@ export interface ClickPopupState {
     }
     .option.move {
       color: var(--accent-blue);
+    }
+    .option.cancel {
+      color: var(--text-muted);
     }
   `,
 })
@@ -124,9 +128,19 @@ export class ClickPopupComponent {
     const hexKey = `${hex.q},${hex.r}`;
     const unitIndex = this.gameState.unitsAtHex();
     const unitsAtHex = unitIndex.get(hexKey) ?? [];
-    if (unitsAtHex.length === 0) return false;
 
     const options: PopupOption[] = [];
+
+    // Waypoint cancel — if the selected unit has a waypoint targeting this hex
+    const wp = this.waypointSvc.getWaypoint(selectedUnitId);
+    if (wp && wp.target.q === hex.q && wp.target.r === hex.r) {
+      options.push({
+        kind: 'cancel_waypoint',
+        label: 'Cancel Waypoint',
+        unitId: selectedUnitId,
+      });
+    }
+
     const hasEnemy = unitsAtHex.some(u => u.ownerId !== currentPlayer.id);
 
     if (hasEnemy) {
@@ -141,7 +155,7 @@ export class ClickPopupComponent {
         const inRange = dist <= selectedUnit.range;
         options.push({
           kind: 'attack',
-          label: inRange ? `Attack ${enemy.type}` : 'Attack Here',
+          label: inRange ? `Attack ${enemy.name}` : 'Attack Here',
           unitId: selectedUnitId,
           targetId: enemy.id,
           target: hex,
@@ -181,7 +195,7 @@ export class ClickPopupComponent {
         if (u.ownerId === currentPlayer.id) {
           options.push({
             kind: 'select',
-            label: `Select ${u.type}`,
+            label: `Select ${u.name}`,
             unitId: u.id,
           });
         }
@@ -235,6 +249,10 @@ export class ClickPopupComponent {
 
       case 'select':
         this.selection.selectUnit(opt.unitId);
+        break;
+
+      case 'cancel_waypoint':
+        this.waypointSvc.clearWaypoint(opt.unitId);
         break;
     }
   }
