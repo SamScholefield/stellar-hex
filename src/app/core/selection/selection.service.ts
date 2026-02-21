@@ -95,9 +95,6 @@ export class SelectionService {
   }
 
   private findUnitAt(q: number, r: number): UnitData | null {
-    for (const unit of this.gameState.units().values()) {
-      if (unit.q === q && unit.r === r) return unit;
-    }
-    return null;
+    return this.gameState.unitAtHex().get(`${q},${r}`) ?? null;
   }
 }

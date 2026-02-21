@@ -2,6 +2,7 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   ElementRef,
   inject,
@@ -71,6 +72,53 @@ export class GameViewportComponent implements OnDestroy {
   private downY = 0;
   private resizeObserver: ResizeObserver | null = null;
 
+  // Pre-built set of occupied hex keys (excludes selected unit)
+  private readonly blockedHexSet = computed(() => {
+    const units = this.gameState.units();
+    const selectedId = this.selection.selectedUnit();
+    const set = new Set<string>();
+    for (const u of units.values()) {
+      if (u.id !== selectedId) set.add(`${u.q},${u.r}`);
+    }
+    return set;
+  });
+
+  // Reachable hexes — only recomputes when selected unit or units map changes
+  private readonly reachable = computed<Map<string, number> | null>(() => {
+    const selectedUnitId = this.selection.selectedUnit();
+    if (!selectedUnitId) return null;
+    const units = this.gameState.units();
+    const unit = units.get(selectedUnitId);
+    if (!unit || unit.movementPoints <= 0) return null;
+
+    const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+    const blocked = this.blockedHexSet();
+    const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
+    const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+    const override = getUnitCostOverride(unit.type);
+    return getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked, override);
+  });
+
+  // Path preview — recomputes when reachable or hovered hex changes
+  private readonly pathPreview = computed<HexCoord[] | null>(() => {
+    const reachable = this.reachable();
+    const hoveredHex = this.selection.hoveredHexCoord();
+    if (!reachable || !hoveredHex) return null;
+    if (!reachable.has(`${hoveredHex.q},${hoveredHex.r}`)) return null;
+
+    const selectedUnitId = this.selection.selectedUnit();
+    if (!selectedUnitId) return null;
+    const unit = this.gameState.units().get(selectedUnitId);
+    if (!unit) return null;
+
+    const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+    const blocked = this.blockedHexSet();
+    const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
+    const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+    const override = getUnitCostOverride(unit.type);
+    return findPath(from, hoveredHex, unit.movementPoints, hexLookup, isBlocked, override);
+  });
+
   constructor() {
     afterNextRender(() => {
       const canvas = this.canvasRef().nativeElement;
@@ -85,51 +133,25 @@ export class GameViewportComponent implements OnDestroy {
       this.spriteAtlas.load();
     });
 
+    // Render effect — reads computed signals for reachable/pathPreview
     effect(() => {
-      // Reading ready() here causes a redraw when the sprite atlas finishes loading
       this.spriteAtlas.ready();
       const chunks = this.chunkManager.visibleChunks();
       const hoveredHex = this.selection.hoveredHexCoord();
       const selectedHex = this.selection.selectedHexCoord();
       const selectedUnitId = this.selection.selectedUnit();
       const units = this.gameState.units();
-      const players = this.gameState.players();
+      const playerColors = this.gameState.playerColors();
 
-      const playerColors = new Map<string, string>();
-      for (const p of players) {
-        playerColors.set(p.id, p.color);
-      }
-
-      // Compute movement range and path preview for selected unit
-      let reachable: Map<string, number> | null = null;
-      let pathPreview: HexCoord[] | null = null;
-      if (selectedUnitId) {
-        const unit = units.get(selectedUnitId);
-        if (unit && unit.movementPoints > 0) {
-          const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-          const isBlocked = (q: number, r: number) => {
-            for (const u of units.values()) {
-              if (u.q === q && u.r === r && u.id !== selectedUnitId) return true;
-            }
-            return false;
-          };
-          const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
-          const override = getUnitCostOverride(unit.type);
-          reachable = getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked, override);
-
-          if (hoveredHex && reachable.has(`${hoveredHex.q},${hoveredHex.r}`)) {
-            pathPreview = findPath(from, hoveredHex, unit.movementPoints, hexLookup, isBlocked, override);
-          }
-        }
-      }
+      const reachable = this.reachable();
+      const pathPreview = this.pathPreview();
 
       const activeAnim = this.animation.activeAnimation();
       const combatAnim = this.animation.combatAnimation();
       // Always render fog from the human player's perspective
       const visibleHexes = this.vision.humanVisibleHexes();
       const exploredHexes = this.vision.humanExploredHexes();
-      const humanPlayer = this.gameState.players().find(p => !p.isAI);
-      const currentPlayerId = humanPlayer?.id ?? null;
+      const currentPlayerId = this.gameState.humanPlayer()?.id ?? null;
       const buildings = this.gameState.buildings();
 
       const canvas = this.canvasRef().nativeElement;
@@ -213,12 +235,8 @@ export class GameViewportComponent implements OnDestroy {
       if (unit && unit.movementPoints > 0) {
         const from = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
         const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-        const isBlocked = (q: number, r: number) => {
-          for (const u of this.gameState.units().values()) {
-            if (u.q === q && u.r === r && u.id !== selectedUnitId) return true;
-          }
-          return false;
-        };
+        const blocked = this.blockedHexSet();
+        const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
 
         const override = getUnitCostOverride(unit.type);
         const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);

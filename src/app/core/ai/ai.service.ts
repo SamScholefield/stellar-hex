@@ -105,12 +105,11 @@ export class AIService {
           const moveTarget = this.findMoveTarget(freshUnit, playerId, freshState, hexLookup);
           if (moveTarget) {
             const from: HexCoord = { q: freshUnit.q, r: freshUnit.r, s: -freshUnit.q - freshUnit.r };
-            const isBlocked = (q: number, r: number) => {
-              for (const u of freshState.units.values()) {
-                if (u.q === q && u.r === r && u.id !== freshUnit.id) return true;
-              }
-              return false;
-            };
+            const blockedHexes = new Set<string>();
+            for (const u of freshState.units.values()) {
+              if (u.id !== freshUnit.id) blockedHexes.add(`${u.q},${u.r}`);
+            }
+            const isBlocked = (q: number, r: number) => blockedHexes.has(`${q},${r}`);
 
             const override = getUnitCostOverride(freshUnit.type);
             const path = findPath(from, moveTarget, freshUnit.movementPoints, hexLookup, isBlocked, override);

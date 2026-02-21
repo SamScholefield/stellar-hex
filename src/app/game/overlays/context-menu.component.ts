@@ -117,8 +117,10 @@ export class ContextMenuComponent {
     if (!currentPlayer) return;
 
     const units = this.gameState.units();
-    const buildings = this.gameState.buildings();
+    const unitIndex = this.gameState.unitAtHex();
+    const buildingIndex = this.gameState.buildingAtHex();
     const selectedUnitId = this.selection.selectedUnit();
+    const hexKeyStr = `${hex.q},${hex.r}`;
 
     // Check for enemy unit at hex + friendly unit selected with range/MP → canAttack
     let canAttack = false;
@@ -128,22 +130,19 @@ export class ContextMenuComponent {
     if (selectedUnitId) {
       const attacker = units.get(selectedUnitId);
       if (attacker && attacker.ownerId === currentPlayer.id && attacker.movementPoints > 0 && attacker.attack > 0) {
-        for (const unit of units.values()) {
-          if (unit.q === hex.q && unit.r === hex.r && unit.ownerId !== currentPlayer.id) {
-            const dist = hexDistance(
-              { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
-              { q: unit.q, r: unit.r, s: -unit.q - unit.r },
-            );
-            if (dist <= attacker.range) {
-              // Only show if target is visible
-              const visHexes = this.vision.visibleHexes();
-              if (visHexes.has(`${unit.q},${unit.r}`)) {
-                canAttack = true;
-                attackerId = selectedUnitId;
-                targetId = unit.id;
-              }
+        const unitAtTarget = unitIndex.get(hexKeyStr);
+        if (unitAtTarget && unitAtTarget.ownerId !== currentPlayer.id) {
+          const dist = hexDistance(
+            { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
+            { q: unitAtTarget.q, r: unitAtTarget.r, s: -unitAtTarget.q - unitAtTarget.r },
+          );
+          if (dist <= attacker.range) {
+            const visHexes = this.vision.visibleHexes();
+            if (visHexes.has(hexKeyStr)) {
+              canAttack = true;
+              attackerId = selectedUnitId;
+              targetId = unitAtTarget.id;
             }
-            break;
           }
         }
       }
@@ -153,23 +152,11 @@ export class ContextMenuComponent {
     let buildOptions: BuildOption[] = [];
     let hexType: StellarObjectType | null = null;
 
-    let hasFriendlyUnit = false;
-    for (const unit of units.values()) {
-      if (unit.ownerId === currentPlayer.id && unit.q === hex.q && unit.r === hex.r) {
-        hasFriendlyUnit = true;
-        break;
-      }
-    }
+    const unitAtHex = unitIndex.get(hexKeyStr);
+    const hasFriendlyUnit = unitAtHex != null && unitAtHex.ownerId === currentPlayer.id;
 
     if (hasFriendlyUnit) {
-      // Check no existing building at hex
-      let hasBuilding = false;
-      for (const b of buildings.values()) {
-        if (b.q === hex.q && b.r === hex.r) {
-          hasBuilding = true;
-          break;
-        }
-      }
+      const hasBuilding = buildingIndex.has(hexKeyStr);
 
       if (!hasBuilding) {
         const hexData = this.chunkManager.getHex(hex.q, hex.r);

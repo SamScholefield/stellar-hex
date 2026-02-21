@@ -141,9 +141,8 @@ export class HudComponent {
     if (!coord) return null;
     const currentPlayer = this.gameState.currentPlayer();
     if (!currentPlayer) return null;
-    for (const b of this.gameState.buildings().values()) {
-      if (b.q === coord.q && b.r === coord.r && b.type === 'starbase' && b.ownerId === currentPlayer.id) return b;
-    }
+    const b = this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`);
+    if (b && b.type === 'starbase' && b.ownerId === currentPlayer.id) return b;
     return null;
   });
 

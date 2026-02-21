@@ -1,9 +1,13 @@
 import { computed, Injectable, signal } from '@angular/core';
-import { GameState, PlayerState, Resources } from '../../models/game-state';
+import { GameState, PlayerState, Resources, UnitData, BuildingData } from '../../models/game-state';
 import { HexData } from '../../models/hex-data';
 import { computeMiningDroneIncome } from '../economy/economy.service';
 import { GameAction } from './actions';
 import { gameReducer } from './game-reducer';
+
+function hexKey(q: number, r: number): string {
+  return `${q},${r}`;
+}
 
 function createInitialState(): GameState {
   return {
@@ -34,6 +38,34 @@ export class GameStateService {
   readonly players = computed(() => this._gameState().players);
   readonly anomalies = computed(() => this._gameState().anomalies);
   readonly homeBaseId = computed(() => this.currentPlayer()?.homeBaseId ?? null);
+
+  readonly unitAtHex = computed<Map<string, UnitData>>(() => {
+    const index = new Map<string, UnitData>();
+    for (const unit of this.units().values()) {
+      index.set(hexKey(unit.q, unit.r), unit);
+    }
+    return index;
+  });
+
+  readonly buildingAtHex = computed<Map<string, BuildingData>>(() => {
+    const index = new Map<string, BuildingData>();
+    for (const b of this.buildings().values()) {
+      index.set(hexKey(b.q, b.r), b);
+    }
+    return index;
+  });
+
+  readonly playerColors = computed<Map<string, string>>(() => {
+    const colors = new Map<string, string>();
+    for (const p of this.players()) {
+      colors.set(p.id, p.color);
+    }
+    return colors;
+  });
+
+  readonly humanPlayer = computed<PlayerState | null>(() => {
+    return this.players().find(p => !p.isAI) ?? null;
+  });
 
   dispatch(action: GameAction): void {
     this._gameState.update((state) => gameReducer(state, action));

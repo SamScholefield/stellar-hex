@@ -59,6 +59,111 @@ function hexKey(q: number, r: number): string {
   return `${q},${r}`;
 }
 
+// --- Binary min-heap ---
+
+interface HeapNode {
+  key: string;
+  coord: HexCoord;
+  priority: number;
+}
+
+class MinHeap {
+  private data: HeapNode[] = [];
+
+  get length(): number { return this.data.length; }
+
+  push(node: HeapNode): void {
+    this.data.push(node);
+    this.bubbleUp(this.data.length - 1);
+  }
+
+  pop(): HeapNode {
+    const top = this.data[0];
+    const last = this.data.pop()!;
+    if (this.data.length > 0) {
+      this.data[0] = last;
+      this.sinkDown(0);
+    }
+    return top;
+  }
+
+  private bubbleUp(i: number): void {
+    const node = this.data[i];
+    while (i > 0) {
+      const parentI = (i - 1) >> 1;
+      if (this.data[parentI].priority <= node.priority) break;
+      this.data[i] = this.data[parentI];
+      i = parentI;
+    }
+    this.data[i] = node;
+  }
+
+  private sinkDown(i: number): void {
+    const length = this.data.length;
+    const node = this.data[i];
+    while (true) {
+      let smallest = i;
+      const left = 2 * i + 1;
+      const right = 2 * i + 2;
+      if (left < length && this.data[left].priority < this.data[smallest].priority) smallest = left;
+      if (right < length && this.data[right].priority < this.data[smallest].priority) smallest = right;
+      if (smallest === i) break;
+      this.data[i] = this.data[smallest];
+      this.data[smallest] = node;
+      i = smallest;
+    }
+  }
+}
+
+// Max-heap variant for getReachableHexes (highest remaining MP first)
+class MaxHeap {
+  private data: { key: string; coord: HexCoord; remaining: number }[] = [];
+
+  get length(): number { return this.data.length; }
+
+  push(node: { key: string; coord: HexCoord; remaining: number }): void {
+    this.data.push(node);
+    this.bubbleUp(this.data.length - 1);
+  }
+
+  pop(): { key: string; coord: HexCoord; remaining: number } {
+    const top = this.data[0];
+    const last = this.data.pop()!;
+    if (this.data.length > 0) {
+      this.data[0] = last;
+      this.sinkDown(0);
+    }
+    return top;
+  }
+
+  private bubbleUp(i: number): void {
+    const node = this.data[i];
+    while (i > 0) {
+      const parentI = (i - 1) >> 1;
+      if (this.data[parentI].remaining >= node.remaining) break;
+      this.data[i] = this.data[parentI];
+      i = parentI;
+    }
+    this.data[i] = node;
+  }
+
+  private sinkDown(i: number): void {
+    const length = this.data.length;
+    const node = this.data[i];
+    while (true) {
+      let largest = i;
+      const left = 2 * i + 1;
+      const right = 2 * i + 2;
+      if (left < length && this.data[left].remaining > this.data[largest].remaining) largest = left;
+      if (right < length && this.data[right].remaining > this.data[largest].remaining) largest = right;
+      if (largest === i) break;
+      this.data[i] = this.data[largest];
+      this.data[largest] = node;
+      i = largest;
+    }
+  }
+}
+
 /**
  * A* pathfinding over hex grid.
  * Returns the path from `from` to `to` (inclusive), or null if unreachable.
@@ -81,28 +186,19 @@ export function findPath(
   gScore.set(startKey, 0);
 
   const fScore = new Map<string, number>();
-  fScore.set(startKey, hexDistance(from, to));
+  const startF = hexDistance(from, to);
+  fScore.set(startKey, startF);
 
   const cameFrom = new Map<string, HexCoord>();
 
-  // Simple priority queue using sorted array
-  const open: { key: string; coord: HexCoord }[] = [{ key: startKey, coord: from }];
+  const open = new MinHeap();
+  open.push({ key: startKey, coord: from, priority: startF });
+  const openSet = new Set<string>([startKey]);
   const closed = new Set<string>();
 
   while (open.length > 0) {
-    // Pick node with lowest fScore
-    let bestIdx = 0;
-    let bestF = fScore.get(open[0].key) ?? Infinity;
-    for (let i = 1; i < open.length; i++) {
-      const f = fScore.get(open[i].key) ?? Infinity;
-      if (f < bestF) {
-        bestF = f;
-        bestIdx = i;
-      }
-    }
-
-    const current = open[bestIdx];
-    open.splice(bestIdx, 1);
+    const current = open.pop();
+    openSet.delete(current.key);
 
     if (current.key === toKey) {
       // Reconstruct path
@@ -118,6 +214,7 @@ export function findPath(
     }
 
     closed.add(current.key);
+    const currentG = gScore.get(current.key) ?? Infinity;
 
     for (const neighbor of hexNeighbors(current.coord.q, current.coord.r)) {
       const nKey = hexKey(neighbor.q, neighbor.r);
@@ -129,16 +226,21 @@ export function findPath(
       if (!isFinite(cost)) continue;
       if (isBlocked && isBlocked(neighbor.q, neighbor.r)) continue;
 
-      const tentativeG = (gScore.get(current.key) ?? Infinity) + cost;
+      const tentativeG = currentG + cost;
       if (tentativeG > movementPoints) continue;
 
       if (tentativeG < (gScore.get(nKey) ?? Infinity)) {
         cameFrom.set(nKey, current.coord);
         gScore.set(nKey, tentativeG);
-        fScore.set(nKey, tentativeG + hexDistance(neighbor, to));
+        const f = tentativeG + hexDistance(neighbor, to);
+        fScore.set(nKey, f);
 
-        if (!open.some((n) => n.key === nKey)) {
-          open.push({ key: nKey, coord: neighbor });
+        if (!openSet.has(nKey)) {
+          open.push({ key: nKey, coord: neighbor, priority: f });
+          openSet.add(nKey);
+        } else {
+          // Node already in heap with worse score — add duplicate, closed-set will filter it
+          open.push({ key: nKey, coord: neighbor, priority: f });
         }
       }
     }
@@ -162,17 +264,16 @@ export function getReachableHexes(
   const startKey = hexKey(from.q, from.r);
   reachable.set(startKey, movementPoints);
 
-  // BFS / Dijkstra flood fill
-  const frontier: { coord: HexCoord; remaining: number }[] = [{ coord: from, remaining: movementPoints }];
+  // Dijkstra flood fill using max-heap (highest remaining MP first)
+  const frontier = new MaxHeap();
+  frontier.push({ key: startKey, coord: from, remaining: movementPoints });
 
   while (frontier.length > 0) {
-    // Pick node with highest remaining MP (greedy)
-    let bestIdx = 0;
-    for (let i = 1; i < frontier.length; i++) {
-      if (frontier[i].remaining > frontier[bestIdx].remaining) bestIdx = i;
-    }
-    const current = frontier[bestIdx];
-    frontier.splice(bestIdx, 1);
+    const current = frontier.pop();
+
+    // Skip if we've already found a better path to this node
+    const bestRemaining = reachable.get(current.key) ?? -1;
+    if (current.remaining < bestRemaining) continue;
 
     for (const neighbor of hexNeighbors(current.coord.q, current.coord.r)) {
       const nKey = hexKey(neighbor.q, neighbor.r);
@@ -187,7 +288,7 @@ export function getReachableHexes(
 
       if (remaining > (reachable.get(nKey) ?? -1)) {
         reachable.set(nKey, remaining);
-        frontier.push({ coord: neighbor, remaining });
+        frontier.push({ key: nKey, coord: neighbor, remaining });
       }
     }
   }

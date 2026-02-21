@@ -155,10 +155,7 @@ export class HexInfoPanelComponent {
   readonly buildingAtHex = computed<BuildingData | null>(() => {
     const coord = this.selection.selectedHexCoord();
     if (!coord) return null;
-    for (const b of this.gameState.buildings().values()) {
-      if (b.q === coord.q && b.r === coord.r) return b;
-    }
-    return null;
+    return this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`) ?? null;
   });
 
   formatType(type: string): string {
