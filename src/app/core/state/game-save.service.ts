@@ -12,6 +12,7 @@ import {
 import { GameStateService } from './game-state.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
+import { DEV_SAVES } from './dev-saves';
 
 const SAVE_KEY = 'stellar-hex-autosave';
 
@@ -172,20 +173,43 @@ export class GameSaveService {
     this._saves.set(this.buildSaveList());
   }
 
-  private buildSaveList(): SaveEntry[] {
-    const json = localStorage.getItem(SAVE_KEY);
-    if (!json) return [];
-    try {
-      const data: SaveData = JSON.parse(json);
-      const human = data.state.players.find(p => !p.isAI);
-      return [{
-        key: SAVE_KEY,
-        turn: data.state.turn,
-        playerName: human?.name ?? 'Unknown',
-        savedAt: data.savedAt ?? null,
-      }];
-    } catch {
-      return [{ key: SAVE_KEY, turn: 0, playerName: 'Corrupted', savedAt: null }];
+  installDevSaves(): void {
+    for (const { key, data } of DEV_SAVES) {
+      localStorage.setItem(key, data);
     }
+    this.refreshSaves();
+  }
+
+  removeDevSaves(): void {
+    for (const { key } of DEV_SAVES) {
+      localStorage.removeItem(key);
+    }
+    this.refreshSaves();
+  }
+
+  private buildSaveList(): SaveEntry[] {
+    const entries: SaveEntry[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || (key !== SAVE_KEY && !key.startsWith('stellar-hex-save-'))) continue;
+      try {
+        const data: SaveData = JSON.parse(localStorage.getItem(key)!);
+        const human = data.state.players.find(p => !p.isAI);
+        entries.push({
+          key,
+          turn: data.state.turn,
+          playerName: human?.name ?? 'Unknown',
+          savedAt: data.savedAt ?? null,
+        });
+      } catch {
+        entries.push({ key, turn: 0, playerName: 'Corrupted', savedAt: null });
+      }
+    }
+    entries.sort((a, b) => {
+      if (a.key === SAVE_KEY) return -1;
+      if (b.key === SAVE_KEY) return 1;
+      return a.key.localeCompare(b.key);
+    });
+    return entries;
   }
 }

@@ -62,6 +62,9 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
             </tbody>
           </table>
         }
+        <div class="dev-actions">
+          <button class="btn-dev" (click)="installDevSaves()">Install Dev Saves</button>
+        </div>
       </div>
     </div>
   `,
@@ -206,6 +209,23 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
       color: #f87171;
       border-color: #f87171;
     }
+    .dev-actions {
+      margin-top: 1rem;
+    }
+    .btn-dev {
+      padding: 0.25rem 0.6rem;
+      font-size: 0.72rem;
+      color: #6b7280;
+      border: 1px solid #374151;
+      border-radius: 0.25rem;
+      background: transparent;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-dev:hover {
+      color: #9ca3af;
+      border-color: #6b7280;
+    }
   `,
 })
 export class MenuComponent {
@@ -233,5 +253,9 @@ export class MenuComponent {
 
   deleteSave(entry: SaveEntry): void {
     this.saveSvc.deleteKey(entry.key);
+  }
+
+  installDevSaves(): void {
+    this.saveSvc.installDevSaves();
   }
 }
