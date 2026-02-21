@@ -2,7 +2,6 @@ import { inject } from '@angular/core';
 import { CanActivateFn, CanDeactivateFn, Router } from '@angular/router';
 import { GameStateService } from '../core/state/game-state.service';
 import { GameSaveService } from '../core/state/game-save.service';
-import { GameComponent } from './game.component';
 
 export const gameActivateGuard: CanActivateFn = () => {
   const gameState = inject(GameStateService);
@@ -17,21 +16,12 @@ export const gameActivateGuard: CanActivateFn = () => {
   return inject(Router).createUrlTree(['/menu']);
 };
 
-export const gameGuard: CanDeactivateFn<GameComponent> = async (component) => {
+export const gameGuard: CanDeactivateFn<unknown> = () => {
   const gameState = inject(GameStateService);
   const saveSvc = inject(GameSaveService);
 
-  if (gameState.players().length === 0) return true;
-
-  const modal = component.saveModal();
-  if (!modal) return true;
-
-  const result = await modal.open();
-
-  if (result === 'save') {
-    saveSvc.save();
-    return true;
+  if (gameState.players().length > 0) {
+    saveSvc.autoSave();
   }
-
-  return result === 'discard';
+  return true;
 };

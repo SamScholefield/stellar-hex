@@ -3,7 +3,6 @@ import { GameViewportComponent } from './viewport/game-viewport.component';
 import { HudComponent } from './hud/hud.component';
 import { ClickPopupComponent } from './overlays/click-popup.component';
 import { ContextMenuComponent } from './overlays/context-menu.component';
-import { SaveModalComponent } from './overlays/save-modal.component';
 import { HelpPanelComponent } from './overlays/help-panel.component';
 import { CameraService } from '../core/camera/camera.service';
 import { SelectionService } from '../core/selection/selection.service';
@@ -26,7 +25,7 @@ const ZOOM_STEP = 50;
 @Component({
   selector: 'app-game',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GameViewportComponent, HudComponent, ClickPopupComponent, ContextMenuComponent, SaveModalComponent, HelpPanelComponent],
+  imports: [GameViewportComponent, HudComponent, ClickPopupComponent, ContextMenuComponent, HelpPanelComponent],
   host: {
     '(contextmenu)': 'onContextMenu($event)',
     '(keydown)': 'onKeyDown($event)',
@@ -39,7 +38,6 @@ const ZOOM_STEP = 50;
       <app-hud [(helpVisible)]="helpVisible" />
       <app-click-popup />
       <app-context-menu />
-      <app-save-modal />
       <app-help-panel [(visible)]="helpVisible" />
     } @else {
       <div class="loading">
@@ -96,16 +94,14 @@ export class GameComponent implements OnDestroy {
   private readonly el = inject(ElementRef);
   private readonly clickPopup = viewChild(ClickPopupComponent);
   private readonly contextMenu = viewChild(ContextMenuComponent);
-  readonly saveModal = viewChild(SaveModalComponent);
   readonly helpVisible = signal(false);
   readonly ready = computed(() => this.gameState.players().length > 0);
   private lastTurnKey = '';
   private lastDiscoveryId = 0;
   private static readonly HEX_SIZE = 30;
-  private readonly onBeforeUnload = (e: BeforeUnloadEvent) => {
+  private readonly onBeforeUnload = () => {
     if (this.gameState.players().length === 0) return;
-    this.saveSvc.save();
-    e.preventDefault();
+    this.saveSvc.autoSave();
   };
 
   constructor() {
@@ -128,7 +124,7 @@ export class GameComponent implements OnDestroy {
         untracked(() => this.ai.executeTurn(player.id));
       } else {
         this.eventLog.push({ turn, message: `${player.name}'s turn begins` });
-        if (turn > 1 && turn % 5 === 0) {
+        if (turn > 1) {
           untracked(() => this.saveSvc.autoSave());
         }
         // Execute persisted waypoints at the start of the human turn

@@ -13,12 +13,19 @@ import { GameStateService } from './game-state.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
 
-const SAVE_KEY = 'stellar-hex-save';
-const AUTOSAVE_KEY = 'stellar-hex-autosave';
+const SAVE_KEY = 'stellar-hex-autosave';
 
 interface SaveData {
   state: SerializedGameState;
   camera: { panX: number; panY: number; zoom: number };
+  savedAt?: string;
+}
+
+export interface SaveEntry {
+  key: string;
+  turn: number;
+  playerName: string;
+  savedAt: string | null;
 }
 
 interface SerializedGameState {
@@ -68,6 +75,7 @@ export function serialize(
       seed: state.seed,
     },
     camera,
+    savedAt: new Date().toISOString(),
   };
   return JSON.stringify(data);
 }
@@ -109,19 +117,10 @@ export class GameSaveService {
   private readonly camera = inject(CameraService);
   private readonly router = inject(Router);
 
-  private readonly _hasSave = signal(localStorage.getItem(SAVE_KEY) !== null || localStorage.getItem(AUTOSAVE_KEY) !== null);
+  private readonly _hasSave = signal(localStorage.getItem(SAVE_KEY) !== null);
   readonly hasSave = this._hasSave.asReadonly();
-
-  save(): void {
-    const state = this.gameState.getState();
-    const camera = {
-      panX: this.camera.panX(),
-      panY: this.camera.panY(),
-      zoom: this.camera.zoom(),
-    };
-    localStorage.setItem(SAVE_KEY, serialize(state, camera));
-    this._hasSave.set(true);
-  }
+  private readonly _saves = signal<SaveEntry[]>(this.buildSaveList());
+  readonly saves = this._saves.asReadonly();
 
   autoSave(): void {
     const state = this.gameState.getState();
@@ -130,12 +129,12 @@ export class GameSaveService {
       panY: this.camera.panY(),
       zoom: this.camera.zoom(),
     };
-    localStorage.setItem(AUTOSAVE_KEY, serialize(state, camera));
-    this._hasSave.set(true);
+    localStorage.setItem(SAVE_KEY, serialize(state, camera));
+    this.refreshSaves();
   }
 
   load(navigate = true): void {
-    const json = localStorage.getItem(SAVE_KEY) ?? localStorage.getItem(AUTOSAVE_KEY);
+    const json = localStorage.getItem(SAVE_KEY);
     if (!json) return;
 
     const { state, camera } = deserialize(json);
@@ -147,9 +146,46 @@ export class GameSaveService {
     if (navigate) this.router.navigate(['/game']);
   }
 
+  loadFromKey(key: string): void {
+    const json = localStorage.getItem(key);
+    if (!json) return;
+
+    const { state, camera } = deserialize(json);
+    this.worldGenerator.setSeed(state.seed);
+    this.gameState.setState(state);
+    this.camera.centerOn(camera.panX, camera.panY);
+    this.router.navigate(['/game']);
+  }
+
+  deleteKey(key: string): void {
+    localStorage.removeItem(key);
+    this.refreshSaves();
+  }
+
   deleteSave(): void {
     localStorage.removeItem(SAVE_KEY);
-    localStorage.removeItem(AUTOSAVE_KEY);
-    this._hasSave.set(false);
+    this.refreshSaves();
+  }
+
+  private refreshSaves(): void {
+    this._hasSave.set(localStorage.getItem(SAVE_KEY) !== null);
+    this._saves.set(this.buildSaveList());
+  }
+
+  private buildSaveList(): SaveEntry[] {
+    const json = localStorage.getItem(SAVE_KEY);
+    if (!json) return [];
+    try {
+      const data: SaveData = JSON.parse(json);
+      const human = data.state.players.find(p => !p.isAI);
+      return [{
+        key: SAVE_KEY,
+        turn: data.state.turn,
+        playerName: human?.name ?? 'Unknown',
+        savedAt: data.savedAt ?? null,
+      }];
+    } catch {
+      return [{ key: SAVE_KEY, turn: 0, playerName: 'Corrupted', savedAt: null }];
+    }
   }
 }
