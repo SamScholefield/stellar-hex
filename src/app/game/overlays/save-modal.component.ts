@@ -34,9 +34,9 @@ export type SaveModalResult = 'save' | 'discard' | 'cancel';
       background: rgba(0, 0, 0, 0.6);
     }
     .panel {
-      background: rgba(10, 10, 26, 0.97);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg-solid);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       padding: 1.5rem 2rem;
       min-width: 320px;
       max-width: 400px;
@@ -45,12 +45,12 @@ export type SaveModalResult = 'save' | 'discard' | 'cancel';
     h2 {
       margin: 0 0 0.5rem;
       font-size: 1.25rem;
-      color: #e0e0e0;
+      color: var(--text-primary);
     }
     p {
       margin: 0 0 1.25rem;
       font-size: 0.9rem;
-      color: #9ca3af;
+      color: var(--text-secondary);
     }
     .actions {
       display: flex;
@@ -59,12 +59,12 @@ export type SaveModalResult = 'save' | 'discard' | 'cancel';
     }
     .btn {
       padding: 0.5rem 1rem;
-      border: 1px solid #2a4a5a;
-      border-radius: 0.375rem;
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius-sm);
       font-size: 0.85rem;
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.05);
-      color: #e0e0e0;
+      background: var(--hover-bg);
+      color: var(--text-primary);
       transition: background 0.15s;
     }
     .btn:hover {
@@ -79,15 +79,15 @@ export type SaveModalResult = 'save' | 'discard' | 'cancel';
       background: rgba(56, 189, 248, 0.25);
     }
     .btn.discard {
-      color: #f87171;
-      border-color: #f87171;
+      color: var(--accent-red);
+      border-color: var(--accent-red);
       background: rgba(248, 113, 113, 0.08);
     }
     .btn.discard:hover {
       background: rgba(248, 113, 113, 0.18);
     }
     .btn.cancel {
-      color: #9ca3af;
+      color: var(--text-secondary);
       border-color: transparent;
       background: none;
     }

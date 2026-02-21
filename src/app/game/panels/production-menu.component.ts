@@ -48,9 +48,9 @@ interface ProductionOption {
   `,
   styles: `
     .menu {
-      background: rgba(10, 10, 26, 0.92);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg-solid);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       padding: 0.5rem;
       min-width: 180px;
       margin-top: 0.5rem;
@@ -58,7 +58,7 @@ interface ProductionOption {
     .title {
       font-size: 0.75rem;
       font-weight: 600;
-      color: #9ca3af;
+      color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 0.25rem;
@@ -70,7 +70,7 @@ interface ProductionOption {
     }
     .produce-title {
       font-size: 0.7rem;
-      color: #6b7280;
+      color: var(--text-muted);
       margin-bottom: 0.15rem;
       padding: 0 0.25rem;
     }
@@ -80,17 +80,17 @@ interface ProductionOption {
       gap: 0.1rem;
       width: 100%;
       padding: 0.35rem 0.5rem;
-      background: #1f2937;
-      border: 1px solid #374151;
-      border-radius: 0.375rem;
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: var(--panel-radius-sm);
       cursor: pointer;
-      color: #e0e0e0;
+      color: var(--text-primary);
       text-align: left;
       margin-bottom: 0.25rem;
       transition: background 0.15s;
     }
     .produce-option:hover:not(:disabled) {
-      background: #374151;
+      background: var(--btn-border);
     }
     .produce-option.disabled {
       opacity: 0.4;
@@ -107,11 +107,11 @@ interface ProductionOption {
     }
     .cost-item {
       font-size: 0.7rem;
-      color: #f87171;
+      color: var(--accent-red);
     }
     .home-label {
       font-size: 0.75rem;
-      color: #fbbf24;
+      color: var(--accent-gold);
       padding: 0.2rem 0.25rem;
       margin-bottom: 0.25rem;
     }
@@ -119,16 +119,16 @@ interface ProductionOption {
       font-size: 0.7rem;
       padding: 0.2rem 0.5rem;
       margin-bottom: 0.25rem;
-      background: #1f2937;
-      border: 1px solid #374151;
-      border-radius: 0.375rem;
-      color: #9ca3af;
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: var(--panel-radius-sm);
+      color: var(--text-secondary);
       cursor: pointer;
       transition: background 0.15s;
     }
     .set-home-btn:hover {
-      background: #374151;
-      color: #e0e0e0;
+      background: var(--btn-border);
+      color: var(--text-primary);
     }
   `,
 })

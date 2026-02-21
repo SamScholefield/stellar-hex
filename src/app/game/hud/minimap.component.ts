@@ -71,9 +71,9 @@ export function minimapToWorld(mx: number, my: number, b: MinimapBounds): { wx: 
       display: block;
       width: ${SIZE}px;
       height: ${SIZE}px;
-      background: rgba(10, 10, 26, 0.9);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.375rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius-sm);
     }
   `,
 })

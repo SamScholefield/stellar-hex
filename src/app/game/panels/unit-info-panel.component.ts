@@ -41,9 +41,9 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
   `,
   styles: `
     .panel {
-      background: rgba(10, 10, 26, 0.85);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       padding: 0.75rem 1rem;
       min-width: 180px;
     }
@@ -56,12 +56,12 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
     .unit-type {
       font-size: 1rem;
       font-weight: 600;
-      color: #e0e0e0;
+      color: var(--text-primary);
       text-transform: capitalize;
     }
     .owner {
       font-size: 0.7rem;
-      color: #6b7280;
+      color: var(--text-muted);
     }
     .stats {
       display: flex;
@@ -76,7 +76,7 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
     }
     .label {
       font-size: 0.7rem;
-      color: #9ca3af;
+      color: var(--text-secondary);
       width: 22px;
       font-weight: 600;
     }
@@ -96,7 +96,7 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
     .bar-fill.mp { background: #3b82f6; }
     .val {
       font-size: 0.7rem;
-      color: #9ca3af;
+      color: var(--text-secondary);
       font-variant-numeric: tabular-nums;
       width: 36px;
       text-align: right;
@@ -108,12 +108,12 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
     }
     .cs {
       font-size: 0.7rem;
-      color: #9ca3af;
+      color: var(--text-secondary);
       font-weight: 600;
     }
     .coords {
       font-size: 0.7rem;
-      color: #6b7280;
+      color: var(--text-muted);
     }
   `,
 })

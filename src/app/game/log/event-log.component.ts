@@ -48,9 +48,9 @@ import { hexToPixel } from '../../shared/hex/hex-math';
     .log-panel {
       width: 100%;
       max-height: 200px;
-      background: rgba(10, 10, 26, 0.85);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -63,15 +63,15 @@ import { hexToPixel } from '../../shared/hex/hex-math';
       padding: 0.25rem 0.5rem;
       font-size: 0.7rem;
       font-weight: 600;
-      color: #9ca3af;
+      color: var(--text-secondary);
       background: transparent;
       border: none;
-      border-bottom: 1px solid #2a4a5a;
+      border-bottom: 1px solid var(--panel-border);
       cursor: pointer;
       text-align: left;
     }
     .toggle:hover {
-      color: #e0e0e0;
+      color: var(--text-primary);
     }
     .collapsed .toggle {
       border-bottom: none;
@@ -84,26 +84,26 @@ import { hexToPixel } from '../../shared/hex/hex-math';
     .entry {
       font-size: 0.7rem;
       padding: 0.15rem 0.25rem;
-      border-bottom: 1px solid rgba(42, 74, 90, 0.3);
+      border-bottom: 1px solid var(--divider);
     }
     .turn {
-      color: #60a5fa;
+      color: var(--accent-blue);
       margin-right: 0.35rem;
       font-weight: 600;
     }
     .msg {
-      color: #d1d5db;
+      color: var(--text-body);
     }
     .msg.ai {
-      color: #f59e0b;
+      color: var(--accent-amber);
     }
     .msg.link {
       cursor: pointer;
-      color: #5eead4;
+      color: var(--accent-teal);
       text-decoration: none;
     }
     .msg.link.ai {
-      color: #f59e0b;
+      color: var(--accent-amber);
     }
     .msg.link:hover {
       text-decoration: underline;
@@ -114,7 +114,7 @@ import { hexToPixel } from '../../shared/hex/hex-math';
     }
     .empty {
       font-size: 0.7rem;
-      color: #6b7280;
+      color: var(--text-muted);
       padding: 0.5rem;
       text-align: center;
     }

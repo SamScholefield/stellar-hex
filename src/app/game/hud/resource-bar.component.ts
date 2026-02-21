@@ -25,27 +25,27 @@ import { EconomyService } from '../../core/economy/economy.service';
       display: flex;
       align-items: center;
       gap: 1.25rem;
-      background: rgba(10, 10, 26, 0.85);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       padding: 0.4rem 1rem;
     }
     .res {
       font-size: 0.8rem;
-      color: #e0e0e0;
+      color: var(--text-primary);
       font-variant-numeric: tabular-nums;
     }
     .label {
-      color: #9ca3af;
+      color: var(--text-secondary);
       margin-right: 0.25rem;
     }
     .income {
       font-size: 0.7rem;
-      color: #6b7280;
+      color: var(--text-muted);
       margin-left: 0.15rem;
     }
     .income.positive {
-      color: #5eead4;
+      color: var(--accent-teal);
     }
   `,
 })

@@ -128,11 +128,11 @@ import { BuildingData, UnitType } from '../../models/game-state';
       pointer-events: auto;
     }
 .home-btn {
-      background: rgba(10, 10, 26, 0.85);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       padding: 0.4rem 0.75rem;
-      color: #e0e0e0;
+      color: var(--text-primary);
       font-size: 0.8rem;
       cursor: pointer;
       transition: background 0.15s;
@@ -142,11 +142,11 @@ import { BuildingData, UnitType } from '../../models/game-state';
       background: rgba(30, 40, 60, 0.95);
     }
     .help-btn {
-      background: rgba(10, 10, 26, 0.85);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       padding: 0.4rem 0.75rem;
-      color: #9ca3af;
+      color: var(--text-secondary);
       font-size: 0.85rem;
       font-weight: 700;
       cursor: pointer;
@@ -158,7 +158,7 @@ import { BuildingData, UnitType } from '../../models/game-state';
     }
     .help-btn:hover {
       background: rgba(30, 40, 60, 0.95);
-      color: #e0e0e0;
+      color: var(--text-primary);
     }
     .ai-overlay {
       position: absolute;
@@ -172,11 +172,11 @@ import { BuildingData, UnitType } from '../../models/game-state';
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      background: rgba(10, 10, 26, 0.9);
-      border: 1px solid #f59e0b;
+      background: var(--panel-bg);
+      border: 1px solid var(--accent-amber);
       border-radius: 0.75rem;
       padding: 1rem 2rem;
-      color: #f59e0b;
+      color: var(--accent-amber);
       font-size: 1.1rem;
       font-weight: 600;
       animation: pulse 1.2s ease-in-out infinite;

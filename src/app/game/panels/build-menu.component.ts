@@ -44,9 +44,9 @@ interface BuildOption {
   `,
   styles: `
     .menu {
-      background: rgba(10, 10, 26, 0.92);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg-solid);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       padding: 0.5rem;
       min-width: 180px;
       margin-top: 0.5rem;
@@ -54,7 +54,7 @@ interface BuildOption {
     .title {
       font-size: 0.75rem;
       font-weight: 600;
-      color: #9ca3af;
+      color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-bottom: 0.25rem;
@@ -66,17 +66,17 @@ interface BuildOption {
       gap: 0.1rem;
       width: 100%;
       padding: 0.35rem 0.5rem;
-      background: #1f2937;
-      border: 1px solid #374151;
-      border-radius: 0.375rem;
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: var(--panel-radius-sm);
       cursor: pointer;
-      color: #e0e0e0;
+      color: var(--text-primary);
       text-align: left;
       margin-bottom: 0.25rem;
       transition: background 0.15s;
     }
     .build-option:hover:not(:disabled) {
-      background: #374151;
+      background: var(--btn-border);
     }
     .build-option.disabled {
       opacity: 0.4;
@@ -93,7 +93,7 @@ interface BuildOption {
     }
     .yield-item {
       font-size: 0.7rem;
-      color: #5eead4;
+      color: var(--accent-teal);
     }
     .cost {
       display: flex;
@@ -101,7 +101,7 @@ interface BuildOption {
     }
     .cost-item {
       font-size: 0.7rem;
-      color: #f87171;
+      color: var(--accent-red);
     }
   `,
 })

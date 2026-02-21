@@ -1,3 +1,41 @@
+:root {
+  /* Panel container */
+  --panel-bg: rgba(10, 10, 26, 0.85);
+  --panel-bg-solid: rgba(10, 10, 26, 0.92);
+  --panel-border: #2a4a5a;
+  --panel-radius: 0.5rem;
+  --panel-radius-sm: 0.375rem;
+
+  /* Text hierarchy */
+  --text-primary: #e0e0e0;
+  --text-body: #d1d5db;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-dim: #4b5563;
+
+  /* Interactive elements */
+  --btn-bg: #1f2937;
+  --btn-border: #374151;
+  --hover-bg: rgba(255, 255, 255, 0.05);
+  --selected-bg: rgba(96, 165, 250, 0.15);
+  --divider: rgba(42, 74, 90, 0.3);
+  --divider-light: rgba(42, 74, 90, 0.2);
+
+  /* Accent colors */
+  --accent-teal: #5eead4;
+  --accent-red: #f87171;
+  --accent-amber: #f59e0b;
+  --accent-blue: #60a5fa;
+  --accent-green: #34d399;
+  --accent-gold: #fbbf24;
+
+  /* Resource colors */
+  --res-energy: #facc15;
+  --res-minerals: #a78bfa;
+  --res-alloys: #60a5fa;
+  --res-credits: #34d399;
+}
+
 *,
 *::before,
 *::after {
@@ -12,6 +50,6 @@ body {
   width: 100%;
   overflow: hidden;
   background: #0a0a1a;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-family: 'Inter', sans-serif;
 }

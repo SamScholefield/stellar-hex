@@ -31,9 +31,9 @@ import { UndoService } from '../../core/state/undo.service';
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      background: rgba(10, 10, 26, 0.85);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       padding: 0.4rem 1rem;
     }
     .player-dot {
@@ -44,31 +44,31 @@ import { UndoService } from '../../core/state/undo.service';
     }
     .player-name {
       font-size: 0.85rem;
-      color: #e0e0e0;
+      color: var(--text-primary);
     }
     .turn {
       font-size: 0.85rem;
-      color: #9ca3af;
+      color: var(--text-secondary);
       font-weight: 600;
     }
     .end-turn {
       padding: 0.3rem 0.75rem;
       font-size: 0.8rem;
       font-weight: 600;
-      color: #e0e0e0;
-      background: #1f2937;
-      border: 1px solid #374151;
-      border-radius: 0.375rem;
+      color: var(--text-primary);
+      background: var(--btn-bg);
+      border: 1px solid var(--btn-border);
+      border-radius: var(--panel-radius-sm);
       cursor: pointer;
       transition: background 0.15s;
     }
     .end-turn:hover {
-      background: #374151;
+      background: var(--btn-border);
     }
     .undo-btn {
       padding: 0.3rem 0.6rem;
       font-size: 0.75rem;
-      color: #f59e0b;
+      color: var(--accent-amber);
       background: rgba(245, 158, 11, 0.1);
       border: 1px solid rgba(245, 158, 11, 0.3);
       border-radius: 0.375rem;
@@ -87,7 +87,7 @@ import { UndoService } from '../../core/state/undo.service';
     }
     .ai-thinking {
       font-size: 0.8rem;
-      color: #f59e0b;
+      color: var(--accent-amber);
       font-weight: 600;
       animation: pulse 1.2s ease-in-out infinite;
     }

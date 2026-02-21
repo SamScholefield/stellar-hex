@@ -35,9 +35,9 @@ import { ChangeDetectionStrategy, Component, input, model } from '@angular/core'
       pointer-events: auto;
     }
     .panel {
-      background: rgba(10, 10, 26, 0.97);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg-solid);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       padding: 1.5rem 2rem;
       min-width: 340px;
       max-width: 440px;
@@ -45,7 +45,7 @@ import { ChangeDetectionStrategy, Component, input, model } from '@angular/core'
     h2 {
       margin: 0 0 1rem;
       font-size: 1.1rem;
-      color: #e0e0e0;
+      color: var(--text-primary);
       text-align: center;
     }
     table {
@@ -53,35 +53,35 @@ import { ChangeDetectionStrategy, Component, input, model } from '@angular/core'
       border-collapse: collapse;
     }
     tr {
-      border-bottom: 1px solid rgba(42, 74, 90, 0.3);
+      border-bottom: 1px solid var(--divider);
     }
     td {
       padding: 0.35rem 0.5rem;
       font-size: 0.8rem;
     }
     .key {
-      color: #60a5fa;
+      color: var(--accent-blue);
       font-weight: 600;
       white-space: nowrap;
       width: 40%;
     }
     .desc {
-      color: #d1d5db;
+      color: var(--text-body);
     }
     .close-btn {
       display: block;
       margin: 1rem auto 0;
       padding: 0.4rem 1.25rem;
       font-size: 0.8rem;
-      color: #9ca3af;
+      color: var(--text-secondary);
       background: none;
-      border: 1px solid #2a4a5a;
-      border-radius: 0.375rem;
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius-sm);
       cursor: pointer;
     }
     .close-btn:hover {
-      background: rgba(255, 255, 255, 0.05);
-      color: #e0e0e0;
+      background: var(--hover-bg);
+      color: var(--text-primary);
     }
   `,
 })

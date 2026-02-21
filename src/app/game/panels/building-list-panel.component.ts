@@ -53,9 +53,9 @@ interface BuildingEntry {
   `,
   styles: `
     .panel {
-      background: rgba(10, 10, 26, 0.85);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.5rem;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
       overflow: hidden;
       width: 100%;
     }
@@ -67,13 +67,13 @@ interface BuildingEntry {
       padding: 0.3rem 0.5rem;
       font-size: 0.75rem;
       font-weight: 600;
-      color: #9ca3af;
+      color: var(--text-secondary);
       background: transparent;
       border: none;
       cursor: pointer;
       text-align: left;
     }
-    .header:hover { color: #e0e0e0; }
+    .header:hover { color: var(--text-primary); }
     .arrow { font-size: 0.6rem; }
     .list {
       max-height: 200px;
@@ -86,7 +86,7 @@ interface BuildingEntry {
       padding: 0.25rem 0.4rem;
       font-size: 0.7rem;
       font-weight: 600;
-      border-bottom: 1px solid rgba(42, 74, 90, 0.3);
+      border-bottom: 1px solid var(--divider);
     }
     .building-row {
       display: flex;
@@ -94,26 +94,26 @@ interface BuildingEntry {
       width: 100%;
       padding: 0.2rem 0.4rem;
       font-size: 0.7rem;
-      color: #d1d5db;
+      color: var(--text-body);
       background: none;
       border: none;
-      border-bottom: 1px solid rgba(42, 74, 90, 0.2);
+      border-bottom: 1px solid var(--divider-light);
       cursor: pointer;
       text-align: left;
       align-items: center;
     }
-    .building-row:hover { background: rgba(255, 255, 255, 0.05); }
-    .type { color: #5eead4; flex-shrink: 0; }
+    .building-row:hover { background: var(--hover-bg); }
+    .type { color: var(--accent-teal); flex-shrink: 0; }
     .yields { display: flex; gap: 0.2rem; }
-    .coords { color: #6b7280; margin-left: auto; flex-shrink: 0; }
+    .coords { color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
     .res { font-size: 0.65rem; }
-    .energy { color: #facc15; }
-    .minerals { color: #a78bfa; }
-    .alloys { color: #60a5fa; }
-    .credits { color: #34d399; }
+    .energy { color: var(--res-energy); }
+    .minerals { color: var(--res-minerals); }
+    .alloys { color: var(--res-alloys); }
+    .credits { color: var(--res-credits); }
     .empty {
       font-size: 0.7rem;
-      color: #6b7280;
+      color: var(--text-muted);
       padding: 0.4rem;
       text-align: center;
     }

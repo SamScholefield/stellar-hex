@@ -71,9 +71,9 @@ export interface ContextMenuState {
     .menu {
       position: fixed;
       z-index: 100;
-      background: rgba(10, 10, 26, 0.95);
-      border: 1px solid #2a4a5a;
-      border-radius: 0.375rem;
+      background: var(--panel-bg-solid);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius-sm);
       padding: 0.25rem 0;
       min-width: 130px;
       pointer-events: auto;
@@ -83,27 +83,27 @@ export interface ContextMenuState {
       width: 100%;
       padding: 0.4rem 0.75rem;
       font-size: 0.85rem;
-      color: #e0e0e0;
+      color: var(--text-primary);
       background: none;
       border: none;
       text-align: left;
       cursor: pointer;
     }
     .item:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--hover-bg);
     }
     .item:disabled {
-      color: #4b5563;
+      color: var(--text-dim);
       cursor: not-allowed;
     }
     .item.attack {
-      color: #f87171;
+      color: var(--accent-red);
     }
     .item.build {
-      color: #5eead4;
+      color: var(--accent-teal);
     }
     .item.collect {
-      color: #f59e0b;
+      color: var(--accent-amber);
     }
   `,
 })
