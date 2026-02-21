@@ -297,6 +297,114 @@ export function getReachableHexes(
 }
 
 /**
+ * A* pathfinding without movement-point constraint.
+ * Used for multi-turn waypoint navigation.
+ * Returns the full path from `from` to `to`, or null if unreachable.
+ */
+export function findUnboundedPath(
+  from: HexCoord,
+  to: HexCoord,
+  hexLookup: HexLookup,
+  isBlocked?: UnitBlockCheck,
+  costOverride?: MoveCostOverride,
+): HexCoord[] | null {
+  const dist = hexDistance(from, to);
+  const maxSearch = dist * 2 + 50;
+
+  const toKey = hexKey(to.q, to.r);
+  const startKey = hexKey(from.q, from.r);
+
+  const gScore = new Map<string, number>();
+  gScore.set(startKey, 0);
+
+  const cameFrom = new Map<string, HexCoord>();
+
+  const open = new MinHeap();
+  open.push({ key: startKey, coord: from, priority: dist });
+  const openSet = new Set<string>([startKey]);
+  const closed = new Set<string>();
+
+  while (open.length > 0) {
+    const current = open.pop();
+    openSet.delete(current.key);
+
+    if (current.key === toKey) {
+      const path: HexCoord[] = [];
+      let step: HexCoord | undefined = current.coord;
+      while (step) {
+        path.push(step);
+        const k = hexKey(step.q, step.r);
+        step = cameFrom.get(k);
+      }
+      path.reverse();
+      return path;
+    }
+
+    closed.add(current.key);
+    const currentG = gScore.get(current.key) ?? Infinity;
+
+    if (currentG > maxSearch) continue;
+
+    for (const neighbor of hexNeighbors(current.coord.q, current.coord.r)) {
+      const nKey = hexKey(neighbor.q, neighbor.r);
+      if (closed.has(nKey)) continue;
+
+      const hex = hexLookup(neighbor.q, neighbor.r);
+      const cost = costOverride?.(hex) ?? moveCost(hex);
+      if (!isFinite(cost)) continue;
+      if (isBlocked && isBlocked(neighbor.q, neighbor.r)) continue;
+
+      const tentativeG = currentG + cost;
+
+      if (tentativeG < (gScore.get(nKey) ?? Infinity)) {
+        cameFrom.set(nKey, current.coord);
+        gScore.set(nKey, tentativeG);
+        const f = tentativeG + hexDistance(neighbor, to);
+
+        if (!openSet.has(nKey)) {
+          open.push({ key: nKey, coord: neighbor, priority: f });
+          openSet.add(nKey);
+        } else {
+          open.push({ key: nKey, coord: neighbor, priority: f });
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Find a partial path toward `to` that fits within `movementPoints`.
+ * Computes the full unbounded path, then walks it hex-by-hex until MP exhausted.
+ * Returns the sub-path (from → farthest reachable hex), or null if no movement possible.
+ */
+export function findPartialPath(
+  from: HexCoord,
+  to: HexCoord,
+  movementPoints: number,
+  hexLookup: HexLookup,
+  isBlocked?: UnitBlockCheck,
+  costOverride?: MoveCostOverride,
+): HexCoord[] | null {
+  const fullPath = findUnboundedPath(from, to, hexLookup, isBlocked, costOverride);
+  if (!fullPath || fullPath.length < 2) return null;
+
+  const partial: HexCoord[] = [fullPath[0]];
+  let spent = 0;
+
+  for (let i = 1; i < fullPath.length; i++) {
+    const hex = hexLookup(fullPath[i].q, fullPath[i].r);
+    const cost = costOverride?.(hex) ?? moveCost(hex);
+    if (spent + cost > movementPoints) break;
+    spent += cost;
+    partial.push(fullPath[i]);
+  }
+
+  return partial.length > 1 ? partial : null;
+}
+
+/**
  * Compute the total movement cost for a path.
  */
 export function pathCost(path: HexCoord[], hexLookup: HexLookup, costOverride?: MoveCostOverride): number {

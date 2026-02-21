@@ -196,6 +196,18 @@ export function scoreBuild(
           if (!hasColonyShip) continue;
         }
 
+        // Starbase requires scout at location
+        if (bt === 'starbase') {
+          let hasScout = false;
+          for (const u of units.values()) {
+            if (u.ownerId === player.id && u.type === 'scout' && u.q === hex.q && u.r === hex.r) {
+              hasScout = true;
+              break;
+            }
+          }
+          if (!hasScout) continue;
+        }
+
         // Score: yield per cost ratio
         const totalYield = (stats.yield.energy ?? 0) + (stats.yield.minerals ?? 0)
           + (stats.yield.alloys ?? 0) + (stats.yield.credits ?? 0);

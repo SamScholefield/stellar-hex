@@ -15,6 +15,7 @@ import { VisionService } from '../core/vision/vision.service';
 import { ChunkManagerService } from '../core/chunks/chunk-manager.service';
 import { NotificationService } from '../core/notifications/notification.service';
 import { AudioService } from '../core/audio/audio.service';
+import { WaypointService } from '../core/state/waypoint.service';
 import { ANOMALY_REWARDS } from '../models/game-state';
 import { hexToPixel } from '../shared/hex/hex-math';
 
@@ -89,6 +90,7 @@ export class GameComponent implements OnDestroy {
   private readonly undoSvc = inject(UndoService);
   private readonly notifications = inject(NotificationService);
   private readonly audio = inject(AudioService);
+  private readonly waypointSvc = inject(WaypointService);
   private readonly el = inject(ElementRef);
   private readonly contextMenu = viewChild(ContextMenuComponent);
   readonly saveModal = viewChild(SaveModalComponent);
@@ -125,6 +127,10 @@ export class GameComponent implements OnDestroy {
         this.eventLog.push({ turn, message: `${player.name}'s turn begins` });
         if (turn > 1 && turn % 5 === 0) {
           untracked(() => this.saveSvc.autoSave());
+        }
+        // Execute persisted waypoints at the start of the human turn
+        if (turn > 1) {
+          untracked(() => this.waypointSvc.executeAllWaypoints());
         }
       }
     });
@@ -196,7 +202,14 @@ export class GameComponent implements OnDestroy {
         if (this.helpVisible()) {
           this.helpVisible.set(false);
         } else {
-          this.selection.deselectAll();
+          // Cancel waypoint if selected unit has one
+          const selectedId = this.selection.selectedUnit();
+          if (selectedId && this.waypointSvc.getWaypoint(selectedId)) {
+            this.waypointSvc.clearWaypoint(selectedId);
+            this.notifications.show('Order cancelled', { type: 'info' });
+          } else {
+            this.selection.deselectAll();
+          }
         }
         break;
       case 'Tab': {

@@ -8,9 +8,11 @@ import { EventLogService } from '../../core/state/event-log.service';
 import { AnimationService } from '../renderer/animation.service';
 import { UndoService } from '../../core/state/undo.service';
 import { NotificationService } from '../../core/notifications/notification.service';
+import { WaypointService } from '../../core/state/waypoint.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance, pixelToHex } from '../../shared/hex/hex-math';
 import { attackWithResult } from '../../core/state/game-reducer';
+import { getReachableHexes, getUnitCostOverride } from '../../core/pathfinding/hex-pathfinder';
 import { BuildingType, BuildingStats, BUILDING_STATS, ANOMALY_REWARDS } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { VisionService } from '../../core/vision/vision.service';
@@ -37,6 +39,11 @@ export interface ContextMenuState {
   collectAnomalyId: string | null;
   collectAnomalyName: string | null;
   collectUnitId: string | null;
+  canMoveHere: boolean;
+  moveHereUnitId: string | null;
+  canAttackHere: boolean;
+  attackHereUnitId: string | null;
+  attackHereTargetId: string | null;
 }
 
 @Component({
@@ -55,6 +62,12 @@ export interface ContextMenuState {
         }
         @if (s.canAttack) {
           <button class="item attack" (click)="onAttack()">Attack</button>
+        }
+        @if (s.canMoveHere) {
+          <button class="item move" (click)="onMoveHere()">Move Here</button>
+        }
+        @if (s.canAttackHere) {
+          <button class="item attack-here" (click)="onAttackHere()">Attack Here</button>
         }
         @for (opt of s.buildOptions; track opt.type) {
           <button
@@ -105,6 +118,12 @@ export interface ContextMenuState {
     .item.collect {
       color: var(--accent-amber);
     }
+    .item.move {
+      color: var(--accent-blue);
+    }
+    .item.attack-here {
+      color: var(--accent-red);
+    }
   `,
 })
 export class ContextMenuComponent {
@@ -118,6 +137,8 @@ export class ContextMenuComponent {
   private readonly vision = inject(VisionService);
   private readonly undo = inject(UndoService);
   private readonly notifications = inject(NotificationService);
+
+  private readonly waypointSvc = inject(WaypointService);
 
   private readonly _state = signal<ContextMenuState | null>(null);
   readonly state = this._state.asReadonly();
@@ -180,8 +201,11 @@ export class ContextMenuComponent {
           hexType = hexData.object?.type ?? 'empty';
           const resources = currentPlayer.resources;
 
+          const hasScout = unitsHere?.some(u => u.ownerId === currentPlayer.id && u.type === 'scout') ?? false;
+
           for (const [type, stats] of Object.entries(BUILDING_STATS) as [BuildingType, BuildingStats][]) {
             if (!stats.allowedHexTypes.includes(hexType)) continue;
+            if (type === 'starbase' && !hasScout) continue;
             const affordable = resources.energy >= (stats.cost.energy ?? 0)
               && resources.minerals >= (stats.cost.minerals ?? 0)
               && resources.alloys >= (stats.cost.alloys ?? 0)
@@ -212,6 +236,60 @@ export class ContextMenuComponent {
       }
     }
 
+    // Move Here — show when unit selected, has MP, hex is outside reachable range
+    let canMoveHere = false;
+    let moveHereUnitId: string | null = null;
+
+    // Attack Here — show when enemy at hex, outside attack range
+    let canAttackHere = false;
+    let attackHereUnitId: string | null = null;
+    let attackHereTargetId: string | null = null;
+
+    if (selectedUnitId && !canAttack) {
+      const attacker = units.get(selectedUnitId);
+      if (attacker && attacker.ownerId === currentPlayer.id && attacker.movementPoints > 0) {
+        const from: HexCoord = { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r };
+        const isSameHex = attacker.q === hex.q && attacker.r === hex.r;
+
+        if (!isSameHex) {
+          // Check if hex is within reachable range via normal pathfinding
+          const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+          const blocked = new Set<string>();
+          for (const u of units.values()) {
+            if (u.id !== selectedUnitId && u.ownerId !== currentPlayer.id) {
+              blocked.add(`${u.q},${u.r}`);
+            }
+          }
+          const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
+          const override = getUnitCostOverride(attacker.type);
+          const reachable = getReachableHexes(from, attacker.movementPoints, hexLookup, isBlocked, override);
+          const hexKeyTarget = `${hex.q},${hex.r}`;
+
+          if (!reachable.has(hexKeyTarget)) {
+            // Hex is outside reachable range — show Move Here
+            canMoveHere = true;
+            moveHereUnitId = selectedUnitId;
+
+            // Also check for Attack Here: enemy at hex, outside attack range
+            if (attacker.attack > 0) {
+              const visHexes = this.vision.visibleHexes();
+              if (visHexes.has(hexKeyTarget)) {
+                const enemyAtTarget = unitIndex.get(hexKeyTarget)?.find(u => u.ownerId !== currentPlayer.id);
+                if (enemyAtTarget) {
+                  canAttackHere = true;
+                  attackHereUnitId = selectedUnitId;
+                  attackHereTargetId = enemyAtTarget.id;
+                  // Don't show Move Here when Attack Here is available
+                  canMoveHere = false;
+                  moveHereUnitId = null;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     this._state.set({
       screenX: clientX,
       screenY: clientY,
@@ -225,6 +303,11 @@ export class ContextMenuComponent {
       collectAnomalyId,
       collectAnomalyName,
       collectUnitId,
+      canMoveHere,
+      moveHereUnitId,
+      canAttackHere,
+      attackHereUnitId,
+      attackHereTargetId,
     });
   }
 
@@ -297,6 +380,35 @@ export class ContextMenuComponent {
 
     this.eventLog.push({ turn, message: `Collected ${info.name}: +${rewardStr}`, q: anomaly.q, r: anomaly.r });
     this.notifications.show(`Collected ${info.name}: +${rewardStr}`, { type: 'success', q: anomaly.q, r: anomaly.r });
+  }
+
+  onMoveHere(): void {
+    this.audio.playClick();
+    const s = this._state();
+    if (!s || !s.moveHereUnitId) return;
+    this.close();
+
+    this.waypointSvc.setWaypoint(s.moveHereUnitId, s.hex);
+    this.waypointSvc.executeWaypoint(s.moveHereUnitId).then(() => {
+      this.selection.selectUnit(s.moveHereUnitId!);
+    });
+  }
+
+  onAttackHere(): void {
+    this.audio.playClick();
+    const s = this._state();
+    if (!s || !s.attackHereUnitId || !s.attackHereTargetId) return;
+    this.close();
+
+    this.waypointSvc.setWaypoint(s.attackHereUnitId, s.hex, s.attackHereTargetId);
+    this.waypointSvc.executeWaypoint(s.attackHereUnitId).then(() => {
+      const unit = this.gameState.units().get(s.attackHereUnitId!);
+      if (unit) {
+        this.selection.selectUnit(s.attackHereUnitId!);
+      } else {
+        this.selection.deselectAll();
+      }
+    });
   }
 
   onBuild(buildingType: BuildingType): void {

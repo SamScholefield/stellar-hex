@@ -76,6 +76,18 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
   const player = state.players[playerIndex];
   if (!hasResources(player, stats.cost)) return state;
 
+  // Starbase requires a scout at the hex
+  if (buildingType === 'starbase') {
+    let hasScout = false;
+    for (const unit of state.units.values()) {
+      if (unit.ownerId === playerId && unit.type === 'scout' && unit.q === hex.q && unit.r === hex.r) {
+        hasScout = true;
+        break;
+      }
+    }
+    if (!hasScout) return state;
+  }
+
   // Colony special case: consume colony_ship at hex
   let units = state.units;
   if (buildingType === 'colony') {

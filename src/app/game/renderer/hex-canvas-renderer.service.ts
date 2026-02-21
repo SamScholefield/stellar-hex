@@ -8,6 +8,7 @@ import { hexToPixel } from '../../shared/hex/hex-math';
 import { CHUNK_SIZE } from '../../core/generation/world-generator.service';
 import { CombatAnimation, UnitAnimation } from './animation.service';
 import { SpriteAtlasService } from '../../core/sprites/sprite-atlas.service';
+import { Waypoint } from '../../core/state/waypoint.service';
 
 // Pre-computed hex vertex offsets (cos/sin for 6 angles at 60° intervals)
 const HEX_VERTICES: ReadonlyArray<{ dx: number; dy: number }> = Array.from({ length: 6 }, (_, i) => {
@@ -58,6 +59,7 @@ export class HexCanvasRendererService {
     _attackTargets?: unknown,
     combatAnimation?: CombatAnimation | null,
     anomalies?: Map<string, Anomaly>,
+    waypoints?: Map<string, Waypoint>,
   ): void {
     const w = camera.canvasWidth();
     const h = camera.canvasHeight();
@@ -186,6 +188,15 @@ export class HexCanvasRendererService {
     }
     if (selectedHex) {
       this.drawHexOverlay(ctx, selectedHex, hexSize, 'rgba(0, 255, 255, 0.15)', '#00e5ff');
+    }
+
+    // Waypoint markers
+    if (waypoints && units && currentPlayerId) {
+      for (const wp of waypoints.values()) {
+        const unit = units.get(wp.unitId);
+        if (!unit || unit.ownerId !== currentPlayerId) continue;
+        this.drawWaypointIndicator(ctx, unit, wp, hexSize);
+      }
     }
 
     ctx.restore();
@@ -561,6 +572,52 @@ export class HexCanvasRendererService {
         ctx.lineTo(x - r * 0.85, y + r * 0.6);
         break;
     }
+  }
+
+  private drawWaypointIndicator(
+    ctx: CanvasRenderingContext2D,
+    unit: UnitData,
+    wp: Waypoint,
+    hexSize: number,
+  ): void {
+    const from = hexToPixel(unit.q, unit.r, hexSize);
+    const to = hexToPixel(wp.target.q, wp.target.r, hexSize);
+    const isAttack = !!wp.attackTargetId;
+    const color = isAttack ? 'rgba(239, 68, 68, 0.6)' : 'rgba(59, 130, 246, 0.6)';
+    const solidColor = isAttack ? '#ef4444' : '#3b82f6';
+
+    // Dashed line from unit to target
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Crosshair marker at target
+    const r = hexSize * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(to.x - r, to.y);
+    ctx.lineTo(to.x + r, to.y);
+    ctx.moveTo(to.x, to.y - r);
+    ctx.lineTo(to.x, to.y + r);
+    ctx.strokeStyle = solidColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Diamond outline at target
+    const d = r * 0.6;
+    ctx.beginPath();
+    ctx.moveTo(to.x, to.y - d);
+    ctx.lineTo(to.x + d, to.y);
+    ctx.lineTo(to.x, to.y + d);
+    ctx.lineTo(to.x - d, to.y);
+    ctx.closePath();
+    ctx.strokeStyle = solidColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
   }
 
   private drawHex(

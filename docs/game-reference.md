@@ -65,7 +65,7 @@ All selection goes through `SelectionService`. Viewport clicks are blocked durin
 | Double-click any hex | Centers camera on hex | (no SFX) |
 | Tab | Cycles to next actionable unit (MP > 0); falls back to all units if none | (no SFX) |
 | Shift+Tab | Cycles to previous actionable unit; same fallback | (no SFX) |
-| Escape | Closes help panel (if open), otherwise deselects all | (no SFX) |
+| Escape | Closes help panel (if open); cancels waypoint on selected unit (if any); otherwise deselects all | Toast: "Order cancelled" (if waypoint cancelled) |
 | H key | Centers camera on home base, selects that hex | (no SFX) |
 | Hover over hex | Updates `hoveredHexCoord`; shows path preview if unit selected | (no rendering SFX) |
 | Pointer leaves canvas | Clears hover state | -- |
@@ -102,7 +102,45 @@ Combat uses `resolveCombat()` from `combat-resolver.ts`.
 | Entry Point | Location | Description |
 |-------------|----------|-------------|
 | Context menu "Attack" | `context-menu.component.ts` | Right-click enemy unit while friendly unit is selected. Shows when unit has MP > 0, ATK > 0, target in range and visible |
+| Context menu "Attack Here" | `context-menu.component.ts` | Right-click visible enemy unit beyond attack range. Sets a multi-turn waypoint; unit moves toward target each turn and auto-attacks when in range |
 | AI attack | `ai.service.ts` | AI scores attacks via `scoreAttack()`, skips if attacker would die. Follows same animation + dispatch flow |
+
+---
+
+## Multi-Turn Waypoints
+
+Units can be given standing orders that persist across turns. Managed by `WaypointService` (UI-layer state, not saved to game state).
+
+### Move Here
+
+Right-click a hex beyond the selected unit's movement range. The unit immediately moves as far as possible this turn, and continues moving each subsequent turn until it arrives.
+
+| Condition | Required |
+|-----------|----------|
+| Friendly unit selected | Yes |
+| Unit has MP > 0 | Yes |
+| Target hex outside reachable range | Yes |
+| Target hex not the unit's current position | Yes |
+
+### Attack Here
+
+Right-click a visible enemy unit beyond attack range. The unit moves toward the target each turn and auto-attacks once in range.
+
+| Condition | Required |
+|-----------|----------|
+| Friendly unit selected with ATK > 0 | Yes |
+| Unit has MP > 0 | Yes |
+| Visible enemy unit at target hex | Yes |
+| Enemy outside attack range | Yes (otherwise normal "Attack" shows) |
+
+### Waypoint Behavior
+
+- Waypoints execute automatically at the start of each human turn (with movement animation)
+- First-leg movement executes immediately when the order is issued
+- Right-clicking a new target replaces any existing waypoint for that unit
+- Escape cancels the selected unit's waypoint (toast: "Order cancelled")
+- Waypoint clears when: unit arrives, target destroyed (Attack Here), unit destroyed
+- Visual indicator: dashed line from unit to target with crosshair/diamond marker (blue for Move, red for Attack)
 
 ---
 
@@ -112,7 +150,7 @@ All state changes go through `gameReducer()`. Human actions route through `UndoS
 
 | Action | Triggered By | Validation | State Change | UI Feedback |
 |--------|-------------|------------|--------------|-------------|
-| `MOVE_UNIT` | Viewport click, AI | Path exists, MP >= cost | Updates unit position, deducts MP | Movement animation (150ms/hex), SFX: `playMovement` |
+| `MOVE_UNIT` | Viewport click, AI, waypoint execution | Path exists, MP >= cost | Updates unit position, deducts MP | Movement animation (150ms/hex), SFX: `playMovement` |
 | `BUILD` | Context menu, Build menu, AI | Friendly unit on hex, no existing building, correct hex type, sufficient resources | Creates building, deducts resources. Colony consumes colony_ship | Event log entry, SFX: `playBuild` |
 | `PRODUCE_UNIT` | Production menu, AI | Starbase exists, sufficient resources | Deducts resources, adds item to starbase queue (2 turns) | Event log entry, toast (success), SFX: `playProduce` |
 | `ATTACK` | Context menu, AI | See Combat Flow above | Applies damage, sets attacker MP to 0, removes destroyed units | Combat animation, event log, toast, SFX: laser + impact |
@@ -127,16 +165,17 @@ All state changes go through `gameReducer()`. Human actions route through `UndoS
 
 ## Turn Lifecycle
 
-1. Human player takes actions (move, build, attack, produce, collect)
-2. Human clicks **End Turn** (or presses the button)
-3. `END_TURN` dispatched: income collected, production advanced, units spawned, MP refreshed for next player
-4. Undo history cleared
-5. If next player is AI: `executeTurn()` called automatically
+1. At turn start, any standing waypoint orders execute automatically (animated movement)
+2. Human player takes actions (move, build, attack, produce, collect)
+3. Human clicks **End Turn** (or presses the button)
+4. `END_TURN` dispatched: income collected, production advanced, units spawned, MP refreshed for next player
+5. Undo history cleared
+6. If next player is AI: `executeTurn()` called automatically
    - AI iterates units by priority: combat units first, then scouts, then others
    - Each unit: try attack, then move toward enemy/explore target
    - After units: try build, try production
    - AI dispatches its own `END_TURN` when done
-6. Cycle repeats
+7. Cycle repeats
 
 ---
 
