@@ -4,6 +4,7 @@ import { GameStateService } from '../../core/state/game-state.service';
 import { AIService } from '../../core/ai/ai.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { UndoService } from '../../core/state/undo.service';
+import { EventLogService } from '../../core/state/event-log.service';
 
 @Component({
   selector: 'app-turn-controls',
@@ -102,6 +103,7 @@ export class TurnControlsComponent {
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly ai = inject(AIService);
   private readonly audio = inject(AudioService);
+  private readonly eventLog = inject(EventLogService);
   readonly undo = inject(UndoService);
 
   readonly turn = this.gameState.turn;
@@ -116,6 +118,26 @@ export class TurnControlsComponent {
   endTurn(): void {
     this.audio.playClick();
     const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+
+    // Snapshot production queues before END_TURN to detect completions
+    const turn = this.gameState.turn();
+    const completing: { unitType: string; q: number; r: number }[] = [];
+    for (const [, b] of this.gameState.buildings()) {
+      if (b.productionQueue) {
+        for (const item of b.productionQueue) {
+          if (item.turnsRemaining === 1) {
+            completing.push({ unitType: item.unitType, q: b.q, r: b.r });
+          }
+        }
+      }
+    }
+
     this.undo.dispatchEndTurn(hexLookup);
+
+    // Log completed production items
+    for (const c of completing) {
+      const label = c.unitType.replace(/_/g, ' ');
+      this.eventLog.push({ turn, message: `${label} construction complete`, q: c.q, r: c.r });
+    }
   }
 }

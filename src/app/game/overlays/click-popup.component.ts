@@ -7,7 +7,7 @@ import { AudioService } from '../../core/audio/audio.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { AnimationService } from '../renderer/animation.service';
 import { UndoService } from '../../core/state/undo.service';
-import { NotificationService } from '../../core/notifications/notification.service';
+
 import { WaypointService } from '../../core/state/waypoint.service';
 import { VisionService } from '../../core/vision/vision.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
@@ -100,7 +100,7 @@ export class ClickPopupComponent {
   private readonly eventLog = inject(EventLogService);
   private readonly animation = inject(AnimationService);
   private readonly undo = inject(UndoService);
-  private readonly notifications = inject(NotificationService);
+
   private readonly waypointSvc = inject(WaypointService);
   private readonly vision = inject(VisionService);
 
@@ -275,9 +275,6 @@ export class ClickPopupComponent {
         + (combat.defenderDestroyed ? ` — ${defender.type} destroyed!` : '')
         + (combat.attackerDestroyed ? ` — ${attacker.type} destroyed!` : '');
       this.eventLog.push({ turn, message: msg, q: defender.q, r: defender.r });
-
-      const toastType = combat.defenderDestroyed || combat.attackerDestroyed ? 'danger' : 'warning';
-      this.notifications.show(msg, { type: toastType, q: defender.q, r: defender.r });
 
       if (!combat.attackerDestroyed) {
         this.selection.selectUnit(attackerId);

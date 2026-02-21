@@ -13,7 +13,7 @@ import { GameSaveService } from '../core/state/game-save.service';
 import { UndoService } from '../core/state/undo.service';
 import { VisionService } from '../core/vision/vision.service';
 import { ChunkManagerService } from '../core/chunks/chunk-manager.service';
-import { NotificationService } from '../core/notifications/notification.service';
+
 import { AudioService } from '../core/audio/audio.service';
 import { WaypointService } from '../core/state/waypoint.service';
 import { ANOMALY_REWARDS } from '../models/game-state';
@@ -88,7 +88,7 @@ export class GameComponent implements OnDestroy {
   private readonly ai = inject(AIService);
   private readonly saveSvc = inject(GameSaveService);
   private readonly undoSvc = inject(UndoService);
-  private readonly notifications = inject(NotificationService);
+
   private readonly audio = inject(AudioService);
   private readonly waypointSvc = inject(WaypointService);
   private readonly el = inject(ElementRef);
@@ -159,7 +159,6 @@ export class GameComponent implements OnDestroy {
             anomaly: { id, type: hex.anomaly, q: d.q, r: d.r },
           });
           this.eventLog.push({ turn, message: `Discovered ${info.name}`, q: d.q, r: d.r });
-          this.notifications.show(`Discovered ${info.name}!`, { type: 'info', q: d.q, r: d.r });
           this.audio.playDiscovery();
         }
       });
@@ -216,7 +215,6 @@ export class GameComponent implements OnDestroy {
           const selectedId = this.selection.selectedUnit();
           if (selectedId && this.waypointSvc.getWaypoint(selectedId)) {
             this.waypointSvc.clearWaypoint(selectedId);
-            this.notifications.show('Order cancelled', { type: 'info' });
           } else {
             this.selection.deselectAll();
           }

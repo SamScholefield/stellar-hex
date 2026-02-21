@@ -4,12 +4,13 @@ import { TurnControlsComponent } from './turn-controls.component';
 import { HexInfoPanelComponent } from '../panels/hex-info-panel.component';
 import { UnitInfoPanelComponent } from '../panels/unit-info-panel.component';
 import { EventLogComponent } from '../log/event-log.component';
+import { EventFeedComponent } from '../log/event-feed.component';
 import { ProductionMenuComponent } from '../panels/production-menu.component';
 import { UnitListPanelComponent } from '../panels/unit-list-panel.component';
 import { BuildingListPanelComponent } from '../panels/building-list-panel.component';
 import { MinimapComponent } from './minimap.component';
-import { ToastContainerComponent } from '../overlays/toast-container.component';
-import { NotificationService } from '../../core/notifications/notification.service';
+
+
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { EventLogService } from '../../core/state/event-log.service';
@@ -23,9 +24,8 @@ import { BuildingData, UnitType } from '../../models/game-state';
 @Component({
   selector: 'app-hud',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, ProductionMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent, ToastContainerComponent],
+  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent],
   template: `
-    <app-toast-container />
     <div class="hud-top">
       <app-resource-bar />
       <div class="hud-top-center">
@@ -46,7 +46,10 @@ import { BuildingData, UnitType } from '../../models/game-state';
       <app-unit-list-panel />
       <app-building-list-panel />
     </div>
-    <app-event-log class="hud-bottom-right" />
+    <div class="hud-bottom-right">
+      <app-event-feed />
+      <app-event-log />
+    </div>
     <div class="hud-bottom-left">
       <app-minimap />
       <app-hex-info-panel />
@@ -70,9 +73,6 @@ import { BuildingData, UnitType } from '../../models/game-state';
       grid-template-columns: auto 1fr auto;
       padding: 0.75rem;
       gap: 0.5rem;
-    }
-    app-toast-container {
-      display: contents;
     }
     .hud-top {
       grid-row: 1;
@@ -126,6 +126,10 @@ import { BuildingData, UnitType } from '../../models/game-state';
       align-self: end;
       justify-self: end;
       pointer-events: auto;
+      width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 .home-btn {
       background: var(--panel-bg);
@@ -204,7 +208,7 @@ export class HudComponent {
   private readonly audio = inject(AudioService);
   private readonly camera = inject(CameraService);
   private readonly undo = inject(UndoService);
-  private readonly notifications = inject(NotificationService);
+
   readonly aiExecuting = this.ai.executing;
 
   readonly homeBase = computed<BuildingData | null>(() => {
@@ -249,6 +253,5 @@ export class HudComponent {
     this.undo.dispatch({ type: 'PRODUCE_UNIT', buildingId: starbase.id, unitType });
     const turn = this.gameState.turn();
     this.eventLog.push({ turn, message: `Queued ${unitType.replace(/_/g, ' ')} production` });
-    this.notifications.show(`Queued ${unitType.replace(/_/g, ' ')} production`, { type: 'success' });
   }
 }

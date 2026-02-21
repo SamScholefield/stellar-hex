@@ -7,7 +7,7 @@ import { AudioService } from '../../core/audio/audio.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { AnimationService } from '../renderer/animation.service';
 import { UndoService } from '../../core/state/undo.service';
-import { NotificationService } from '../../core/notifications/notification.service';
+
 import { WaypointService } from '../../core/state/waypoint.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance, pixelToHex } from '../../shared/hex/hex-math';
@@ -136,7 +136,7 @@ export class ContextMenuComponent {
   private readonly animation = inject(AnimationService);
   private readonly vision = inject(VisionService);
   private readonly undo = inject(UndoService);
-  private readonly notifications = inject(NotificationService);
+
 
   private readonly waypointSvc = inject(WaypointService);
 
@@ -349,9 +349,6 @@ export class ContextMenuComponent {
         + (combat.attackerDestroyed ? ` — ${attacker.type} destroyed!` : '');
       this.eventLog.push({ turn, message: msg, q: defender.q, r: defender.r });
 
-      const toastType = combat.defenderDestroyed || combat.attackerDestroyed ? 'danger' : 'warning';
-      this.notifications.show(msg, { type: toastType, q: defender.q, r: defender.r });
-
       if (!combat.attackerDestroyed) {
         this.selection.selectUnit(attackerId);
       } else {
@@ -381,7 +378,6 @@ export class ContextMenuComponent {
     const rewardStr = rewardParts.join(', ');
 
     this.eventLog.push({ turn, message: `Collected ${info.name}: +${rewardStr}`, q: anomaly.q, r: anomaly.r });
-    this.notifications.show(`Collected ${info.name}: +${rewardStr}`, { type: 'success', q: anomaly.q, r: anomaly.r });
   }
 
   onMoveHere(): void {

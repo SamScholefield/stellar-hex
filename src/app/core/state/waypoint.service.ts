@@ -6,7 +6,7 @@ import { UndoService } from './undo.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { AnimationService } from '../../game/renderer/animation.service';
 import { EventLogService } from './event-log.service';
-import { NotificationService } from '../notifications/notification.service';
+
 import { AudioService } from '../audio/audio.service';
 import { findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
 import { attackWithResult } from './game-reducer';
@@ -24,7 +24,7 @@ export class WaypointService {
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly animation = inject(AnimationService);
   private readonly eventLog = inject(EventLogService);
-  private readonly notifications = inject(NotificationService);
+
   private readonly audio = inject(AudioService);
 
   private readonly _waypoints = signal<Map<string, Waypoint>>(new Map());
@@ -197,8 +197,5 @@ export class WaypointService {
       + (combat.defenderDestroyed ? ` — ${defender.type} destroyed!` : '')
       + (combat.attackerDestroyed ? ` — ${attacker.type} destroyed!` : '');
     this.eventLog.push({ turn, message: msg, q: defender.q, r: defender.r });
-
-    const toastType = combat.defenderDestroyed || combat.attackerDestroyed ? 'danger' : 'warning';
-    this.notifications.show(msg, { type: toastType, q: defender.q, r: defender.r });
   }
 }

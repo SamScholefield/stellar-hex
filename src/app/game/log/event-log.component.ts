@@ -126,7 +126,7 @@ export class EventLogComponent {
   private readonly camera = inject(CameraService);
   private readonly scrollContainer = viewChild<ElementRef<HTMLDivElement>>('scrollContainer');
 
-  readonly collapsed = signal(false);
+  readonly collapsed = signal(true);
   readonly recentEvents = computed(() => {
     const events = this.eventLog.events();
     return events.slice(-50);
