@@ -36,6 +36,11 @@ export class SelectionService {
     return units;
   });
 
+  /** Owned units that can still act: have MP to move or attack. */
+  readonly actionableUnits = computed<UnitData[]>(() => {
+    return this.ownedUnits().filter(u => u.movementPoints > 0);
+  });
+
   readonly selectedHexCoord = this._selectedHexCoord.asReadonly();
   readonly hoveredHexCoord = this._hoveredHexCoord.asReadonly();
   readonly selectedUnit = this._selectedUnit.asReadonly();
@@ -152,9 +157,10 @@ export class SelectionService {
     this._selectedUnits.set(new Set());
   }
 
-  /** Cycle to next/previous owned unit. Returns the selected unit or null. */
+  /** Cycle to next/previous unit that can still act. Falls back to all owned units. */
   selectNextUnit(direction: 1 | -1): UnitData | null {
-    const units = this.ownedUnits();
+    const actionable = this.actionableUnits();
+    const units = actionable.length > 0 ? actionable : this.ownedUnits();
     if (units.length === 0) return null;
 
     const currentId = this._selectedUnit();

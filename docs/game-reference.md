@@ -63,8 +63,8 @@ All selection goes through `SelectionService`. Viewport clicks are blocked durin
 | Click hex with friendly unit selected elsewhere | Attempts pathfinding + movement | SFX: `playClick`, movement animation (150ms/hex), dispatches `MOVE_UNIT` |
 | Shift+click hex with friendly unit | Toggles unit in multi-selection set | SFX: `playClick` |
 | Double-click any hex | Centers camera on hex | (no SFX) |
-| Tab | Cycles to next owned unit, centers camera | (no SFX) |
-| Shift+Tab | Cycles to previous owned unit, centers camera | (no SFX) |
+| Tab | Cycles to next actionable unit (MP > 0); falls back to all units if none | (no SFX) |
+| Shift+Tab | Cycles to previous actionable unit; same fallback | (no SFX) |
 | Escape | Closes help panel (if open), otherwise deselects all | (no SFX) |
 | H key | Centers camera on home base, selects that hex | (no SFX) |
 | Hover over hex | Updates `hoveredHexCoord`; shows path preview if unit selected | (no rendering SFX) |
