@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { BuildingData, Resources, TechId, TechDefinition, TECH_TREE, canResearch, ResearchItem } from '../../models/game-state';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AudioService } from '../../core/audio/audio.service';
@@ -15,44 +15,51 @@ interface ResearchOption {
   template: `
     @if (building(); as b) {
       <div class="menu-panel">
-        <div class="menu-title">Research Lab</div>
+        <button class="collapsible-header" (click)="toggle()">
+          <span class="collapsible-arrow">{{ collapsed() ? '\u25B6' : '\u25BC' }}</span>
+          Research Lab
+        </button>
+        @if (!collapsed()) {
+          @if (queue().length > 0) {
+            <div class="queue-section">
+              <div class="queue-title">Researching</div>
+              @for (item of queue(); track item.techId) {
+                <div class="queue-item">
+                  <span>{{ techName(item.techId) }}</span>
+                  <span class="queue-turns">{{ item.turnsRemaining }} turn{{ item.turnsRemaining > 1 ? 's' : '' }}</span>
+                </div>
+              }
+            </div>
+          }
 
-        @if (queue().length > 0) {
-          <div class="queue-section">
-            <div class="queue-title">Researching</div>
-            @for (item of queue(); track item.techId) {
-              <div class="queue-item">
-                <span>{{ techName(item.techId) }}</span>
-                <span class="queue-turns">{{ item.turnsRemaining }} turn{{ item.turnsRemaining > 1 ? 's' : '' }}</span>
-              </div>
+          @if (options().length > 0) {
+            <div class="section-title">Available Research</div>
+            @for (opt of options(); track opt.techId) {
+              <button
+                class="menu-option"
+                [class.disabled]="!opt.affordable"
+                [disabled]="!opt.affordable"
+                (click)="onResearch(opt.techId)"
+              >
+                <span class="menu-option-name">{{ opt.def.name }}</span>
+                <span class="bonus">{{ bonusLabel(opt.def) }}</span>
+                <span class="cost-row">
+                  @for (c of costEntries(opt.def); track c.key) {
+                    <span class="cost-item" [class.sufficient]="c.current >= c.value">{{ c.current }}/{{ c.value }} {{ c.key }}</span>
+                  }
+                  <span class="build-turns">{{ opt.def.researchTurns }}T</span>
+                </span>
+              </button>
             }
-          </div>
-        }
-
-        @if (options().length > 0) {
-          <div class="section-title">Available Research</div>
-          @for (opt of options(); track opt.techId) {
-            <button
-              class="menu-option"
-              [class.disabled]="!opt.affordable"
-              [disabled]="!opt.affordable"
-              (click)="onResearch(opt.techId)"
-            >
-              <span class="menu-option-name">{{ opt.def.name }}</span>
-              <span class="bonus">{{ bonusLabel(opt.def) }}</span>
-              <span class="cost-row">
-                @for (c of costEntries(opt.def); track c.key) {
-                  <span class="cost-item" [class.sufficient]="c.current >= c.value">{{ c.current }}/{{ c.value }} {{ c.key }}</span>
-                }
-                <span class="build-turns">{{ opt.def.researchTurns }}T</span>
-              </span>
-            </button>
           }
         }
       </div>
     }
   `,
   styles: `
+    :host {
+      pointer-events: auto;
+    }
     .queue-section {
       margin-bottom: 0.5rem;
     }
@@ -72,6 +79,7 @@ export class ResearchMenuComponent {
   private readonly gameState = inject(GameStateService);
   private readonly audio = inject(AudioService);
 
+  readonly collapsed = signal(false);
   readonly building = input.required<BuildingData | null>();
   readonly researchSelected = output<TechId>();
 
@@ -106,6 +114,11 @@ export class ResearchMenuComponent {
     }
     return result;
   });
+
+  toggle(): void {
+    this.audio.playClick();
+    this.collapsed.update(v => !v);
+  }
 
   techName(techId: TechId): string {
     return TECH_TREE[techId]?.name ?? techId;

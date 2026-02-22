@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { UpperCasePipe } from '@angular/common';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { CameraService } from '../../core/camera/camera.service';
+import { AudioService } from '../../core/audio/audio.service';
 import { hexToPixel } from '../../shared/hex/hex-math';
 
 @Component({
@@ -12,96 +13,94 @@ import { hexToPixel } from '../../shared/hex/hex-math';
   template: `
     @if (unitData(); as unit) {
       <div class="panel">
-        <div class="header">
-          <span class="unit-type clickable" (click)="centerOnUnit(unit.q, unit.r)">{{ unit.name }}</span>
+        <button class="collapsible-header" (click)="toggle()">
+          <span class="collapsible-arrow">{{ collapsed() ? '\u25B6' : '\u25BC' }}</span>
+          <span class="unit-name-header" (click)="centerOnUnit(unit.q, unit.r); $event.stopPropagation()">{{ unit.name }}</span>
           @if (isEnemy(unit.ownerId)) {
             <span class="owner">{{ ownerName(unit.ownerId) }}</span>
           }
-        </div>
-        <div class="stats">
-          <div class="stat">
-            <span class="label">HP</span>
-            <div class="bar-bg">
-              <div class="bar-fill hp" [style.width.%]="(unit.health / unit.maxHealth) * 100"></div>
-            </div>
-            <span class="val">{{ unit.health }}/{{ unit.maxHealth }}</span>
-          </div>
-          @if (unit.maxShields > 0) {
-            <div class="stat">
-              <span class="label">SH</span>
-              <div class="bar-bg">
-                <div
-                  class="bar-fill sh"
-                  [style.width.%]="(unit.shields / unit.maxShields) * 100"
-                ></div>
+        </button>
+        @if (!collapsed()) {
+          <div class="panel-body">
+            <div class="stats">
+              <div class="stat">
+                <span class="label">HP</span>
+                <div class="bar-bg">
+                  <div class="bar-fill hp" [style.width.%]="(unit.health / unit.maxHealth) * 100"></div>
+                </div>
+                <span class="val">{{ unit.health }}/{{ unit.maxHealth }}</span>
               </div>
-              <span class="val">{{ unit.shields }}/{{ unit.maxShields }}</span>
+              @if (unit.maxShields > 0) {
+                <div class="stat">
+                  <span class="label">SH</span>
+                  <div class="bar-bg">
+                    <div
+                      class="bar-fill sh"
+                      [style.width.%]="(unit.shields / unit.maxShields) * 100"
+                    ></div>
+                  </div>
+                  <span class="val">{{ unit.shields }}/{{ unit.maxShields }}</span>
+                </div>
+              }
+              <div class="stat">
+                <span class="label">MP</span>
+                <div class="bar-bg">
+                  <div
+                    class="bar-fill mp"
+                    [style.width.%]="
+                      ((unit.movementPoints > 0 ? unit.movementPoints : 0) / unit.maxMovementPoints) *
+                      100
+                    "
+                  ></div>
+                </div>
+                <span class="val"
+                  >{{ unit.movementPoints > 0 ? unit.movementPoints : 0 }}/{{
+                    unit.maxMovementPoints
+                  }}</span
+                >
+              </div>
             </div>
-          }
-          <div class="stat">
-            <span class="label">MP</span>
-            <div class="bar-bg">
-              <div
-                class="bar-fill mp"
-                [style.width.%]="
-                  ((unit.movementPoints > 0 ? unit.movementPoints : 0) / unit.maxMovementPoints) *
-                  100
-                "
-              ></div>
+            <div class="combat-stats">
+              <span class="cs">ATK {{ unit.attack }}</span>
+              <span class="cs">ARM {{ unit.armor }}</span>
+              <span class="cs">RNG {{ unit.range }}</span>
+              <span class="cs">VIS {{ unit.sightRange }}</span>
             </div>
-            <span class="val"
-              >{{ unit.movementPoints > 0 ? unit.movementPoints : 0 }}/{{
-                unit.maxMovementPoints
-              }}</span
-            >
-          </div>
-        </div>
-        <div class="combat-stats">
-          <span class="cs">ATK {{ unit.attack }}</span>
-          <span class="cs">ARM {{ unit.armor }}</span>
-          <span class="cs">RNG {{ unit.range }}</span>
-          <span class="cs">VIS {{ unit.sightRange }}</span>
-        </div>
-        @if (unit.weapon) {
-          <div class="extra-stats">
-            <span class="cs">{{ unit.weapon | uppercase }}</span>
-            <span class="cs">{{ unit.size | uppercase }}</span>
-            @if (unit.veteranTier !== 'standard') {
-              <span class="cs vet">{{ unit.veteranTier === 'improved' ? 'VET I' : 'VET II' }}</span>
+            @if (unit.weapon) {
+              <div class="extra-stats">
+                <span class="cs">{{ unit.weapon | uppercase }}</span>
+                <span class="cs">{{ unit.size | uppercase }}</span>
+                @if (unit.veteranTier !== 'standard') {
+                  <span class="cs vet">{{ unit.veteranTier === 'improved' ? 'VET I' : 'VET II' }}</span>
+                }
+                <span class="cs xp">XP {{ unit.xp }}</span>
+              </div>
             }
-            <span class="cs xp">XP {{ unit.xp }}</span>
+            <div class="coords">{{ unit.q }}, {{ unit.r }}</div>
           </div>
         }
-        <div class="coords">{{ unit.q }}, {{ unit.r }}</div>
       </div>
     }
   `,
   styles: `
-    .panel {
+    :host {
+      pointer-events: auto;
+    }
+    .panel-body {
       padding: 0.75rem 1rem;
       min-width: 180px;
     }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-    .unit-type {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--text-primary);
+    .unit-name-header {
+      cursor: pointer;
       text-transform: capitalize;
     }
-    .unit-type.clickable {
-      cursor: pointer;
-    }
-    .unit-type.clickable:hover {
+    .unit-name-header:hover {
       color: var(--accent-teal, #5eead4);
     }
     .owner {
       font-size: 0.7rem;
       color: var(--text-muted);
+      margin-left: auto;
     }
     .stats {
       display: flex;
@@ -176,8 +175,15 @@ export class UnitInfoPanelComponent {
   private readonly selection = inject(SelectionService);
   private readonly gameState = inject(GameStateService);
   private readonly camera = inject(CameraService);
+  private readonly audio = inject(AudioService);
 
+  readonly collapsed = signal(false);
   readonly unitData = this.selection.selectedUnitData;
+
+  toggle(): void {
+    this.audio.playClick();
+    this.collapsed.update(v => !v);
+  }
 
   centerOnUnit(q: number, r: number): void {
     const { x, y } = hexToPixel(q, r, 30);

@@ -9,12 +9,9 @@ import { hexToPixel } from '../../shared/hex/hex-math';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="panel log-panel" [class.collapsed]="collapsed()">
-      <button class="toggle" (click)="toggle()">
-        @if (collapsed()) {
-          Log
-        } @else {
-          Hide
-        }
+      <button class="collapsible-header" (click)="toggle()">
+        <span class="collapsible-arrow">{{ collapsed() ? '\u25B6' : '\u25BC' }}</span>
+        Event Log
       </button>
       @if (!collapsed()) {
         <div class="entries">
@@ -37,6 +34,9 @@ import { hexToPixel } from '../../shared/hex/hex-math';
     </div>
   `,
   styles: `
+    :host {
+      pointer-events: auto;
+    }
     .log-panel {
       width: 100%;
       max-height: 200px;
@@ -47,23 +47,6 @@ import { hexToPixel } from '../../shared/hex/hex-math';
     .log-panel.collapsed {
       max-height: none;
       width: auto;
-    }
-    .toggle {
-      padding: 0.25rem 0.5rem;
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      background: transparent;
-      border: none;
-      border-bottom: 1px solid var(--panel-border);
-      cursor: pointer;
-      text-align: left;
-    }
-    .toggle:hover {
-      color: var(--text-primary);
-    }
-    .collapsed .toggle {
-      border-bottom: none;
     }
     .entries {
       flex: 1;

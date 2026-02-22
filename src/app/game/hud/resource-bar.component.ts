@@ -72,6 +72,7 @@ import { EconomyService } from '../../core/economy/economy.service';
   styles: `
     :host {
       display: flex;
+      pointer-events: auto;
     }
     .bar {
       display: flex;

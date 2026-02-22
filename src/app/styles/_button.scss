@@ -27,6 +27,7 @@
   cursor: pointer;
   transition: background 0.15s;
   white-space: nowrap;
+  pointer-events: auto;
 
   &:hover {
     background: rgba(30, 40, 60, 0.95);

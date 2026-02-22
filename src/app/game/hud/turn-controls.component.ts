@@ -29,6 +29,9 @@ import { TECH_TREE } from '../../models/game-state';
     </div>
   `,
   styles: `
+    :host {
+      pointer-events: auto;
+    }
     .controls {
       display: flex;
       align-items: center;

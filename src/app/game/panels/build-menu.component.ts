@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { BuildingType, BUILDING_STATS, BuildingStats, Resources } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { GameStateService } from '../../core/state/game-state.service';
@@ -18,26 +18,31 @@ interface BuildOption {
   template: `
     @if (options().length > 0) {
       <div class="menu-panel">
-        <div class="menu-title">Build</div>
-        @for (opt of options(); track opt.type) {
-          <button
-            class="menu-option"
-            [class.disabled]="!opt.affordable"
-            [disabled]="!opt.affordable"
-            (click)="onBuild(opt.type)"
-          >
-            <span class="menu-option-name">{{ opt.type | formatName }}</span>
-            <span class="yield">
-              @for (y of yieldEntries(opt.stats); track y.key) {
-                <span class="yield-item">+{{ y.value }} {{ y.key }}</span>
-              }
-            </span>
-            <span class="cost-row">
-              @for (c of costEntries(opt.stats); track c.key) {
-                <span class="cost-item" [class.sufficient]="c.current >= c.value">{{ c.current }}/{{ c.value }} {{ c.key }}</span>
-              }
-            </span>
-          </button>
+        <button class="collapsible-header" (click)="toggle()">
+          <span class="collapsible-arrow">{{ collapsed() ? '\u25B6' : '\u25BC' }}</span>
+          Build
+        </button>
+        @if (!collapsed()) {
+          @for (opt of options(); track opt.type) {
+            <button
+              class="menu-option"
+              [class.disabled]="!opt.affordable"
+              [disabled]="!opt.affordable"
+              (click)="onBuild(opt.type)"
+            >
+              <span class="menu-option-name">{{ opt.type | formatName }}</span>
+              <span class="yield">
+                @for (y of yieldEntries(opt.stats); track y.key) {
+                  <span class="yield-item">+{{ y.value }} {{ y.key }}</span>
+                }
+              </span>
+              <span class="cost-row">
+                @for (c of costEntries(opt.stats); track c.key) {
+                  <span class="cost-item" [class.sufficient]="c.current >= c.value">{{ c.current }}/{{ c.value }} {{ c.key }}</span>
+                }
+              </span>
+            </button>
+          }
         }
       </div>
     }
@@ -60,6 +65,7 @@ export class BuildMenuComponent {
   private readonly gameState = inject(GameStateService);
   private readonly audio = inject(AudioService);
 
+  readonly collapsed = signal(false);
   readonly hexType = input.required<StellarObjectType>();
   readonly buildSelected = output<BuildingType>();
 
@@ -74,6 +80,11 @@ export class BuildMenuComponent {
     }
     return result;
   });
+
+  toggle(): void {
+    this.audio.playClick();
+    this.collapsed.update(v => !v);
+  }
 
   yieldEntries(stats: BuildingStats): { key: string; value: number }[] {
     return Object.entries(stats.yield)

@@ -89,7 +89,6 @@ import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-sta
       grid-column: 1 / 3;
       display: flex;
       align-items: stretch;
-      pointer-events: auto;
     }
     .hud-top-center {
       flex: 1;
@@ -102,13 +101,11 @@ import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-sta
       grid-row: 2;
       grid-column: 1;
       align-self: start;
-      pointer-events: auto;
       width: 200px;
     }
     .hud-turn {
       grid-row: 1;
       grid-column: 3;
-      pointer-events: auto;
       justify-self: end;
     }
     .hud-right-panels {
@@ -116,7 +113,6 @@ import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-sta
       grid-column: 3;
       align-self: start;
       justify-self: end;
-      pointer-events: auto;
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
@@ -124,7 +120,6 @@ import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-sta
     .hud-bottom-left {
       grid-row: 3;
       grid-column: 1;
-      pointer-events: auto;
       align-self: end;
       display: flex;
       gap: 0.5rem;
@@ -135,7 +130,6 @@ import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-sta
       grid-column: 3;
       align-self: end;
       justify-self: end;
-      pointer-events: auto;
       width: 400px;
       display: flex;
       flex-direction: column;

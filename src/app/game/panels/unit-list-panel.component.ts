@@ -47,6 +47,9 @@ interface UnitGroup {
     </div>
   `,
   styles: `
+    :host {
+      pointer-events: auto;
+    }
     .panel {
       overflow: hidden;
       width: 100%;

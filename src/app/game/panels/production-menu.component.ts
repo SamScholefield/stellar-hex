@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { BuildingData, Resources, UnitType, UNIT_STATS, UnitStats } from '../../models/game-state';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AudioService } from '../../core/audio/audio.service';
@@ -18,36 +18,44 @@ interface ProductionOption {
   template: `
     @if (building(); as b) {
       <div class="menu-panel">
-        <div class="menu-title">Production — {{ b.type | formatName }}</div>
-        @if (isHome()) {
-          <div class="home-label">&#9733; Home Base</div>
-        } @else {
-          <button class="set-home-btn" (click)="setHomeSelected.emit()">Set as Home</button>
-        }
+        <button class="collapsible-header" (click)="toggle()">
+          <span class="collapsible-arrow">{{ collapsed() ? '\u25B6' : '\u25BC' }}</span>
+          Production
+        </button>
+        @if (!collapsed()) {
+          @if (isHome()) {
+            <div class="home-label">&#9733; Home Base</div>
+          } @else {
+            <button class="set-home-btn" (click)="setHomeSelected.emit()">Set as Home</button>
+          }
 
-        <app-production-queue [items]="queue()" />
+          <app-production-queue [items]="queue()" />
 
-        <div class="produce-title">Produce Unit</div>
-        @for (opt of options(); track opt.unitType) {
-          <button
-            class="menu-option"
-            [class.disabled]="!opt.affordable"
-            [disabled]="!opt.affordable"
-            (click)="onProduce(opt.unitType)"
-          >
-            <span class="menu-option-name">{{ opt.unitType | formatName }}</span>
-            <span class="cost-row">
-              @for (c of costEntries(opt.stats); track c.key) {
-                <span class="cost-item">{{ c.value }} {{ c.key }}</span>
-              }
-              <span class="build-turns">{{ opt.stats.buildTurns }}T</span>
-            </span>
-          </button>
+          <div class="produce-title">Produce Unit</div>
+          @for (opt of options(); track opt.unitType) {
+            <button
+              class="menu-option"
+              [class.disabled]="!opt.affordable"
+              [disabled]="!opt.affordable"
+              (click)="onProduce(opt.unitType)"
+            >
+              <span class="menu-option-name">{{ opt.unitType | formatName }}</span>
+              <span class="cost-row">
+                @for (c of costEntries(opt.stats); track c.key) {
+                  <span class="cost-item">{{ c.value }} {{ c.key }}</span>
+                }
+                <span class="build-turns">{{ opt.stats.buildTurns }}T</span>
+              </span>
+            </button>
+          }
         }
       </div>
     }
   `,
   styles: `
+    :host {
+      pointer-events: auto;
+    }
     app-production-queue {
       display: block;
       margin-bottom: 0.5rem;
@@ -88,6 +96,7 @@ export class ProductionMenuComponent {
   private readonly gameState = inject(GameStateService);
   private readonly audio = inject(AudioService);
 
+  readonly collapsed = signal(false);
   readonly building = input.required<BuildingData | null>();
   readonly homeBaseId = input<string | null>(null);
   readonly produceSelected = output<UnitType>();
@@ -110,6 +119,11 @@ export class ProductionMenuComponent {
     }
     return result;
   });
+
+  toggle(): void {
+    this.audio.playClick();
+    this.collapsed.update(v => !v);
+  }
 
   costEntries(stats: UnitStats): { key: string; value: number }[] {
     return Object.entries(stats.cost)
