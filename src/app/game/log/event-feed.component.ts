@@ -30,7 +30,12 @@ let nextId = 0;
   template: `
     <div class="feed">
       @for (item of items(); track item.id) {
-        <div class="feed-item" [class.expiring]="item.expiring" [class.ai]="isAI(item.event)">
+        <div
+          class="feed-item"
+          [class.expiring]="item.expiring"
+          [class.ai]="isAI(item.event)"
+          [class.combat]="isCombat(item.event)"
+        >
           @if (item.event.q != null) {
             <a class="msg link" (click)="goTo(item.event)">{{ item.event.message }}</a>
           } @else {
@@ -44,9 +49,10 @@ let nextId = 0;
     .feed {
       display: flex;
       flex-direction: column-reverse;
-      align-items: end;
+      align-items: start;
       gap: 2px;
       pointer-events: none;
+      text-align: end;
     }
     .feed-item {
       padding: 0.2rem 0.5rem;
@@ -83,6 +89,12 @@ let nextId = 0;
     .msg.link:hover {
       text-decoration: underline;
     }
+    .feed-item.combat .msg {
+      color: var(--accent-red, #f87171);
+    }
+    .feed-item.combat .msg.link {
+      color: var(--accent-red, #f87171);
+    }
     @keyframes slide-in {
       from {
         text-shadow:
@@ -96,6 +108,25 @@ let nextId = 0;
           0 0 2px #fff,
           0 0 5px #fff,
           0 0 10px #0f0;
+        opacity: 0.6;
+      }
+    }
+    .feed-item.combat {
+      animation: combat-slide-in 0.33s ease-in;
+    }
+    @keyframes combat-slide-in {
+      from {
+        text-shadow:
+          0 0 5px #fff,
+          0 0 10px #fff,
+          0 0 20px #f87171;
+        opacity: 1;
+      }
+      to {
+        text-shadow:
+          0 0 2px #fff,
+          0 0 5px #fff,
+          0 0 10px #f87171;
         opacity: 0.6;
       }
     }
@@ -139,10 +170,22 @@ export class EventFeedComponent {
     this.showNext();
   }
 
+  private shouldSkip(event: GameEvent): boolean {
+    return (
+      event.message.startsWith('[AI] Scout collected') ||
+      event.message.startsWith('[AI] Discovered')
+    );
+  }
+
   private showNext(): void {
     const event = this.queue.shift();
     if (!event) {
       this.draining = false;
+      return;
+    }
+
+    if (this.shouldSkip(event)) {
+      setTimeout(() => this.showNext(), 0);
       return;
     }
 
@@ -159,9 +202,7 @@ export class EventFeedComponent {
       this._items.update((list) => list.map((i) => (i.id === id ? { ...i, expiring: true } : i)));
       setTimeout(() => {
         this._items.update((list) => list.filter((i) => i.id !== id));
-        if (!event.message.startsWith('[AI] Scout collected') && !event.message.startsWith('[AI] Discovered')) {
-          this.eventLog.graduate(event);
-        }
+        this.eventLog.graduate(event);
       }, FADE_MS);
     }, DISPLAY_MS);
 
@@ -171,6 +212,10 @@ export class EventFeedComponent {
 
   isAI(event: GameEvent): boolean {
     return event.message.startsWith('[AI]');
+  }
+
+  isCombat(event: GameEvent): boolean {
+    return event.message.includes('attacked') && event.message.includes('dmg');
   }
 
   goTo(event: GameEvent): void {

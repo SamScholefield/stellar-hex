@@ -112,7 +112,9 @@ export class SelectionService {
     // Friendly units on clicked hex — cycle selection
     if (friendlyUnits.length > 0) {
       const selectedOnThisHex = currentlySelected && friendlyUnits.some(u => u.id === currentlySelected);
-      if (!currentlySelected || selectedOnThisHex) {
+      const selectedUnitData = currentlySelected ? this.gameState.units().get(currentlySelected) : null;
+      const selectedHasNoMP = selectedUnitData != null && selectedUnitData.movementPoints <= 0;
+      if (!currentlySelected || selectedOnThisHex || selectedHasNoMP) {
         const target = this.cycleTarget(friendlyUnits);
         this._selectedUnit.set(target.id);
         this._selectedHexCoord.set(coord);

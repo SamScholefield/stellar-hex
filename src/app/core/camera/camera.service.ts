@@ -1,7 +1,7 @@
 import { computed, Injectable, signal } from '@angular/core';
 
 const MIN_ZOOM = 0.6;
-const MAX_ZOOM = 2.0;
+const MAX_ZOOM = 3.0;
 
 @Injectable({ providedIn: 'root' })
 export class CameraService {

@@ -19,7 +19,7 @@ import { hexToPixel } from '../../shared/hex/hex-math';
       @if (!collapsed()) {
         <div class="entries">
           @for (item of graduatedEvents(); track item.id) {
-            <div class="entry">
+            <div class="entry" [class.combat]="isCombat(item.event)">
               <span class="turn">T{{ item.event.turn }}</span>
               @if (item.event.q != null) {
                 <a class="msg link" [class.ai]="isAI(item.event)" (click)="goTo(item.event)">{{
@@ -114,6 +114,15 @@ import { hexToPixel } from '../../shared/hex/hex-math';
     .msg.link.ai:hover {
       color: #fbbf24;
     }
+    .entry.combat .msg {
+      color: var(--accent-red, #f87171);
+    }
+    .entry.combat .msg.link {
+      color: var(--accent-red, #f87171);
+    }
+    .entry.combat .msg.link:hover {
+      color: #fca5a5;
+    }
   `,
 })
 export class EventLogComponent {
@@ -131,6 +140,10 @@ export class EventLogComponent {
 
   isAI(event: GameEvent): boolean {
     return event.message.startsWith('[AI]');
+  }
+
+  isCombat(event: GameEvent): boolean {
+    return event.message.includes('attacked') && event.message.includes('dmg');
   }
 
   goTo(event: GameEvent): void {
