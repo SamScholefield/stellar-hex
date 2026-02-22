@@ -26,13 +26,17 @@ interface BuildOption {
   affordable: boolean;
 }
 
+interface AttackOption {
+  attackerId: string;
+  targetId: string;
+  label: string;
+}
+
 export interface ContextMenuState {
   screenX: number;
   screenY: number;
   hex: HexCoord;
-  canAttack: boolean;
-  attackerId: string | null;
-  targetId: string | null;
+  attackOptions: AttackOption[];
   buildOptions: BuildOption[];
   hexType: StellarObjectType | null;
   canCollect: boolean;
@@ -60,8 +64,8 @@ export interface ContextMenuState {
         @if (s.canCollect) {
           <button class="dropdown-item collect" (click)="onCollect()">Collect {{ s.collectAnomalyName }}</button>
         }
-        @if (s.canAttack) {
-          <button class="dropdown-item attack" (click)="onAttack()">Attack</button>
+        @for (atk of s.attackOptions; track atk.targetId) {
+          <button class="dropdown-item attack" (click)="onAttack(atk)">Attack {{ atk.label }}</button>
         }
         @if (s.canMoveHere) {
           <button class="dropdown-item move" (click)="onMoveHere()">Move Here</button>
@@ -138,44 +142,30 @@ export class ContextMenuComponent {
     const selectedUnitId = this.selection.selectedUnit();
     const hexKeyStr = `${hex.q},${hex.r}`;
 
-    // Check for enemy unit at hex + friendly unit selected with range/MP → canAttack
-    let canAttack = false;
-    let attackerId: string | null = null;
-    let targetId: string | null = null;
+    // Check for attackable enemy units and buildings at hex
+    const attackOptions: AttackOption[] = [];
 
     if (selectedUnitId) {
       const attacker = units.get(selectedUnitId);
       if (attacker && attacker.ownerId === currentPlayer.id && attacker.movementPoints >= 0 && attacker.weapon != null) {
-        const unitAtTarget = unitIndex.get(hexKeyStr)?.find(u => u.ownerId !== currentPlayer.id);
-        if (unitAtTarget) {
+        const visHexes = this.vision.visibleHexes();
+        if (visHexes.has(hexKeyStr)) {
           const dist = hexDistance(
             { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
-            { q: unitAtTarget.q, r: unitAtTarget.r, s: -unitAtTarget.q - unitAtTarget.r },
+            { q: hex.q, r: hex.r, s: -hex.q - hex.r },
           );
           if (dist <= attacker.range) {
-            const visHexes = this.vision.visibleHexes();
-            if (visHexes.has(hexKeyStr)) {
-              canAttack = true;
-              attackerId = selectedUnitId;
-              targetId = unitAtTarget.id;
-            }
-          }
-        }
-        // Check for enemy building at hex (if no unit target found)
-        if (!canAttack) {
-          const buildingHere = buildingIndex.get(hexKeyStr);
-          if (buildingHere && buildingHere.ownerId !== currentPlayer.id) {
-            const dist = hexDistance(
-              { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
-              { q: buildingHere.q, r: buildingHere.r, s: -buildingHere.q - buildingHere.r },
-            );
-            if (dist <= attacker.range) {
-              const visHexes = this.vision.visibleHexes();
-              if (visHexes.has(hexKeyStr)) {
-                canAttack = true;
-                attackerId = selectedUnitId;
-                targetId = buildingHere.id;
+            // Add each enemy unit at this hex
+            const unitsAtTarget = unitIndex.get(hexKeyStr) ?? [];
+            for (const enemy of unitsAtTarget) {
+              if (enemy.ownerId !== currentPlayer.id) {
+                attackOptions.push({ attackerId: selectedUnitId, targetId: enemy.id, label: enemy.name });
               }
+            }
+            // Add enemy building at this hex
+            const buildingHere = buildingIndex.get(hexKeyStr);
+            if (buildingHere && buildingHere.ownerId !== currentPlayer.id) {
+              attackOptions.push({ attackerId: selectedUnitId, targetId: buildingHere.id, label: buildingHere.type.replace(/_/g, ' ') });
             }
           }
         }
@@ -257,7 +247,7 @@ export class ContextMenuComponent {
     let attackHereUnitId: string | null = null;
     let attackHereTargetId: string | null = null;
 
-    if (selectedUnitId && !canAttack) {
+    if (selectedUnitId && attackOptions.length === 0) {
       const attacker = units.get(selectedUnitId);
       if (attacker && attacker.ownerId === currentPlayer.id) {
         const from: HexCoord = { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r };
@@ -313,9 +303,7 @@ export class ContextMenuComponent {
       screenX: clientX,
       screenY: clientY,
       hex,
-      canAttack,
-      attackerId,
-      targetId,
+      attackOptions,
       buildOptions,
       hexType,
       canCollect,
@@ -343,13 +331,11 @@ export class ContextMenuComponent {
     this.close();
   }
 
-  onAttack(): void {
+  onAttack(atk: AttackOption): void {
     this.audio.playClick();
-    const s = this._state();
-    if (!s || !s.attackerId || !s.targetId) return;
     this.close();
 
-    const { attackerId, targetId } = s;
+    const { attackerId, targetId } = atk;
     const state = this.gameState.getState();
     const { combat } = attackWithResult(state, attackerId, targetId);
     if (!combat) return;
