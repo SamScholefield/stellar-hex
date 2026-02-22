@@ -197,7 +197,7 @@ export function scoreBuild(
           if (!hasColonyShip) continue;
         }
 
-        // Starbase requires scout at location
+        // Starbase requires scout at location + planet within 8 hexes
         if (bt === 'starbase') {
           let hasScout = false;
           for (const u of units.values()) {
@@ -207,6 +207,12 @@ export function scoreBuild(
             }
           }
           if (!hasScout) continue;
+          const nearby = hexesInRange(hex, 8);
+          const hasPlanet = nearby.some(h => {
+            const hd = hexLookup(h.q, h.r);
+            return hd?.object?.type === 'planet';
+          });
+          if (!hasPlanet) continue;
         }
 
         // Score: yield per cost ratio

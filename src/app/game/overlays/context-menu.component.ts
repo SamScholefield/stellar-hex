@@ -10,7 +10,7 @@ import { UndoService } from '../../core/state/undo.service';
 
 import { WaypointService } from '../../core/state/waypoint.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance, pixelToHex } from '../../shared/hex/hex-math';
+import { hexDistance, hexesInRange, pixelToHex } from '../../shared/hex/hex-math';
 import { attackWithResult } from '../../core/state/game-reducer';
 import { getReachableHexes, getUnitCostOverride } from '../../core/pathfinding/hex-pathfinder';
 import { BuildingType, BuildingStats, BUILDING_STATS, ANOMALY_REWARDS } from '../../models/game-state';
@@ -206,6 +206,14 @@ export class ContextMenuComponent {
           for (const [type, stats] of Object.entries(BUILDING_STATS) as [BuildingType, BuildingStats][]) {
             if (!stats.allowedHexTypes.includes(hexType)) continue;
             if (type === 'starbase' && !hasScout) continue;
+            if (type === 'starbase') {
+              const nearby = hexesInRange({ q: hex.q, r: hex.r, s: -hex.q - hex.r }, 8);
+              const hasPlanet = nearby.some(h => {
+                const hd = this.chunkManager.getHex(h.q, h.r);
+                return hd?.object?.type === 'planet';
+              });
+              if (!hasPlanet) continue;
+            }
             const affordable = resources.energy >= (stats.cost.energy ?? 0)
               && resources.minerals >= (stats.cost.minerals ?? 0)
               && resources.alloys >= (stats.cost.alloys ?? 0)
