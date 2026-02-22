@@ -34,4 +34,6 @@ export interface HexData {
   r: number;
   object: StellarObject | null;
   anomaly?: AnomalyHexType;
+  /** True when this hex falls within a nebula noise region, even if its primary object is not a nebula. */
+  inNebula?: boolean;
 }

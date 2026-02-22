@@ -59,11 +59,11 @@ const FILL_COLORS: Record<StellarObjectType, string> = {
   empty: 'rgba(13, 17, 23, 0.35)',
 };
 
-// Celestial bodies rendered as stroked circles instead of flat hex fills
-const CELESTIAL_CIRCLE: Record<string, { stroke: string; radiusRatio: number; lineWidth: number }> = {
-  star:   { stroke: '#f0c040', radiusRatio: 0.55, lineWidth: 2.5 },
-  planet: { stroke: '#4080d0', radiusRatio: 0.40, lineWidth: 2.0 },
-  moon:   { stroke: '#a0a0b0', radiusRatio: 0.28, lineWidth: 1.5 },
+// Celestial bodies rendered as filled + stroked circles over space/nebula background
+const CELESTIAL_CIRCLE: Record<string, { fill: string; stroke: string; radiusRatio: number; lineWidth: number }> = {
+  star:   { fill: 'rgba(240, 192, 64, 0.85)', stroke: '#f0c040', radiusRatio: 0.55, lineWidth: 2.5 },
+  planet: { fill: 'rgba(64, 128, 208, 0.80)', stroke: '#4080d0', radiusRatio: 0.40, lineWidth: 2.0 },
+  moon:   { fill: 'rgba(160, 160, 176, 0.75)', stroke: '#a0a0b0', radiusRatio: 0.28, lineWidth: 1.5 },
 };
 
 // Asteroid debris configuration per type
@@ -74,7 +74,7 @@ interface AsteroidDebrisConfig {
   sizeRange: [number, number];
   /** Global alpha range: [min, max] */
   alphaRange: [number, number];
-  /** Palette of earthy/rocky RGBA base colors */
+  /** Palette of icy/rocky gray base colors */
   palette: string[];
 }
 
@@ -82,27 +82,27 @@ const ASTEROID_DEBRIS: Record<'asteroid' | 'asteroid_field', AsteroidDebrisConfi
   asteroid: {
     count: [4, 8],
     sizeRange: [0.04, 0.10],
-    alphaRange: [0.3, 0.6],
+    alphaRange: [0.35, 0.65],
     palette: [
-      '#6b5b4f', // warm dark brown
-      '#7a6e63', // medium brown
-      '#5c5550', // dark gray-brown
-      '#8a7d72', // tan
-      '#4e4842', // charcoal brown
+      '#5a5a60', // dark steel gray
+      '#6e6e74', // medium gray
+      '#4a4a50', // charcoal
+      '#787880', // cool mid-gray
+      '#3e3e44', // deep slate
     ],
   },
   asteroid_field: {
     count: [10, 20],
     sizeRange: [0.05, 0.16],
-    alphaRange: [0.4, 0.8],
+    alphaRange: [0.45, 0.85],
     palette: [
-      '#6b5b4f', // warm dark brown
-      '#7a6e63', // medium brown
-      '#8a7d72', // tan
-      '#5c5550', // dark gray-brown
-      '#4e4842', // charcoal brown
-      '#9a8b7a', // light sandy
-      '#a09080', // pale rock
+      '#b0b0b8', // light silver
+      '#c8c8d0', // pale gray
+      '#9a9aa2', // medium silver
+      '#d8d8e0', // near-white
+      '#e8e8f0', // icy white
+      '#a8a8b0', // cool silver
+      '#8a8a92', // darker silver accent
     ],
   },
 };
@@ -429,14 +429,28 @@ export class HexCanvasRendererService {
       const objType = hex.object?.type ?? 'empty';
       const celestial = CELESTIAL_CIRCLE[objType];
       const isAsteroid = objType === 'asteroid' || objType === 'asteroid_field';
+      const isComet = objType === 'comet';
+      const isBlackHole = objType === 'black_hole';
 
-      // Celestial bodies and asteroids use the default space background
-      tctx.fillStyle = (celestial || isAsteroid) ? FILL_COLORS.empty : (FILL_COLORS[objType] ?? FILL_COLORS.empty);
+      // Celestial bodies, asteroids, comets, and black holes use the nebula background
+      // when inside a nebula region, otherwise default to the dark space background
+      const spaceOrNebula = hex.inNebula ? FILL_COLORS.nebula : FILL_COLORS.empty;
+      tctx.fillStyle = (celestial || isAsteroid || isComet || isBlackHole) ? spaceOrNebula : (FILL_COLORS[objType] ?? FILL_COLORS.empty);
       this.drawHex(tctx, lx, ly, hexSize);
 
       // Draw scattered debris pattern for asteroids
       if (isAsteroid) {
         this.drawAsteroidDebris(tctx, lx, ly, hexSize, hex.q, hex.r, objType as 'asteroid' | 'asteroid_field');
+      }
+
+      // Draw comet with head circle and directional tail
+      if (isComet) {
+        this.drawComet(tctx, lx, ly, hexSize, hex.object!.velocity ?? null);
+      }
+
+      // Draw black hole with event horizon, accretion disk, and glow
+      if (isBlackHole) {
+        this.drawBlackHole(tctx, lx, ly, hexSize);
       }
 
       // Draw stroked circle indicator for celestial bodies
@@ -886,20 +900,284 @@ export class HexCanvasRendererService {
     ctx.stroke();
   }
 
+  /**
+   * Draw scattered square debris inside an asteroid hex.
+   * Uses a seeded RNG keyed on the hex coordinates for deterministic placement.
+   * Clips to the hex boundary so no debris bleeds outside.
+   */
+  private drawAsteroidDebris(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    hexSize: number,
+    q: number,
+    r: number,
+    type: 'asteroid' | 'asteroid_field',
+  ): void {
+    const config = ASTEROID_DEBRIS[type];
+    const rng = seededRNG(hashCoord(0xA57E201D, q, r));
+
+    // Determine number of debris pieces
+    const count = Math.floor(rng.next() * (config.count[1] - config.count[0] + 1)) + config.count[0];
+
+    // The inner radius of a flat-top hex (distance from center to edge midpoint)
+    const innerR = hexSize * Math.sqrt(3) / 2;
+
+    ctx.save();
+
+    // Clip to hex boundary
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const vx = cx + hexSize * HEX_VERTICES[i].dx;
+      const vy = cy + hexSize * HEX_VERTICES[i].dy;
+      if (i === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+    }
+    ctx.closePath();
+    ctx.clip();
+
+    for (let i = 0; i < count; i++) {
+      // Random position within a bounding circle (reject if outside hex — but
+      // since we clip, we can be slightly generous with placement)
+      const angle = rng.next() * Math.PI * 2;
+      const dist = rng.next() * innerR * 0.88;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+
+      // Size of this debris piece
+      const t = rng.next();
+      const sizeFrac = config.sizeRange[0] + t * (config.sizeRange[1] - config.sizeRange[0]);
+      const pieceSize = hexSize * sizeFrac;
+
+      // Slight rotation for variety
+      const rotation = rng.next() * Math.PI * 0.5;
+
+      // Pick a color from the palette
+      const colorIndex = Math.floor(rng.next() * config.palette.length);
+      const color = config.palette[colorIndex];
+
+      // Alpha varies per piece within the configured range
+      const alpha = config.alphaRange[0] + rng.next() * (config.alphaRange[1] - config.alphaRange[0]);
+
+      ctx.save();
+      ctx.translate(cx + dx, cy + dy);
+      ctx.rotate(rotation);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+
+      // Draw a rectangle (some slightly elongated for variety)
+      const aspect = 0.6 + rng.next() * 0.8; // 0.6 to 1.4 aspect ratio
+      const w = pieceSize;
+      const h = pieceSize * aspect;
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
   private drawCelestialCircle(
     ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
     cx: number,
     cy: number,
     hexSize: number,
-    config: { stroke: string; radiusRatio: number; lineWidth: number },
+    config: { fill: string; stroke: string; radiusRatio: number; lineWidth: number },
   ): void {
     ctx.save();
     const r = hexSize * config.radiusRatio;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = config.fill;
+    ctx.fill();
     ctx.strokeStyle = config.stroke;
     ctx.lineWidth = config.lineWidth;
     ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * Draw a comet as an icy-blue head circle with a tapered tail trailing
+   * opposite to its velocity direction.
+   * The tail uses a gradient from semi-opaque near the head to transparent at the tip.
+   * If velocity is zero or absent, draws a default tail pointing left (trailing
+   * behind a rightward-moving comet) since the comet is stationary.
+   */
+  private drawComet(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    hexSize: number,
+    velocity: HexCoord | null,
+  ): void {
+    ctx.save();
+
+    // Clip to hex boundary so tail doesn't bleed into adjacent hexes
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const vx = cx + hexSize * HEX_VERTICES[i].dx;
+      const vy = cy + hexSize * HEX_VERTICES[i].dy;
+      if (i === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+    }
+    ctx.closePath();
+    ctx.clip();
+
+    // Convert hex velocity to pixel-space direction (flat-top hex layout)
+    // dx = (3/2) * vq,  dy = (sqrt3/2) * vq + sqrt3 * vr
+    const SQRT3 = Math.sqrt(3);
+    const vq = velocity?.q ?? 0;
+    const vr = velocity?.r ?? 0;
+    let dx = (3 / 2) * vq;
+    let dy = (SQRT3 / 2) * vq + SQRT3 * vr;
+
+    // Normalize direction; if zero velocity, default tail points left
+    const mag = Math.sqrt(dx * dx + dy * dy);
+    if (mag < 0.001) {
+      dx = -1;
+      dy = 0;
+    } else {
+      dx /= mag;
+      dy /= mag;
+    }
+
+    // Tail direction is OPPOSITE to velocity (trails behind)
+    const tailDx = -dx;
+    const tailDy = -dy;
+
+    // Head: slightly offset forward from center along velocity direction
+    const headOffset = hexSize * 0.12;
+    const headX = cx + dx * headOffset;
+    const headY = cy + dy * headOffset;
+    const headRadius = hexSize * 0.14;
+
+    // Tail geometry
+    const tailLength = hexSize * 0.65;
+    const tailEndX = headX + tailDx * tailLength;
+    const tailEndY = headY + tailDy * tailLength;
+
+    // Perpendicular to tail direction (for tail width)
+    const perpX = -tailDy;
+    const perpY = tailDx;
+
+    // Tail widths: wide near head, tapering to a point
+    const tailWidthHead = hexSize * 0.12;
+    const tailWidthMid = hexSize * 0.06;
+
+    // Draw tail as a filled shape with gradient
+    // Shape: head-left → mid-left → tip → mid-right → head-right
+    const midX = headX + tailDx * tailLength * 0.45;
+    const midY = headY + tailDy * tailLength * 0.45;
+
+    ctx.beginPath();
+    ctx.moveTo(headX + perpX * tailWidthHead, headY + perpY * tailWidthHead);
+    ctx.quadraticCurveTo(
+      midX + perpX * tailWidthMid, midY + perpY * tailWidthMid,
+      tailEndX, tailEndY,
+    );
+    ctx.quadraticCurveTo(
+      midX - perpX * tailWidthMid, midY - perpY * tailWidthMid,
+      headX - perpX * tailWidthHead, headY - perpY * tailWidthHead,
+    );
+    ctx.closePath();
+
+    // Gradient along the tail: semi-opaque near head → transparent at tip
+    const grad = ctx.createLinearGradient(headX, headY, tailEndX, tailEndY);
+    grad.addColorStop(0, 'rgba(180, 230, 255, 0.55)');
+    grad.addColorStop(0.4, 'rgba(120, 210, 240, 0.30)');
+    grad.addColorStop(1, 'rgba(80, 200, 230, 0.0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Head glow: soft radial gradient behind the head circle
+    const glowRadius = hexSize * 0.25;
+    const glow = ctx.createRadialGradient(headX, headY, 0, headX, headY, glowRadius);
+    glow.addColorStop(0, 'rgba(200, 240, 255, 0.45)');
+    glow.addColorStop(0.5, 'rgba(160, 220, 240, 0.15)');
+    glow.addColorStop(1, 'rgba(100, 200, 230, 0.0)');
+    ctx.beginPath();
+    ctx.arc(headX, headY, glowRadius, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // Head circle: solid icy blue-white
+    ctx.beginPath();
+    ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
+    ctx.fillStyle = '#d0f0ff';
+    ctx.fill();
+    ctx.strokeStyle = '#80d8e8';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  /**
+   * Draw a black hole as a dark event horizon circle surrounded by a glowing
+   * accretion disk.  The rendering layers (back to front):
+   *   1. Outer glow — soft radial gradient in warm reddish-purple
+   *   2. Accretion disk — stroked ring with an orange-red gradient
+   *   3. Event horizon — very dark filled circle at the center
+   * Clips to the hex boundary so nothing bleeds into adjacent hexes.
+   */
+  private drawBlackHole(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    hexSize: number,
+  ): void {
+    ctx.save();
+
+    // Clip to hex boundary
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const vx = cx + hexSize * HEX_VERTICES[i].dx;
+      const vy = cy + hexSize * HEX_VERTICES[i].dy;
+      if (i === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+    }
+    ctx.closePath();
+    ctx.clip();
+
+    // --- 1. Outer glow: warm reddish-purple radial gradient ---
+    const glowRadius = hexSize * 0.7;
+    const glow = ctx.createRadialGradient(cx, cy, hexSize * 0.15, cx, cy, glowRadius);
+    glow.addColorStop(0, 'rgba(160, 40, 60, 0.50)');
+    glow.addColorStop(0.35, 'rgba(120, 20, 80, 0.25)');
+    glow.addColorStop(0.7, 'rgba(80, 10, 60, 0.10)');
+    glow.addColorStop(1, 'rgba(40, 0, 30, 0.0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, glowRadius, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // --- 2. Accretion disk: stroked ring with gradient ---
+    const diskRadius = hexSize * 0.38;
+    const diskGrad = ctx.createRadialGradient(cx, cy, diskRadius * 0.7, cx, cy, diskRadius * 1.3);
+    diskGrad.addColorStop(0, 'rgba(200, 80, 20, 0.0)');
+    diskGrad.addColorStop(0.3, 'rgba(220, 100, 40, 0.70)');
+    diskGrad.addColorStop(0.5, 'rgba(240, 140, 60, 0.85)');
+    diskGrad.addColorStop(0.7, 'rgba(200, 60, 40, 0.65)');
+    diskGrad.addColorStop(1, 'rgba(140, 20, 40, 0.0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, diskRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = diskGrad;
+    ctx.lineWidth = hexSize * 0.14;
+    ctx.stroke();
+
+    // --- 3. Event horizon: very dark center circle ---
+    const horizonRadius = hexSize * 0.22;
+    const horizonGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, horizonRadius);
+    horizonGrad.addColorStop(0, 'rgba(0, 0, 0, 0.95)');
+    horizonGrad.addColorStop(0.7, 'rgba(5, 0, 10, 0.92)');
+    horizonGrad.addColorStop(1, 'rgba(20, 5, 20, 0.80)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, horizonRadius, 0, Math.PI * 2);
+    ctx.fillStyle = horizonGrad;
+    ctx.fill();
+
+    // Subtle dark stroke around the event horizon edge
+    ctx.strokeStyle = 'rgba(80, 20, 40, 0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
     ctx.restore();
   }
 }

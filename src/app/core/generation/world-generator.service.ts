@@ -8,6 +8,7 @@ import { fbmNoise, hash3, hashCoord, seededRNG } from './noise';
 
 export const CHUNK_SIZE = 16;
 const SYSTEM_SPACING = 32;
+const NEBULA_NOISE_THRESHOLD = 0.68;
 const SYSTEM_PROBABILITY = 0.4;
 const STAR_CLASSES: StarClass[] = ['O', 'B', 'A', 'F', 'G', 'K', 'M'];
 const STAR_CLASS_WEIGHTS = [0.02, 0.05, 0.08, 0.15, 0.2, 0.25, 0.25];
@@ -90,7 +91,13 @@ export class WorldGeneratorService {
 
         const object = this.generateHex(hexCoord, systems, seed);
         const anomaly = object === null ? this.generateAnomaly(q, r, seed) : undefined;
-        hexes.set(key, { q, r, object, ...(anomaly ? { anomaly } : {}) });
+
+        // Check if this hex falls within a nebula noise region regardless of object type
+        const { x: wx, y: wy } = hexToPixel(q, r, 1);
+        const nebulaNoise = fbmNoise(wx * 0.01, wy * 0.01, seed + 1000, 3);
+        const inNebula = nebulaNoise > NEBULA_NOISE_THRESHOLD;
+
+        hexes.set(key, { q, r, object, ...(anomaly ? { anomaly } : {}), ...(inNebula ? { inNebula } : {}) });
       }
     }
 
@@ -159,7 +166,7 @@ export class WorldGeneratorService {
 
     // Nebula regions (large-scale noise)
     const nebulaNoise = fbmNoise(wx * 0.01, wy * 0.01, seed + 1000, 3);
-    if (nebulaNoise > 0.68) {
+    if (nebulaNoise > NEBULA_NOISE_THRESHOLD) {
       return {
         type: 'nebula',
         subtype: nebulaNoise > 0.78 ? 'dense' : 'sparse',
