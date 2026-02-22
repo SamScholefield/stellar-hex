@@ -24,8 +24,22 @@ const FOG_UNEXPLORED_REACHABLE = 'rgba(0, 0, 0, 0.5)';
 const FOG_UNEXPLORED = 'rgba(0, 0, 0, 0.9)';
 const RANGE_VISIBLE = 'rgba(59, 130, 246, 0.15)';
 const RANGE_FOG = 'rgba(59, 130, 246, 0.3)';
-const INFLUENCE_OVERLAY = 'rgba(34, 197, 94, 0.12)';
-const ATTACK_RANGE_OVERLAY = 'rgba(239, 68, 68, 0.12)';
+const INFLUENCE_OVERLAY = 'rgba(34, 197, 94, 0.18)';
+const INFLUENCE_BORDER = 'rgba(34, 197, 94, 0.75)';
+const ATTACK_RANGE_OVERLAY = 'rgba(239, 68, 68, 0.18)';
+const ATTACK_RANGE_BORDER = 'rgba(239, 68, 68, 0.75)';
+
+// Neighbor offset per hex edge index (flat-top hexes, axial coords).
+// Edge i runs from vertex i to vertex (i+1)%6; the neighbor across that edge
+// is at the corresponding (dq, dr) offset.
+const EDGE_NEIGHBOR_OFFSETS: ReadonlyArray<[number, number]> = [
+  [1, 0],   // edge 0 (v0→v1)
+  [0, 1],   // edge 1 (v1→v2)
+  [-1, 1],  // edge 2 (v2→v3)
+  [-1, 0],  // edge 3 (v3→v4)
+  [0, -1],  // edge 4 (v4→v5)
+  [1, -1],  // edge 5 (v5→v0)
+];
 
 // Starfield parallax background
 const STAR_TILE_SIZE = 256;       // virtual tile size in screen pixels
@@ -115,6 +129,7 @@ export class HexCanvasRendererService {
         const [q, r] = key.split(',').map(Number);
         this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, INFLUENCE_OVERLAY, null);
       }
+      this.drawOverlayBorder(ctx, influenceOverlay, hexSize, INFLUENCE_BORDER, 2, hasFog ? visibleHexes! : null, hasFog ? exploredHexes! : null);
     }
 
     // Attack range overlay
@@ -124,6 +139,7 @@ export class HexCanvasRendererService {
         const [q, r] = key.split(',').map(Number);
         this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, ATTACK_RANGE_OVERLAY, null);
       }
+      this.drawOverlayBorder(ctx, attackRangeOverlay, hexSize, ATTACK_RANGE_BORDER, 2, hasFog ? visibleHexes! : null, hasFog ? exploredHexes! : null);
     }
 
     // Draw buildings after fog, before units
@@ -261,6 +277,39 @@ export class HexCanvasRendererService {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
+  }
+
+  /**
+   * Draw the outer boundary of an overlay set.
+   * For each hex in the set, any edge whose neighbor is NOT in the set is a border edge.
+   * All border segments are batched into a single path and stroked once.
+   */
+  private drawOverlayBorder(
+    ctx: CanvasRenderingContext2D,
+    overlay: Set<string>,
+    hexSize: number,
+    strokeColor: string,
+    lineWidth: number,
+    visibleHexes: Set<string> | null,
+    exploredHexes: Set<string> | null,
+  ): void {
+    ctx.beginPath();
+    for (const key of overlay) {
+      if (visibleHexes && exploredHexes && !visibleHexes.has(key) && !exploredHexes.has(key)) continue;
+      const [q, r] = key.split(',').map(Number);
+      const { x, y } = hexToPixel(q, r, hexSize);
+      for (let i = 0; i < 6; i++) {
+        const [dq, dr] = EDGE_NEIGHBOR_OFFSETS[i];
+        if (overlay.has(`${q + dq},${r + dr}`)) continue;
+        const v0 = HEX_VERTICES[i];
+        const v1 = HEX_VERTICES[(i + 1) % 6];
+        ctx.moveTo(x + hexSize * v0.dx, y + hexSize * v0.dy);
+        ctx.lineTo(x + hexSize * v1.dx, y + hexSize * v1.dy);
+      }
+    }
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
   }
 
   private drawPathLine(ctx: CanvasRenderingContext2D, path: HexCoord[], hexSize: number): void {
