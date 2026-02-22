@@ -147,7 +147,7 @@ export class ContextMenuComponent {
 
     if (selectedUnitId) {
       const attacker = units.get(selectedUnitId);
-      if (attacker && attacker.ownerId === currentPlayer.id && attacker.movementPoints >= 0 && attacker.weapon != null) {
+      if (attacker && attacker.ownerId === currentPlayer.id && !attacker.hasAttacked && attacker.weapon != null) {
         const visHexes = this.vision.visibleHexes();
         if (visHexes.has(hexKeyStr)) {
           const dist = hexDistance(

@@ -99,7 +99,7 @@ export function scoreAttack(
   seed: number,
   enemyBuildings?: BuildingData[],
 ): AttackScoreResult | null {
-  if (attacker.weapon == null || attacker.movementPoints < 0) return null;
+  if (attacker.weapon == null || attacker.hasAttacked) return null;
 
   const attackerCoord: HexCoord = { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r };
   let bestResult: AttackScoreResult | null = null;

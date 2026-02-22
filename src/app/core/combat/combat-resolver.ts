@@ -216,6 +216,7 @@ export function resolveBuildingCombat(
     maxShields: building.maxShields,
     xp: 0,
     veteranTier: 'standard',
+    hasAttacked: false,
   };
 
   const strike = resolveStrike(attacker, syntheticTarget, rng, incomingDamageMul);

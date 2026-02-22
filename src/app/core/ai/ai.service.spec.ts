@@ -28,6 +28,7 @@ function makeUnit(overrides: Partial<UnitData> & { id: string; ownerId: string; 
     maxShields: stats.maxShields,
     xp: 0,
     veteranTier: 'standard',
+    hasAttacked: false,
     ...overrides,
   };
 }

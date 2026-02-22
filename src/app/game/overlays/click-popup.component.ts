@@ -113,7 +113,7 @@ export class ClickPopupComponent {
       // Enemy present — offer attack option
       const enemy = unitsAtHex.find(u => u.ownerId !== currentPlayer.id)!;
       const visHexes = this.vision.visibleHexes();
-      if (visHexes.has(hexKey) && selectedUnit.weapon != null && selectedUnit.movementPoints >= 0) {
+      if (visHexes.has(hexKey) && selectedUnit.weapon != null && !selectedUnit.hasAttacked) {
         const dist = hexDistance(
           { q: selectedUnit.q, r: selectedUnit.r, s: -selectedUnit.q - selectedUnit.r },
           { q: enemy.q, r: enemy.r, s: -enemy.q - enemy.r },
@@ -133,7 +133,7 @@ export class ClickPopupComponent {
       const buildingIndex = this.gameState.buildingAtHex();
       const buildingAtHex = buildingIndex.get(hexKey);
       if (buildingAtHex && buildingAtHex.ownerId !== currentPlayer.id
-          && selectedUnit.weapon != null && selectedUnit.movementPoints >= 0) {
+          && selectedUnit.weapon != null && !selectedUnit.hasAttacked) {
         const visHexes = this.vision.visibleHexes();
         if (visHexes.has(hexKey)) {
           const dist = hexDistance(

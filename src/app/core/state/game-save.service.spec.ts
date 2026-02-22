@@ -52,6 +52,7 @@ function makeTestState(): GameState {
           maxShields: scoutStats.maxShields,
           xp: 0,
           veteranTier: 'standard' as const,
+          hasAttacked: false,
         },
       ],
       [
@@ -78,6 +79,7 @@ function makeTestState(): GameState {
           maxShields: fighterStats.maxShields,
           xp: 0,
           veteranTier: 'standard' as const,
+          hasAttacked: false,
         },
       ],
     ]),

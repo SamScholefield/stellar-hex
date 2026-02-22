@@ -242,8 +242,8 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   const attacker = state.units.get(attackerId);
   if (!attacker) return { newState: state, combat: null };
 
-  // Must not have already attacked this turn (MP = -1 after attacking)
-  if (attacker.movementPoints < 0) return { newState: state, combat: null };
+  // Must not have already attacked this turn
+  if (attacker.hasAttacked) return { newState: state, combat: null };
 
   // Try unit target first, then building target
   const defender = state.units.get(targetId);
@@ -285,7 +285,7 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
     const newXp = attacker.xp + bCombat.attackerXpGain;
     units.set(attackerId, {
       ...attacker,
-      movementPoints: -1,
+      hasAttacked: true,
       xp: newXp,
       veteranTier: maybePromote(attacker.veteranTier, newXp),
     });
@@ -340,7 +340,7 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
       ...attacker,
       health: attacker.health - (combat.attackerStrike ? combat.defenderStrike?.hullDamage ?? 0 : 0),
       shields: Math.max(0, attacker.shields - (combat.defenderStrike?.shieldDamage ?? 0)),
-      movementPoints: -1,
+      hasAttacked: true,
       xp: newXp,
       veteranTier: maybePromote(attacker.veteranTier, newXp),
     });
@@ -507,6 +507,7 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
           maxShields: unitStats.maxShields + (techBonus.shields ?? 0),
           xp: 0,
           veteranTier: 'standard',
+          hasAttacked: false,
         });
       } else {
         newQueue.push({ ...item, turnsRemaining: remaining });
@@ -573,6 +574,7 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
         ...unit,
         movementPoints: unit.maxMovementPoints,
         shields: Math.min(unit.shields + 1, unit.maxShields),
+        hasAttacked: false,
       });
     }
   }

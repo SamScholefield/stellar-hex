@@ -109,7 +109,7 @@ export class WaypointService {
       return;
     }
     // Already attacked this turn — keep waypoint, will execute next turn
-    if (unit.movementPoints < 0) return;
+    if (unit.movementPoints <= 0 && unit.hasAttacked) return;
 
     // Already at target?
     if (unit.q === wp.target.q && unit.r === wp.target.r && !wp.attackTargetId) {
@@ -142,7 +142,7 @@ export class WaypointService {
         { q: unit.q, r: unit.r, s: -unit.q - unit.r },
         targetCoord,
       );
-      if (dist <= unit.range && unit.weapon != null && unit.movementPoints >= 0) {
+      if (dist <= unit.range && unit.weapon != null && !unit.hasAttacked) {
         await this.performAttack(unitId, wp.attackTargetId);
         this.clearWaypoint(unitId);
         return;
@@ -208,7 +208,7 @@ export class WaypointService {
           { q: freshUnit.q, r: freshUnit.r, s: -freshUnit.q - freshUnit.r },
           { q: target.q, r: target.r, s: -target.q - target.r },
         );
-        if (dist <= freshUnit.range && freshUnit.weapon != null && freshUnit.movementPoints >= 0) {
+        if (dist <= freshUnit.range && freshUnit.weapon != null && !freshUnit.hasAttacked) {
           await this.performAttack(unitId, wp.attackTargetId);
           this.clearWaypoint(unitId);
         }

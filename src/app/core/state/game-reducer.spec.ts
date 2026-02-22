@@ -45,6 +45,7 @@ function makeUnitData(overrides: Partial<UnitData> & { id: string; ownerId: stri
     maxShields: stats.maxShields,
     xp: 0,
     veteranTier: 'standard',
+    hasAttacked: false,
     ...overrides,
   };
 }
@@ -476,14 +477,14 @@ describe('gameReducer', () => {
       return makeState({ units });
     }
 
-    it('applies damage to both units and sets attacker MP to -1', () => {
+    it('applies damage to both units and sets attacker hasAttacked', () => {
       const state = makeAttackerDefender();
       const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
       const attacker = next.units.get('attacker');
       const defender = next.units.get('defender');
       expect(attacker).toBeDefined();
       expect(defender).toBeDefined();
-      expect(attacker!.movementPoints).toBe(-1);
+      expect(attacker!.hasAttacked).toBe(true);
       expect(defender!.health).toBeLessThan(UNIT_STATS.fighter.maxHealth);
     });
 
@@ -516,11 +517,20 @@ describe('gameReducer', () => {
       const state = makeAttackerDefender({ attackerMp: 0 });
       const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
       expect(next).not.toBe(state);
-      expect(next.units.get('attacker')?.movementPoints).toBe(-1);
+      expect(next.units.get('attacker')?.hasAttacked).toBe(true);
     });
 
-    it('rejects attack with -1 movement points (already attacked)', () => {
-      const state = makeAttackerDefender({ attackerMp: -1 });
+    it('rejects attack when unit has already attacked', () => {
+      const units = new Map<string, UnitData>([
+        ['attacker', makeUnitData({
+          id: 'attacker', ownerId: 'p1', type: 'fighter', q: 0, r: 0,
+          movementPoints: 3, hasAttacked: true,
+        })],
+        ['defender', makeUnitData({
+          id: 'defender', ownerId: 'p2', type: 'fighter', q: 1, r: 0,
+        })],
+      ]);
+      const state = makeState({ units });
       const next = gameReducer(state, { type: 'ATTACK', attackerId: 'attacker', targetId: 'defender' });
       expect(next).toBe(state);
     });

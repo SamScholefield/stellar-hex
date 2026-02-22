@@ -26,6 +26,7 @@ function makeUnit(overrides: Partial<UnitData> = {}): UnitData {
     maxShields: stats.maxShields,
     xp: 0,
     veteranTier: 'standard',
+    hasAttacked: false,
     ...overrides,
   };
 }
@@ -54,6 +55,7 @@ function makeUnitFromType(type: UnitData['type'], overrides: Partial<UnitData> =
     maxShields: stats.maxShields,
     xp: 0,
     veteranTier: 'standard',
+    hasAttacked: false,
     ...overrides,
   };
 }

@@ -119,6 +119,7 @@ export function deserialize(json: string): {
           maxShields: stats.maxShields,
           xp: 0,
           veteranTier: 'standard',
+          hasAttacked: false,
         } as UnitData);
       }
     }

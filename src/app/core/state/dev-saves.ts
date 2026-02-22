@@ -44,6 +44,7 @@ function makeUnit(
     maxShields: stats.maxShields,
     xp: 0,
     veteranTier: 'standard',
+    hasAttacked: false,
   };
 }
 

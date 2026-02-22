@@ -216,6 +216,7 @@ export interface UnitData {
   maxShields: number;
   xp: number;
   veteranTier: VeteranTier;
+  hasAttacked: boolean;
 }
 
 const UNIT_TYPE_PREFIX: Record<UnitType, string> = {

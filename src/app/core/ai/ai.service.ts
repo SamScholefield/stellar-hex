@@ -62,7 +62,7 @@ export class AIService {
       const visibleEnemies: UnitData[] = [];
       for (const u of state.units.values()) {
         if (u.ownerId === playerId) {
-          if (u.movementPoints >= 0 && !processedUnits.has(u.id)) {
+          if ((u.movementPoints > 0 || !u.hasAttacked) && !processedUnits.has(u.id)) {
             myUnits.push(u);
           }
         } else if (player.exploredHexes.has(`${u.q},${u.r}`)) {
@@ -94,7 +94,7 @@ export class AIService {
       let acted = false;
 
       // Try attack
-      if (unit.weapon != null && unit.movementPoints >= 0) {
+      if (unit.weapon != null && !unit.hasAttacked) {
         const attackResult = scoreAttack(unit, visibleEnemies, state.seed + state.turn, visibleEnemyBuildings);
         if (attackResult) {
           const target = state.units.get(attackResult.targetId);

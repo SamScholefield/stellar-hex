@@ -59,6 +59,7 @@ function makeUnit(id: string, name: string, ownerId: string, type: UnitType, q: 
     maxShields: stats.maxShields,
     xp: 0,
     veteranTier: 'standard',
+    hasAttacked: false,
   };
 }
 
