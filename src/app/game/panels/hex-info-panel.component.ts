@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AudioService } from '../../core/audio/audio.service';
-import { BuildingData, BUILDING_STATS, TECH_TREE, TechId } from '../../models/game-state';
+import { BuildingData, BUILDING_STATS, TECH_TREE, TechId, UnitData, UNIT_STATS } from '../../models/game-state';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 import { ProductionQueueComponent } from './production-queue.component';
 
@@ -56,6 +56,7 @@ import { ProductionQueueComponent } from './production-queue.component';
               <div class="building-info">
                 <div class="building-type">{{ b.type | formatName }}</div>
                 <div class="building-owner">Owner: {{ ownerName(b.ownerId) }}</div>
+                <div class="building-hp">HP: {{ b.health }}/{{ b.maxHealth }}@if (b.maxShields > 0) { · Shield: {{ b.shields }}/{{ b.maxShields }}}</div>
                 <div class="building-yield">
                   @for (entry of buildingYield(b); track entry.key) {
                     <span class="res">+{{ entry.value }} {{ entry.key }}/turn</span>
@@ -75,6 +76,12 @@ import { ProductionQueueComponent } from './production-queue.component';
                     }
                   </div>
                 }
+              </div>
+            }
+            @for (unit of unitsAtHex(); track unit.id) {
+              <div class="unit-info" [class.enemy]="isEnemy(unit.ownerId)">
+                <div class="unit-name">{{ unit.name }}</div>
+                <div class="unit-hp">HP: {{ unit.health }}/{{ unit.maxHealth }}@if (unit.maxShields > 0) { · Shield: {{ unit.shields }}/{{ unit.maxShields }}}</div>
               </div>
             }
           } @else {
@@ -165,8 +172,30 @@ import { ProductionQueueComponent } from './production-queue.component';
       display: block;
       margin-top: 0.5rem;
     }
+    .building-hp {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
     .queue-section {
       margin-top: 0.5rem;
+    }
+    .unit-info {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--btn-border);
+    }
+    .unit-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .unit-hp {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+    .unit-info.enemy .unit-name,
+    .unit-info.enemy .unit-hp {
+      color: var(--accent-red, #f87171);
     }
   `,
 })
@@ -187,10 +216,29 @@ export class HexInfoPanelComponent {
   private readonly activeCoord = computed(() => this.selection.hoveredHexCoord() ?? this.selection.selectedHexCoord());
 
   readonly buildingAtHex = computed<BuildingData | null>(() => {
+    const data = this.info();
+    if (!data || data.visibility !== 'visible') return null;
     const coord = this.activeCoord();
     if (!coord) return null;
     return this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`) ?? null;
   });
+
+  readonly unitsAtHex = computed<UnitData[]>(() => {
+    const data = this.info();
+    if (!data || data.visibility !== 'visible') return [];
+    const coord = this.activeCoord();
+    if (!coord) return [];
+    const result: UnitData[] = [];
+    for (const u of this.gameState.units().values()) {
+      if (u.q === coord.q && u.r === coord.r) result.push(u);
+    }
+    return result;
+  });
+
+  isEnemy(ownerId: string): boolean {
+    const current = this.gameState.currentPlayer();
+    return !!current && current.id !== ownerId;
+  }
 
   ownerName(ownerId: string): string {
     return this.gameState.playerNames().get(ownerId) ?? ownerId;
