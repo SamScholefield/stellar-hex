@@ -102,6 +102,9 @@ export class GameViewportComponent implements OnDestroy {
     for (const u of units.values()) {
       if (u.id !== selectedId && u.ownerId !== playerId) set.add(`${u.q},${u.r}`);
     }
+    for (const b of this.gameState.buildings().values()) {
+      if (b.ownerId !== playerId) set.add(`${b.q},${b.r}`);
+    }
     return set;
   });
 

@@ -272,6 +272,9 @@ export class ContextMenuComponent {
               blocked.add(`${u.q},${u.r}`);
             }
           }
+          for (const b of this.gameState.buildings().values()) {
+            if (b.ownerId !== currentPlayer.id) blocked.add(`${b.q},${b.r}`);
+          }
           const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
           const override = getUnitCostOverride(attacker.type);
           const reachable = attacker.movementPoints > 0

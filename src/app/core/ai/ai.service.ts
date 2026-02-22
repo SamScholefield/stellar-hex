@@ -134,6 +134,9 @@ export class AIService {
             for (const u of freshState.units.values()) {
               if (u.id !== freshUnit.id) blockedHexes.add(`${u.q},${u.r}`);
             }
+            for (const b of freshState.buildings.values()) {
+              if (b.ownerId !== playerId) blockedHexes.add(`${b.q},${b.r}`);
+            }
             // Exclude the move target so pathfinding can route toward enemy units
             blockedHexes.delete(targetKey);
             const isBlocked = (q: number, r: number) => blockedHexes.has(`${q},${r}`);

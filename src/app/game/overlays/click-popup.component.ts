@@ -165,6 +165,9 @@ export class ClickPopupComponent {
             blocked.add(`${u.q},${u.r}`);
           }
         }
+        for (const b of this.gameState.buildings().values()) {
+          if (b.ownerId !== currentPlayer.id) blocked.add(`${b.q},${b.r}`);
+        }
         const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
         const override = getUnitCostOverride(selectedUnit.type);
         const reachable = selectedUnit.movementPoints > 0
@@ -283,10 +286,14 @@ export class ClickPopupComponent {
     const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
     const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
     const blocked = new Set<string>();
+    const playerId = this.gameState.currentPlayer()?.id;
     for (const u of this.gameState.units().values()) {
-      if (u.id !== unitId && u.ownerId !== this.gameState.currentPlayer()?.id) {
+      if (u.id !== unitId && u.ownerId !== playerId) {
         blocked.add(`${u.q},${u.r}`);
       }
+    }
+    for (const b of this.gameState.buildings().values()) {
+      if (b.ownerId !== playerId) blocked.add(`${b.q},${b.r}`);
     }
     const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
     const override = getUnitCostOverride(unit.type);

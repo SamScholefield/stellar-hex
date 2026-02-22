@@ -149,13 +149,20 @@ export class WaypointService {
       }
     }
 
-    // Build blocked set (enemy units block movement)
+    // Build blocked set (enemy units and buildings block movement)
     // Exclude the attack target so pathfinding can route toward it
     const blocked = new Set<string>();
     for (const u of units.values()) {
       if (u.id !== unitId && u.ownerId !== currentPlayer.id) {
         if (wp.attackTargetId && u.id === wp.attackTargetId) continue;
         blocked.add(`${u.q},${u.r}`);
+      }
+    }
+    const buildings = this.gameState.buildings();
+    for (const b of buildings.values()) {
+      if (b.ownerId !== currentPlayer.id) {
+        if (wp.attackTargetId && b.id === wp.attackTargetId) continue;
+        blocked.add(`${b.q},${b.r}`);
       }
     }
     const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
@@ -167,7 +174,7 @@ export class WaypointService {
 
     // Don't move onto the attack target's hex — stop adjacent instead
     if (path && wp.attackTargetId) {
-      const target = units.get(wp.attackTargetId);
+      const target = units.get(wp.attackTargetId) ?? buildings.get(wp.attackTargetId);
       if (target) {
         const last = path[path.length - 1];
         if (last.q === target.q && last.r === target.r) {
