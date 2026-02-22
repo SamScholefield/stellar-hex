@@ -3,12 +3,12 @@ import { GameStateService } from '../state/game-state.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { AnimationService } from '../../game/renderer/animation.service';
 import { EventLogService } from '../state/event-log.service';
-import { ANOMALY_REWARDS, BUILDING_STATS, PlayerState, UnitData, UNIT_UPKEEP } from '../../models/game-state';
+import { ANOMALY_REWARDS, BUILDING_STATS, PlayerState, UnitData, UNIT_UPKEEP, TECH_TREE } from '../../models/game-state';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
 import { findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
 import { attackWithResult } from '../state/game-reducer';
-import { scoreExplore, scoreAttack, scoreBuild, scoreProduction } from './ai-scoring';
+import { scoreExplore, scoreAttack, scoreBuild, scoreProduction, scoreResearch } from './ai-scoring';
 
 const ACTION_DELAY = 300;
 
@@ -200,6 +200,28 @@ export class AIService {
         this.eventLog.push({
           turn,
           message: `[AI] Queued ${prodResult.unitType.replace(/_/g, ' ')} production`,
+        });
+      }
+    }
+
+    // Try research
+    const resState = this.gameState.getState();
+    const resPlayer = resState.players.find(p => p.id === playerId);
+    if (resPlayer) {
+      const resEnemyNearby = this.hasEnemyNearby(playerId, resState);
+      const resResult = scoreResearch(resPlayer, resState.buildings, resEnemyNearby);
+      if (resResult) {
+        this.gameState.dispatch({
+          type: 'QUEUE_RESEARCH',
+          buildingId: resResult.buildingId,
+          techId: resResult.techId,
+        });
+
+        const turn = this.gameState.getState().turn;
+        const techName = TECH_TREE[resResult.techId]?.name ?? resResult.techId;
+        this.eventLog.push({
+          turn,
+          message: `[AI] Began researching ${techName}`,
         });
       }
     }

@@ -5,6 +5,7 @@ import { AIService } from '../../core/ai/ai.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { UndoService } from '../../core/state/undo.service';
 import { EventLogService } from '../../core/state/event-log.service';
+import { TECH_TREE } from '../../models/game-state';
 
 @Component({
   selector: 'app-turn-controls',
@@ -127,11 +128,23 @@ export class TurnControlsComponent {
     // Snapshot production queues before END_TURN to detect completions
     const turn = this.gameState.turn();
     const completing: { unitType: string; q: number; r: number }[] = [];
+    const researchCompleting: { techName: string; q: number; r: number }[] = [];
     for (const [, b] of this.gameState.buildings()) {
       if (b.productionQueue) {
         for (const item of b.productionQueue) {
           if (item.turnsRemaining === 1) {
             completing.push({ unitType: item.unitType, q: b.q, r: b.r });
+          }
+        }
+      }
+      if (b.researchQueue) {
+        for (const item of b.researchQueue) {
+          if (item.turnsRemaining === 1) {
+            researchCompleting.push({
+              techName: TECH_TREE[item.techId]?.name ?? item.techId,
+              q: b.q,
+              r: b.r,
+            });
           }
         }
       }
@@ -143,6 +156,11 @@ export class TurnControlsComponent {
     for (const c of completing) {
       const label = c.unitType.replace(/_/g, ' ');
       this.eventLog.push({ turn, message: `${label} construction complete`, q: c.q, r: c.r });
+    }
+
+    // Log completed research items
+    for (const r of researchCompleting) {
+      this.eventLog.push({ turn, message: `Research complete: ${r.techName}`, q: r.q, r: r.r });
     }
   }
 }

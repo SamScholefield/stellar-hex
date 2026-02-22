@@ -83,6 +83,7 @@ export class GameInitService {
         isAI: false,
         exploredHexes: new Set(),
         eliminated: false,
+        researchedTechs: new Set(),
       },
     ];
 
@@ -95,6 +96,7 @@ export class GameInitService {
         isAI: true,
         exploredHexes: new Set(),
         eliminated: false,
+        researchedTechs: new Set(),
       });
     }
 

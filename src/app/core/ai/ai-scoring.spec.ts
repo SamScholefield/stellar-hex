@@ -36,6 +36,7 @@ function makePlayer(overrides: Partial<PlayerState> & { id: string }): PlayerSta
     isAI: true,
     exploredHexes: new Set(),
     eliminated: false,
+    researchedTechs: new Set<import('../../models/game-state').TechId>(),
     ...overrides,
   };
 }

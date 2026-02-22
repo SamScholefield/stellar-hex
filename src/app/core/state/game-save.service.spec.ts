@@ -16,7 +16,7 @@ function makeTestState(): GameState {
         color: '#5eead4',
         resources: { energy: 80, minerals: 30, alloys: 10, credits: 40 },
         isAI: false,
-        eliminated: false, exploredHexes: new Set(['0,0', '1,-1', '2,-1']),
+        eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>(), exploredHexes: new Set(['0,0', '1,-1', '2,-1']),
       },
       {
         id: 'p1',
@@ -24,7 +24,7 @@ function makeTestState(): GameState {
         color: '#f87171',
         resources: { energy: 60, minerals: 20, alloys: 5, credits: 25 },
         isAI: true,
-        eliminated: false, exploredHexes: new Set(['10,-5', '11,-5']),
+        eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>(), exploredHexes: new Set(['10,-5', '11,-5']),
       },
     ],
     units: new Map([

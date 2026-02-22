@@ -6,6 +6,7 @@ import { UnitInfoPanelComponent } from '../panels/unit-info-panel.component';
 import { EventLogComponent } from '../log/event-log.component';
 import { EventFeedComponent } from '../log/event-feed.component';
 import { ProductionMenuComponent } from '../panels/production-menu.component';
+import { ResearchMenuComponent } from '../panels/research-menu.component';
 import { UnitListPanelComponent } from '../panels/unit-list-panel.component';
 import { BuildingListPanelComponent } from '../panels/building-list-panel.component';
 import { MinimapComponent } from './minimap.component';
@@ -20,12 +21,12 @@ import { CameraService } from '../../core/camera/camera.service';
 import { UndoService } from '../../core/state/undo.service';
 import { InfluenceService } from '../../core/influence/influence.service';
 import { hexToPixel } from '../../shared/hex/hex-math';
-import { BuildingData, UnitType } from '../../models/game-state';
+import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-state';
 
 @Component({
   selector: 'app-hud',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent, GameOverOverlayComponent],
+  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, ResearchMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent, GameOverOverlayComponent],
   template: `
     <div class="hud-top">
       <app-resource-bar />
@@ -42,6 +43,9 @@ import { BuildingData, UnitType } from '../../models/game-state';
       <app-unit-info-panel />
       @if (selectedStarbase(); as sb) {
         <app-production-menu [building]="sb" [homeBaseId]="gameState.homeBaseId()" (produceSelected)="onProduce($event)" (setHomeSelected)="onSetHome(sb)" />
+      }
+      @if (selectedResearchLab(); as rl) {
+        <app-research-menu [building]="rl" (researchSelected)="onResearch($event)" />
       }
     </div>
     <app-turn-controls class="hud-turn" />
@@ -258,6 +262,16 @@ export class HudComponent {
     return null;
   });
 
+  readonly selectedResearchLab = computed<BuildingData | null>(() => {
+    const coord = this.selection.selectedHexCoord();
+    if (!coord) return null;
+    const currentPlayer = this.gameState.currentPlayer();
+    if (!currentPlayer) return null;
+    const b = this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`);
+    if (b && b.type === 'research_lab' && b.ownerId === currentPlayer.id) return b;
+    return null;
+  });
+
   focusHome(building: BuildingData): void {
     this.audio.playClick();
     const { x, y } = hexToPixel(building.q, building.r, 30);
@@ -294,5 +308,15 @@ export class HudComponent {
     this.undo.dispatch({ type: 'PRODUCE_UNIT', buildingId: starbase.id, unitType });
     const turn = this.gameState.turn();
     this.eventLog.push({ turn, message: `Queued ${unitType.replace(/_/g, ' ')} production` });
+  }
+
+  onResearch(techId: TechId): void {
+    this.audio.playClick();
+    const lab = this.selectedResearchLab();
+    if (!lab) return;
+    this.undo.dispatch({ type: 'QUEUE_RESEARCH', buildingId: lab.id, techId });
+    const turn = this.gameState.turn();
+    const techName = TECH_TREE[techId]?.name ?? techId;
+    this.eventLog.push({ turn, message: `Began researching ${techName}` });
   }
 }

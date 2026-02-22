@@ -11,6 +11,9 @@ import {
   UNIT_UPKEEP,
   PlayerState,
   GameState,
+  TechId,
+  TECH_TREE,
+  canResearch,
 } from '../../models/game-state';
 import { hexDistance, hexNeighbors, hexesInRange } from '../../shared/hex/hex-math';
 import { resolveCombat } from '../combat/combat-resolver';
@@ -307,6 +310,67 @@ export function scoreProduction(
 
     if (!bestResult || score > bestResult.score) {
       bestResult = { buildingId: bId, unitType, score };
+    }
+  }
+
+  return bestResult;
+}
+
+export interface ResearchScoreResult {
+  buildingId: string;
+  techId: TechId;
+  score: number;
+}
+
+/**
+ * Score research options for the AI.
+ * Prefers weapons/armor if enemies are visible, systems/drive otherwise.
+ */
+export function scoreResearch(
+  player: PlayerState,
+  buildings: Map<string, BuildingData>,
+  enemyNearby: boolean,
+): ResearchScoreResult | null {
+  let bestResult: ResearchScoreResult | null = null;
+
+  // Collect all techs already queued across all labs
+  const queuedTechs = new Set<TechId>();
+  for (const b of buildings.values()) {
+    if (b.ownerId !== player.id || b.type !== 'research_lab') continue;
+    if (b.researchQueue) {
+      for (const item of b.researchQueue) {
+        queuedTechs.add(item.techId);
+      }
+    }
+  }
+
+  for (const [bId, building] of buildings) {
+    if (building.ownerId !== player.id) continue;
+    if (building.type !== 'research_lab') continue;
+    // Skip labs already researching
+    if (building.researchQueue && building.researchQueue.length > 0) continue;
+
+    for (const [techIdStr, def] of Object.entries(TECH_TREE)) {
+      const techId = techIdStr as TechId;
+      if (queuedTechs.has(techId)) continue;
+      if (!canResearch(techId, player.researchedTechs)) continue;
+      if (!hasResources(player.resources, def.cost)) continue;
+
+      // Score by branch priority and tier
+      let score: number;
+      if (enemyNearby) {
+        // Prefer combat techs
+        const branchPriority: Record<string, number> = { weapons: 50, armor: 45, shields: 40, drive: 30, systems: 25 };
+        score = (branchPriority[def.branch] ?? 20) + def.tier * 5;
+      } else {
+        // Prefer exploration techs
+        const branchPriority: Record<string, number> = { systems: 50, drive: 45, shields: 30, weapons: 25, armor: 20 };
+        score = (branchPriority[def.branch] ?? 20) + def.tier * 5;
+      }
+
+      if (!bestResult || score > bestResult.score) {
+        bestResult = { buildingId: bId, techId, score };
+      }
     }
   }
 

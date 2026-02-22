@@ -10,6 +10,7 @@ import {
   HexOverride,
   Anomaly,
   UNIT_STATS,
+  TechId,
 } from '../../models/game-state';
 import { GameStateService } from './game-state.service';
 import { EventLogService } from './event-log.service';
@@ -56,6 +57,7 @@ interface SerializedPlayer {
   exploredHexes: string[];
   homeBaseId?: string;
   eliminated?: boolean;
+  researchedTechs?: string[];
 }
 
 export function serialize(
@@ -76,6 +78,7 @@ export function serialize(
         exploredHexes: [...p.exploredHexes],
         homeBaseId: p.homeBaseId,
         eliminated: p.eliminated,
+        researchedTechs: [...p.researchedTechs],
       })),
       units: [...state.units.entries()],
       buildings: [...state.buildings.entries()],
@@ -132,6 +135,7 @@ export function deserialize(json: string): {
       exploredHexes: new Set(p.exploredHexes),
       homeBaseId: p.homeBaseId,
       eliminated: p.eliminated ?? false,
+      researchedTechs: new Set((p.researchedTechs ?? []) as TechId[]),
     })),
     units: rawUnits,
     buildings: new Map(s.buildings),

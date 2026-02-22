@@ -1,4 +1,4 @@
-import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName, UNIT_UPKEEP, PlayerState, UnitData, GameOverState, ECONOMIC_VICTORY_CREDITS } from '../../models/game-state';
+import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName, UNIT_UPKEEP, PlayerState, UnitData, GameOverState, ECONOMIC_VICTORY_CREDITS, TechId, TECH_TREE, canResearch, computeTechBonuses, ResearchItem } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
@@ -16,6 +16,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return build(state, action.playerId, action.buildingType, action.hex, action.hexType as StellarObjectType);
     case 'PRODUCE_UNIT':
       return produceUnit(state, action.buildingId, action.unitType);
+    case 'QUEUE_RESEARCH':
+      return queueResearch(state, action.buildingId, action.techId);
     case 'ATTACK':
       return attack(state, action.attackerId, action.targetId);
     case 'DISCOVER_ANOMALY':
@@ -185,6 +187,42 @@ function produceUnit(state: GameState, buildingId: string, unitType: UnitType): 
   const buildings = new Map(state.buildings);
   const queue = [...(building.productionQueue ?? []), { unitType, turnsRemaining: unitStats.buildTurns }];
   buildings.set(buildingId, { ...building, productionQueue: queue });
+
+  return { ...state, players, buildings };
+}
+
+function queueResearch(state: GameState, buildingId: string, techId: TechId): GameState {
+  const building = state.buildings.get(buildingId);
+  if (!building || building.type !== 'research_lab') return state;
+
+  const techDef = TECH_TREE[techId];
+  if (!techDef) return state;
+
+  const playerIndex = state.players.findIndex(p => p.id === building.ownerId);
+  if (playerIndex === -1) return state;
+  const player = state.players[playerIndex];
+
+  // Check prerequisites
+  if (!canResearch(techId, player.researchedTechs)) return state;
+
+  // Check not already queued in any research lab
+  for (const b of state.buildings.values()) {
+    if (b.ownerId !== player.id || b.type !== 'research_lab') continue;
+    if (b.researchQueue?.some(item => item.techId === techId)) return state;
+  }
+
+  // Check resources
+  if (!hasResources(player, techDef.cost)) return state;
+
+  // Deduct resources
+  const players = state.players.map((p, i) =>
+    i === playerIndex ? { ...p, resources: deductResources(p.resources, techDef.cost) } : p
+  );
+
+  // Add to research queue
+  const buildings = new Map(state.buildings);
+  const queue: ResearchItem[] = [...(building.researchQueue ?? []), { techId, turnsRemaining: techDef.researchTurns }];
+  buildings.set(buildingId, { ...building, researchQueue: queue });
 
   return { ...state, players, buildings };
 }
@@ -362,8 +400,10 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     for (const item of building.productionQueue) {
       const remaining = item.turnsRemaining - 1;
       if (remaining <= 0) {
-        // Spawn unit at building location
+        // Spawn unit at building location, applying tech bonuses
         const unitStats = UNIT_STATS[item.unitType];
+        const owner = currentPlayer;
+        const techBonus = owner ? computeTechBonuses(owner.researchedTechs) : {};
         const unitId = `u_${building.q}_${building.r}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         const unitName = generateUnitName(item.unitType, units);
         units.set(unitId, {
@@ -373,19 +413,19 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
           type: item.unitType,
           q: building.q,
           r: building.r,
-          movementPoints: unitStats.maxMovementPoints,
-          maxMovementPoints: unitStats.maxMovementPoints,
+          movementPoints: unitStats.maxMovementPoints + (techBonus.maxMovementPoints ?? 0),
+          maxMovementPoints: unitStats.maxMovementPoints + (techBonus.maxMovementPoints ?? 0),
           health: unitStats.maxHealth,
           maxHealth: unitStats.maxHealth,
-          attack: unitStats.attack,
+          attack: unitStats.attack + (techBonus.attack ?? 0),
           defense: unitStats.defense,
           range: unitStats.range,
-          sightRange: unitStats.sightRange,
+          sightRange: unitStats.sightRange + (techBonus.sightRange ?? 0),
           size: unitStats.size,
           weapon: unitStats.weapon,
-          armor: unitStats.armor,
-          shields: unitStats.maxShields,
-          maxShields: unitStats.maxShields,
+          armor: unitStats.armor + (techBonus.armor ?? 0),
+          shields: unitStats.maxShields + (techBonus.shields ?? 0),
+          maxShields: unitStats.maxShields + (techBonus.shields ?? 0),
           xp: 0,
           veteranTier: 'standard',
         });
@@ -394,6 +434,57 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
       }
     }
     buildings.set(bId, { ...building, productionQueue: newQueue.length > 0 ? newQueue : undefined });
+  }
+
+  // Process research queues for current player's research labs
+  let researchCompleted = false;
+  for (const [bId, building] of (buildingsChanged ? buildings : state.buildings)) {
+    if (building.ownerId !== currentPlayer?.id) continue;
+    if (!building.researchQueue || building.researchQueue.length === 0) continue;
+
+    if (!buildingsChanged) {
+      buildings = new Map(state.buildings);
+      buildingsChanged = true;
+    }
+
+    const newQueue: ResearchItem[] = [];
+    for (const item of building.researchQueue) {
+      const remaining = item.turnsRemaining - 1;
+      if (remaining <= 0) {
+        researchCompleted = true;
+      } else {
+        newQueue.push({ ...item, turnsRemaining: remaining });
+      }
+    }
+    buildings.set(bId, { ...building, researchQueue: newQueue.length > 0 ? newQueue : undefined });
+  }
+
+  // If any research completed, update player's researchedTechs and apply bonuses to all units
+  if (researchCompleted && currentPlayer) {
+    const newResearched = new Set(currentPlayer.researchedTechs);
+    // Find completed techs from original queues
+    for (const b of state.buildings.values()) {
+      if (b.ownerId !== currentPlayer.id || b.type !== 'research_lab') continue;
+      if (!b.researchQueue) continue;
+      for (const item of b.researchQueue) {
+        if (item.turnsRemaining === 1) {
+          newResearched.add(item.techId);
+        }
+      }
+    }
+
+    const playerIdx = players.findIndex(p => p.id === currentPlayer.id);
+    players = players.map((p, i) =>
+      i === playerIdx ? { ...p, researchedTechs: newResearched } : p
+    );
+
+    // Apply new tech bonuses to all owned units
+    const bonus = computeTechBonuses(newResearched);
+    for (const [id, unit] of units) {
+      if (unit.ownerId !== currentPlayer.id) continue;
+      const updated = applyTechBonusToUnit(unit, bonus);
+      if (updated !== unit) units.set(id, updated);
+    }
   }
 
   // Refresh movement points and regen shields for the next player's units
@@ -535,6 +626,32 @@ export function checkVictory(players: PlayerState[], units: Map<string, UnitData
   }
 
   return undefined;
+}
+
+/** Apply cumulative tech bonuses to a unit's stats (based on base stats + bonus). */
+function applyTechBonusToUnit(unit: UnitData, bonus: import('../../models/game-state').TechBonus): UnitData {
+  const base = UNIT_STATS[unit.type];
+  const newAttack = base.attack + (bonus.attack ?? 0);
+  const newArmor = base.armor + (bonus.armor ?? 0);
+  const newMaxShields = base.maxShields + (bonus.shields ?? 0);
+  const newSightRange = base.sightRange + (bonus.sightRange ?? 0);
+  const newMaxMP = base.maxMovementPoints + (bonus.maxMovementPoints ?? 0);
+
+  if (unit.attack === newAttack && unit.armor === newArmor &&
+      unit.maxShields === newMaxShields && unit.sightRange === newSightRange &&
+      unit.maxMovementPoints === newMaxMP) {
+    return unit;
+  }
+
+  return {
+    ...unit,
+    attack: newAttack,
+    armor: newArmor,
+    maxShields: newMaxShields,
+    shields: Math.min(unit.shields, newMaxShields),
+    sightRange: newSightRange,
+    maxMovementPoints: newMaxMP,
+  };
 }
 
 function advanceComets(state: GameState): GameState {

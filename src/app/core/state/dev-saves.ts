@@ -103,6 +103,7 @@ function buildCombatScenario(): string {
       isAI: false,
       exploredHexes: exploredSet(0, 0, 6),
       eliminated: false,
+      researchedTechs: new Set(),
     },
     {
       id: 'p1',
@@ -112,6 +113,7 @@ function buildCombatScenario(): string {
       isAI: true,
       exploredHexes: exploredSet(5, -3, 6),
       eliminated: false,
+      researchedTechs: new Set(),
     },
   ];
 
@@ -178,6 +180,7 @@ function buildEconomyScenario(): string {
       isAI: false,
       exploredHexes: exploredSet(0, 0, 10),
       eliminated: false,
+      researchedTechs: new Set(),
     },
     {
       id: 'p1',
@@ -187,6 +190,7 @@ function buildEconomyScenario(): string {
       isAI: true,
       exploredHexes: exploredSet(20, -10, 6),
       eliminated: false,
+      researchedTechs: new Set(),
     },
   ];
 

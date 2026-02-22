@@ -11,6 +11,7 @@ interface SerializedPlayer {
   isAI: boolean;
   exploredHexes: string[];
   eliminated?: boolean;
+  researchedTechs?: string[];
 }
 
 interface SerializedGameState {
@@ -43,6 +44,7 @@ export class SaveLoadService {
         isAI: p.isAI,
         exploredHexes: [...p.exploredHexes],
         eliminated: p.eliminated,
+        researchedTechs: [...p.researchedTechs],
       })),
       units: [...state.units.entries()],
       buildings: [...state.buildings.entries()],
@@ -77,6 +79,7 @@ export class SaveLoadService {
         isAI: p.isAI,
         exploredHexes: new Set(p.exploredHexes),
         eliminated: p.eliminated ?? false,
+        researchedTechs: new Set((p.researchedTechs ?? []) as import('../../models/game-state').TechId[]),
       })),
       units: new Map(serialized.units),
       buildings: new Map(serialized.buildings),

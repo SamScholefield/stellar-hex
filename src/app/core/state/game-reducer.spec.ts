@@ -11,8 +11,8 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     turn: 1,
     currentPlayerIndex: 0,
     players: [
-      { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false },
-      { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: false },
+      { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+      { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
     ],
     units: new Map(),
     buildings: new Map(),
@@ -239,8 +239,8 @@ describe('gameReducer', () => {
       const state = makeState({
         units,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 5 }), isAI: false, exploredHexes: new Set(), eliminated: false },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 5 }), isAI: false, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
         ],
       });
       const hex = { q: 0, r: 0, s: 0 };
@@ -420,8 +420,8 @@ describe('gameReducer', () => {
       const state = makeState({
         buildings,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 200, alloys: 100, credits: 100 }), isAI: false, exploredHexes: new Set(), eliminated: false },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 200, alloys: 100, credits: 100 }), isAI: false, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
         ],
       });
 
@@ -448,8 +448,8 @@ describe('gameReducer', () => {
       const state = makeState({
         buildings,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 0 }), isAI: false, exploredHexes: new Set(), eliminated: false },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 0 }), isAI: false, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
         ],
       });
       const next = gameReducer(state, { type: 'PRODUCE_UNIT', buildingId: 'b1', unitType: 'scout' });
@@ -713,8 +713,8 @@ describe('gameReducer', () => {
       const state = makeState({
         units,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 3 }), isAI: false, exploredHexes: new Set(), eliminated: false },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 3 }), isAI: false, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
         ],
       });
       const next = gameReducer(state, { type: 'END_TURN' });
@@ -730,8 +730,8 @@ describe('gameReducer', () => {
       const state = makeState({
         units,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 3 }), isAI: false, exploredHexes: new Set(), eliminated: false },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 3 }), isAI: false, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
         ],
       });
       const next = gameReducer(state, { type: 'END_TURN' });
@@ -746,8 +746,8 @@ describe('gameReducer', () => {
       const state = makeState({
         units,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 3, credits: 2 }), isAI: false, exploredHexes: new Set(), eliminated: false },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ energy: 3, credits: 2 }), isAI: false, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
         ],
       });
       const next = gameReducer(state, { type: 'END_TURN' });
@@ -788,8 +788,8 @@ describe('gameReducer', () => {
       const state = makeState({
         units,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources(), isAI: false, exploredHexes: new Set(), eliminated: false },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: true },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources(), isAI: false, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: true, researchedTechs: new Set<import('../../models/game-state').TechId>() },
         ],
       });
       const next = gameReducer(state, { type: 'END_TURN' });
@@ -810,8 +810,8 @@ describe('gameReducer', () => {
         units,
         buildings,
         players: [
-          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ credits: ECONOMIC_VICTORY_CREDITS - 2 }), isAI: false, exploredHexes: new Set(), eliminated: false },
-          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false },
+          { id: 'p1', name: 'Player 1', color: '#00ff00', resources: makeResources({ credits: ECONOMIC_VICTORY_CREDITS - 2 }), isAI: false, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+          { id: 'p2', name: 'Player 2', color: '#ff0000', resources: makeResources(), isAI: true, exploredHexes: new Set(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
         ],
       });
       // Colony yields 2 credits, so after income p1 should have >= ECONOMIC_VICTORY_CREDITS
@@ -923,12 +923,12 @@ describe('gameReducer', () => {
     });
 
     it('shouldEliminate returns true when player has no units or buildings', () => {
-      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false };
+      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() };
       expect(shouldEliminate(player, new Map(), new Map())).toBe(true);
     });
 
     it('shouldEliminate returns false when player has units', () => {
-      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false };
+      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() };
       const units = new Map<string, UnitData>([
         ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })],
       ]);
@@ -936,7 +936,7 @@ describe('gameReducer', () => {
     });
 
     it('shouldEliminate returns false when player has buildings', () => {
-      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false };
+      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() };
       const buildings = new Map<string, BuildingData>([
         ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
       ]);
@@ -944,14 +944,14 @@ describe('gameReducer', () => {
     });
 
     it('shouldEliminate returns false if already eliminated', () => {
-      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: true };
+      const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: true, researchedTechs: new Set<import('../../models/game-state').TechId>() };
       expect(shouldEliminate(player, new Map(), new Map())).toBe(false);
     });
 
     it('checkVictory returns domination when one player left', () => {
       const players = [
-        { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false },
-        { id: 'p2', name: 'P2', color: '#f00', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: true },
+        { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+        { id: 'p2', name: 'P2', color: '#f00', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: true, researchedTechs: new Set<import('../../models/game-state').TechId>() },
       ];
       const result = checkVictory(players, new Map(), new Map());
       expect(result).toEqual({ winnerId: 'p1', reason: 'domination' });
@@ -959,8 +959,8 @@ describe('gameReducer', () => {
 
     it('checkVictory returns economic when credits threshold met', () => {
       const players = [
-        { id: 'p1', name: 'P1', color: '#fff', resources: makeResources({ credits: ECONOMIC_VICTORY_CREDITS }), isAI: false, exploredHexes: new Set<string>(), eliminated: false },
-        { id: 'p2', name: 'P2', color: '#f00', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: false },
+        { id: 'p1', name: 'P1', color: '#fff', resources: makeResources({ credits: ECONOMIC_VICTORY_CREDITS }), isAI: false, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+        { id: 'p2', name: 'P2', color: '#f00', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
       ];
       const result = checkVictory(players, new Map(), new Map());
       expect(result).toEqual({ winnerId: 'p1', reason: 'economic' });
@@ -968,8 +968,8 @@ describe('gameReducer', () => {
 
     it('checkVictory returns undefined when no victory condition met', () => {
       const players = [
-        { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false },
-        { id: 'p2', name: 'P2', color: '#f00', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: false },
+        { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
+        { id: 'p2', name: 'P2', color: '#f00', resources: makeResources(), isAI: true, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() },
       ];
       const result = checkVictory(players, new Map(), new Map());
       expect(result).toBeUndefined();

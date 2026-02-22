@@ -1,5 +1,5 @@
 import { computed, Injectable, signal } from '@angular/core';
-import { GameState, GameOverState, PlayerState, Resources, UnitData, BuildingData } from '../../models/game-state';
+import { GameState, GameOverState, PlayerState, Resources, UnitData, BuildingData, TechId } from '../../models/game-state';
 import { HexData } from '../../models/hex-data';
 import { computeMiningDroneIncome } from '../economy/economy.service';
 import { GameAction } from './actions';
@@ -77,6 +77,10 @@ export class GameStateService {
 
   readonly humanPlayer = computed<PlayerState | null>(() => {
     return this.players().find(p => !p.isAI) ?? null;
+  });
+
+  readonly researchedTechs = computed<Set<TechId>>(() => {
+    return this.currentPlayer()?.researchedTechs ?? new Set();
   });
 
   dispatch(action: GameAction): void {

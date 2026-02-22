@@ -32,6 +32,82 @@ export interface ProductionItem {
   turnsRemaining: number;
 }
 
+// ── Tech Tree ──────────────────────────────────────────────────────
+
+export type TechBranch = 'shields' | 'weapons' | 'armor' | 'systems' | 'drive';
+export type TechTier = 1 | 2 | 3;
+export type TechId = `${TechBranch}_${TechTier}`;
+
+export interface TechBonus {
+  shields?: number;
+  attack?: number;
+  armor?: number;
+  sightRange?: number;
+  maxMovementPoints?: number;
+}
+
+export interface TechDefinition {
+  id: TechId;
+  name: string;
+  branch: TechBranch;
+  tier: TechTier;
+  cost: Partial<Resources>;
+  researchTurns: number;
+  bonus: TechBonus;
+}
+
+export interface ResearchItem {
+  techId: TechId;
+  turnsRemaining: number;
+}
+
+export const TECH_TREE: Record<TechId, TechDefinition> = {
+  shields_1: { id: 'shields_1', name: 'Improved Deflectors',    branch: 'shields', tier: 1, cost: { energy: 30, credits: 15 }, researchTurns: 3, bonus: { shields: 1 } },
+  shields_2: { id: 'shields_2', name: 'Hardened Barriers',      branch: 'shields', tier: 2, cost: { energy: 50, credits: 30 }, researchTurns: 5, bonus: { shields: 2 } },
+  shields_3: { id: 'shields_3', name: 'Quantum Shield Matrix',  branch: 'shields', tier: 3, cost: { energy: 80, credits: 50 }, researchTurns: 8, bonus: { shields: 3 } },
+
+  weapons_1: { id: 'weapons_1', name: 'Refined Targeting',      branch: 'weapons', tier: 1, cost: { energy: 30, alloys: 10 }, researchTurns: 3, bonus: { attack: 1 } },
+  weapons_2: { id: 'weapons_2', name: 'Overcharged Capacitors', branch: 'weapons', tier: 2, cost: { energy: 50, alloys: 20 }, researchTurns: 5, bonus: { attack: 2 } },
+  weapons_3: { id: 'weapons_3', name: 'Particle Accelerators',  branch: 'weapons', tier: 3, cost: { energy: 80, alloys: 40 }, researchTurns: 8, bonus: { attack: 3 } },
+
+  armor_1:   { id: 'armor_1',   name: 'Reinforced Plating',     branch: 'armor',   tier: 1, cost: { energy: 25, alloys: 15 }, researchTurns: 3, bonus: { armor: 1 } },
+  armor_2:   { id: 'armor_2',   name: 'Composite Alloys',       branch: 'armor',   tier: 2, cost: { energy: 45, alloys: 30 }, researchTurns: 5, bonus: { armor: 2 } },
+  armor_3:   { id: 'armor_3',   name: 'Nano-reactive Hull',     branch: 'armor',   tier: 3, cost: { energy: 75, alloys: 50 }, researchTurns: 8, bonus: { armor: 3 } },
+
+  systems_1: { id: 'systems_1', name: 'Long-range Sensors',     branch: 'systems', tier: 1, cost: { energy: 25, credits: 10 }, researchTurns: 3, bonus: { sightRange: 1 } },
+  systems_2: { id: 'systems_2', name: 'Tachyon Scanners',       branch: 'systems', tier: 2, cost: { energy: 40, credits: 25 }, researchTurns: 5, bonus: { sightRange: 1 } },
+  systems_3: { id: 'systems_3', name: 'Subspace Array',         branch: 'systems', tier: 3, cost: { energy: 65, credits: 45 }, researchTurns: 8, bonus: { sightRange: 1 } },
+
+  drive_1:   { id: 'drive_1',   name: 'Ion Thrusters',          branch: 'drive',   tier: 1, cost: { energy: 30, alloys: 10 }, researchTurns: 4, bonus: { maxMovementPoints: 1 } },
+  drive_2:   { id: 'drive_2',   name: 'Fusion Drive',           branch: 'drive',   tier: 2, cost: { energy: 55, alloys: 25 }, researchTurns: 6, bonus: { maxMovementPoints: 1 } },
+  drive_3:   { id: 'drive_3',   name: 'Warp Coils',             branch: 'drive',   tier: 3, cost: { energy: 90, alloys: 45 }, researchTurns: 9, bonus: { maxMovementPoints: 1 } },
+};
+
+/** Sum all bonuses from a set of researched techs. */
+export function computeTechBonuses(researchedTechs: Set<TechId>): TechBonus {
+  const total: TechBonus = {};
+  for (const id of researchedTechs) {
+    const def = TECH_TREE[id];
+    if (!def) continue;
+    if (def.bonus.shields) total.shields = (total.shields ?? 0) + def.bonus.shields;
+    if (def.bonus.attack) total.attack = (total.attack ?? 0) + def.bonus.attack;
+    if (def.bonus.armor) total.armor = (total.armor ?? 0) + def.bonus.armor;
+    if (def.bonus.sightRange) total.sightRange = (total.sightRange ?? 0) + def.bonus.sightRange;
+    if (def.bonus.maxMovementPoints) total.maxMovementPoints = (total.maxMovementPoints ?? 0) + def.bonus.maxMovementPoints;
+  }
+  return total;
+}
+
+/** Check whether a tech can be researched (prerequisite tier completed). */
+export function canResearch(techId: TechId, researchedTechs: Set<TechId>): boolean {
+  const def = TECH_TREE[techId];
+  if (!def) return false;
+  if (researchedTechs.has(techId)) return false;
+  if (def.tier === 1) return true;
+  const prereqId = `${def.branch}_${def.tier - 1}` as TechId;
+  return researchedTechs.has(prereqId);
+}
+
 export interface PlayerState {
   id: string;
   name: string;
@@ -41,6 +117,7 @@ export interface PlayerState {
   exploredHexes: Set<string>;
   homeBaseId?: string;
   eliminated: boolean;
+  researchedTechs: Set<TechId>;
 }
 
 export type ShipSize = 'small' | 'medium' | 'large';
@@ -181,6 +258,7 @@ export interface BuildingData {
   health: number;
   maxHealth: number;
   productionQueue?: ProductionItem[];
+  researchQueue?: ResearchItem[];
 }
 
 export interface DynamicObject {
