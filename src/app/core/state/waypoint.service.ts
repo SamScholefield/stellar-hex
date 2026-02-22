@@ -17,6 +17,35 @@ export interface Waypoint {
   attackTargetId?: string;
 }
 
+export interface SerializedWaypoint {
+  unitId: string;
+  q: number;
+  r: number;
+  attackTargetId?: string;
+}
+
+export function serializeWaypoints(map: Map<string, Waypoint>): SerializedWaypoint[] {
+  const result: SerializedWaypoint[] = [];
+  for (const wp of map.values()) {
+    const entry: SerializedWaypoint = { unitId: wp.unitId, q: wp.target.q, r: wp.target.r };
+    if (wp.attackTargetId) entry.attackTargetId = wp.attackTargetId;
+    result.push(entry);
+  }
+  return result;
+}
+
+export function deserializeWaypoints(data: SerializedWaypoint[]): Map<string, Waypoint> {
+  const map = new Map<string, Waypoint>();
+  for (const d of data) {
+    map.set(d.unitId, {
+      unitId: d.unitId,
+      target: { q: d.q, r: d.r, s: (-d.q - d.r) || 0 },
+      attackTargetId: d.attackTargetId,
+    });
+  }
+  return map;
+}
+
 @Injectable({ providedIn: 'root' })
 export class WaypointService {
   private readonly gameState = inject(GameStateService);
@@ -49,6 +78,14 @@ export class WaypointService {
 
   clearAll(): void {
     this._waypoints.set(new Map());
+  }
+
+  getSerializedWaypoints(): SerializedWaypoint[] {
+    return serializeWaypoints(this._waypoints());
+  }
+
+  loadWaypoints(data: SerializedWaypoint[]): void {
+    this._waypoints.set(deserializeWaypoints(data));
   }
 
   getWaypoint(unitId: string): Waypoint | null {

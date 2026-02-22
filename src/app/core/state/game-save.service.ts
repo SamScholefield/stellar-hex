@@ -13,7 +13,7 @@ import {
 } from '../../models/game-state';
 import { GameStateService } from './game-state.service';
 import { EventLogService } from './event-log.service';
-import { WaypointService } from './waypoint.service';
+import { WaypointService, SerializedWaypoint } from './waypoint.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
 import { DEV_SAVES } from './dev-saves';
@@ -23,6 +23,7 @@ const SAVE_KEY = 'stellar-hex-autosave';
 interface SaveData {
   state: SerializedGameState;
   camera: { panX: number; panY: number; zoom: number };
+  waypoints?: SerializedWaypoint[];
   savedAt?: string;
 }
 
@@ -60,6 +61,7 @@ interface SerializedPlayer {
 export function serialize(
   state: GameState,
   camera: { panX: number; panY: number; zoom: number },
+  waypoints: SerializedWaypoint[] = [],
 ): string {
   const data: SaveData = {
     state: {
@@ -84,6 +86,7 @@ export function serialize(
       gameOver: state.gameOver,
     },
     camera,
+    waypoints,
     savedAt: new Date().toISOString(),
   };
   return JSON.stringify(data);
@@ -92,6 +95,7 @@ export function serialize(
 export function deserialize(json: string): {
   state: GameState;
   camera: { panX: number; panY: number; zoom: number };
+  waypoints: SerializedWaypoint[];
 } {
   const data: SaveData = JSON.parse(json);
   const s = data.state;
@@ -138,7 +142,7 @@ export function deserialize(json: string): {
     gameOver: s.gameOver,
   };
 
-  return { state, camera: data.camera };
+  return { state, camera: data.camera, waypoints: data.waypoints ?? [] };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -162,7 +166,8 @@ export class GameSaveService {
       panY: this.camera.panY(),
       zoom: this.camera.zoom(),
     };
-    localStorage.setItem(SAVE_KEY, serialize(state, camera));
+    const waypoints = this.waypointSvc.getSerializedWaypoints();
+    localStorage.setItem(SAVE_KEY, serialize(state, camera, waypoints));
     this.refreshSaves();
   }
 
@@ -171,8 +176,8 @@ export class GameSaveService {
     if (!json) return;
 
     this.eventLog.clear();
-    this.waypointSvc.clearAll();
-    const { state, camera } = deserialize(json);
+    const { state, camera, waypoints } = deserialize(json);
+    this.waypointSvc.loadWaypoints(waypoints);
 
     this.worldGenerator.setSeed(state.seed);
     this.gameState.setState(state);
@@ -186,8 +191,8 @@ export class GameSaveService {
     if (!json) return;
 
     this.eventLog.clear();
-    this.waypointSvc.clearAll();
-    const { state, camera } = deserialize(json);
+    const { state, camera, waypoints } = deserialize(json);
+    this.waypointSvc.loadWaypoints(waypoints);
     this.worldGenerator.setSeed(state.seed);
     this.gameState.setState(state);
     this.camera.centerOn(camera.panX, camera.panY);

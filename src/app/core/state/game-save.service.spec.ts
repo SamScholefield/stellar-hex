@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { serialize, deserialize } from './game-save.service';
 import { GameState, UNIT_STATS } from '../../models/game-state';
+import { SerializedWaypoint } from './waypoint.service';
 
 function makeTestState(): GameState {
   const scoutStats = UNIT_STATS.scout;
@@ -284,5 +285,51 @@ describe('serialize / deserialize', () => {
     expect(unit.maxShields).toBe(0);
     expect(unit.xp).toBe(0);
     expect(unit.veteranTier).toBe('standard');
+  });
+
+  it('round-trips waypoints through serialize/deserialize', () => {
+    const waypoints: SerializedWaypoint[] = [
+      { unitId: 'scout-p0', q: 5, r: -3 },
+      { unitId: 'fighter-p1', q: 2, r: -1, attackTargetId: 'enemy-1' },
+    ];
+
+    const json = serialize(state, testCamera, waypoints);
+    const result = deserialize(json);
+
+    expect(result.waypoints).toEqual(waypoints);
+  });
+
+  it('returns empty waypoints array for old saves without waypoints field', () => {
+    const oldSave = {
+      state: {
+        turn: 3,
+        currentPlayerIndex: 0,
+        players: [{
+          id: 'p0', name: 'Player', color: '#5eead4',
+          resources: { energy: 50, minerals: 20, alloys: 10, credits: 15 },
+          isAI: false, exploredHexes: ['0,0'], eliminated: false,
+        }],
+        units: [],
+        buildings: [],
+        dynamicObjects: [],
+        chunkOverrides: [],
+        anomalies: [],
+        seed: 42,
+      },
+      camera: { panX: 0, panY: 0, zoom: 1 },
+      // Note: no waypoints field
+    };
+
+    const json = JSON.stringify(oldSave);
+    const result = deserialize(json);
+
+    expect(result.waypoints).toEqual([]);
+  });
+
+  it('defaults to empty waypoints when serialize is called without waypoints param', () => {
+    const json = serialize(state, testCamera);
+    const result = deserialize(json);
+
+    expect(result.waypoints).toEqual([]);
   });
 });

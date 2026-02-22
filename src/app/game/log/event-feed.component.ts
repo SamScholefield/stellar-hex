@@ -54,7 +54,7 @@ let nextId = 0;
       background: transparent;
       color: var(--text-body);
       pointer-events: auto;
-      animation: 0.33s ease-in-out;
+      animation: slide-in 0.33s ease-in;
       transition: opacity 0.66s ease-out;
       opacity: 0.5;
     }
@@ -82,6 +82,22 @@ let nextId = 0;
     }
     .msg.link:hover {
       text-decoration: underline;
+    }
+    @keyframes slide-in {
+      from {
+        text-shadow:
+          0 0 5px #fff,
+          0 0 10px #fff,
+          0 0 20px #0f0;
+        opacity: 1;
+      }
+      to {
+        text-shadow:
+          0 0 2px #fff,
+          0 0 5px #fff,
+          0 0 10px #0f0;
+        opacity: 0.6;
+      }
     }
   `,
 })

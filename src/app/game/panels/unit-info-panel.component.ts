@@ -9,7 +9,7 @@ import { GameStateService } from '../../core/state/game-state.service';
   imports: [UpperCasePipe],
   template: `
     @if (unitData(); as unit) {
-      <div class="panel">
+      <div class="panel glass">
         <div class="header">
           <span class="unit-type">{{ unit.name }}</span>
           @if (isEnemy(unit.ownerId)) {
@@ -28,7 +28,10 @@ import { GameStateService } from '../../core/state/game-state.service';
             <div class="stat">
               <span class="label">SH</span>
               <div class="bar-bg">
-                <div class="bar-fill sh" [style.width.%]="(unit.shields / unit.maxShields) * 100"></div>
+                <div
+                  class="bar-fill sh"
+                  [style.width.%]="(unit.shields / unit.maxShields) * 100"
+                ></div>
               </div>
               <span class="val">{{ unit.shields }}/{{ unit.maxShields }}</span>
             </div>
@@ -36,9 +39,19 @@ import { GameStateService } from '../../core/state/game-state.service';
           <div class="stat">
             <span class="label">MP</span>
             <div class="bar-bg">
-              <div class="bar-fill mp" [style.width.%]="((unit.movementPoints > 0 ? unit.movementPoints : 0) / unit.maxMovementPoints) * 100"></div>
+              <div
+                class="bar-fill mp"
+                [style.width.%]="
+                  ((unit.movementPoints > 0 ? unit.movementPoints : 0) / unit.maxMovementPoints) *
+                  100
+                "
+              ></div>
             </div>
-            <span class="val">{{ unit.movementPoints > 0 ? unit.movementPoints : 0 }}/{{ unit.maxMovementPoints }}</span>
+            <span class="val"
+              >{{ unit.movementPoints > 0 ? unit.movementPoints : 0 }}/{{
+                unit.maxMovementPoints
+              }}</span
+            >
           </div>
         </div>
         <div class="combat-stats">
@@ -68,6 +81,21 @@ import { GameStateService } from '../../core/state/game-state.service';
       border-radius: var(--panel-radius);
       padding: 0.75rem 1rem;
       min-width: 180px;
+    }
+    .glass {
+      position: relative;
+      overflow: hidden;
+      border-radius: 9px;
+      background: linear-gradient(165deg, var(--glass-tint) 0%, var(--glass-bg) 100%);
+      backdrop-filter: blur(18px) saturate(1.3);
+      -webkit-backdrop-filter: blur(18px) saturate(1.3);
+      border: 1px solid var(--glass-border);
+
+      --glass-tint: rgba(180, 200, 210, 0.06);
+      --glass-bg: rgba(10, 12, 18, 0.55);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --led-color: #4ade80;
+      --heading-color: rgba(255, 255, 255, 0.5);
     }
     .header {
       display: flex;
@@ -114,9 +142,15 @@ import { GameStateService } from '../../core/state/game-state.service';
       border-radius: 3px;
       transition: width 0.2s;
     }
-    .bar-fill.hp { background: #22c55e; }
-    .bar-fill.sh { background: #60a5fa; }
-    .bar-fill.mp { background: #3b82f6; }
+    .bar-fill.hp {
+      background: #22c55e;
+    }
+    .bar-fill.sh {
+      background: #60a5fa;
+    }
+    .bar-fill.mp {
+      background: #3b82f6;
+    }
     .val {
       font-size: 0.7rem;
       color: var(--text-secondary);
@@ -124,7 +158,8 @@ import { GameStateService } from '../../core/state/game-state.service';
       width: 36px;
       text-align: right;
     }
-    .combat-stats, .extra-stats {
+    .combat-stats,
+    .extra-stats {
       display: flex;
       gap: 0.6rem;
       margin-bottom: 0.35rem;
