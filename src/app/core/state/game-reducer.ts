@@ -317,7 +317,15 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
       defenderStrike: null,
     };
 
-    return { newState: { ...state, units, buildings }, combat };
+    // Check elimination and victory immediately
+    let players = state.players.map(p => {
+      if (p.eliminated) return p;
+      if (shouldEliminate(p, units, buildings)) return { ...p, eliminated: true };
+      return p;
+    });
+    const gameOver = checkVictory(players, units, buildings) ?? state.gameOver;
+
+    return { newState: { ...state, units, buildings, players, gameOver }, combat };
   }
 
   // --- Unit target path ---
@@ -359,7 +367,16 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
     });
   }
 
-  return { newState: { ...state, units }, combat };
+  // Check elimination and victory immediately
+  const buildings = state.buildings;
+  let players = state.players.map(p => {
+    if (p.eliminated) return p;
+    if (shouldEliminate(p, units, buildings)) return { ...p, eliminated: true };
+    return p;
+  });
+  const gameOver = checkVictory(players, units, buildings) ?? state.gameOver;
+
+  return { newState: { ...state, units, players, gameOver }, combat };
 }
 
 function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState {
@@ -664,7 +681,10 @@ function collectAnomaly(state: GameState, anomalyId: string, unitId: string): Ga
   const anomalies = new Map(state.anomalies);
   anomalies.delete(anomalyId);
 
-  return { ...state, players, anomalies };
+  // Check victory immediately (anomaly credits could trigger economic victory)
+  const gameOver = checkVictory(players, state.units, state.buildings) ?? state.gameOver;
+
+  return { ...state, players, anomalies, gameOver };
 }
 
 export function computeUpkeepForPlayer(units: Map<string, UnitData>, playerId: string): Resources {
