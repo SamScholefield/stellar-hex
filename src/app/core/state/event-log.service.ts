@@ -9,10 +9,20 @@ export interface GameEvent {
 
 const MAX_EVENTS = 100;
 
+export interface GraduatedEvent {
+  id: number;
+  event: GameEvent;
+}
+
+let _gradId = 0;
+
 @Injectable({ providedIn: 'root' })
 export class EventLogService {
   private readonly _events = signal<GameEvent[]>([]);
   readonly events = this._events.asReadonly();
+
+  private readonly _graduatedEvents = signal<GraduatedEvent[]>([]);
+  readonly graduatedEvents = this._graduatedEvents.asReadonly();
 
   push(event: GameEvent): void {
     this._events.update((list) => {
@@ -21,7 +31,15 @@ export class EventLogService {
     });
   }
 
+  graduate(event: GameEvent): void {
+    this._graduatedEvents.update((list) => {
+      const updated = [{ id: _gradId++, event }, ...list];
+      return updated.length > MAX_EVENTS ? updated.slice(0, MAX_EVENTS) : updated;
+    });
+  }
+
   clear(): void {
     this._events.set([]);
+    this._graduatedEvents.set([]);
   }
 }

@@ -29,9 +29,7 @@ const ZOOM_STEP = 50;
   imports: [GameViewportComponent, HudComponent, ClickPopupComponent, ContextMenuComponent, HelpPanelComponent],
   host: {
     '(contextmenu)': 'onContextMenu($event)',
-    '(keydown)': 'onKeyDown($event)',
-    '(pointerdown)': 'focus()',
-    tabindex: '0',
+    '(window:keydown)': 'onKeyDown($event)',
   },
   template: `
     @if (ready()) {
@@ -164,6 +162,7 @@ export class GameComponent implements OnDestroy {
       const turn = this.gameState.turn();
       if (turn <= 1) return;
 
+      const player = this.gameState.currentPlayer();
       const discoveries = this.vision.lastDiscoveries();
       untracked(() => {
         for (const d of discoveries) {
@@ -179,8 +178,9 @@ export class GameComponent implements OnDestroy {
             type: 'DISCOVER_ANOMALY',
             anomaly: { id, type: hex.anomaly, q: d.q, r: d.r },
           });
-          this.eventLog.push({ turn, message: `Discovered ${info.name}`, q: d.q, r: d.r });
-          this.audio.playDiscovery();
+          const prefix = player?.isAI ? '[AI] ' : '';
+          this.eventLog.push({ turn, message: `${prefix}Discovered ${info.name}`, q: d.q, r: d.r });
+          if (!player?.isAI) this.audio.playDiscovery();
         }
       });
     });

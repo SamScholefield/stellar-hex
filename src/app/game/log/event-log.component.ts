@@ -1,12 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
-  ElementRef,
-  effect,
   inject,
   signal,
-  viewChild,
 } from '@angular/core';
 import { EventLogService, GameEvent } from '../../core/state/event-log.service';
 import { AudioService } from '../../core/audio/audio.service';
@@ -26,14 +22,14 @@ import { hexToPixel } from '../../shared/hex/hex-math';
         }
       </button>
       @if (!collapsed()) {
-        <div class="entries" #scrollContainer>
-          @for (event of recentEvents(); track $index) {
+        <div class="entries">
+          @for (item of graduatedEvents(); track item.id) {
             <div class="entry">
-              <span class="turn">T{{ event.turn }}</span>
-              @if (event.q != null) {
-                <a class="msg link" [class.ai]="isAI(event)" (click)="goTo(event)">{{ event.message }}</a>
+              <span class="turn">T{{ item.event.turn }}</span>
+              @if (item.event.q != null) {
+                <a class="msg link" [class.ai]="isAI(item.event)" (click)="goTo(item.event)">{{ item.event.message }}</a>
               } @else {
-                <span class="msg" [class.ai]="isAI(event)">{{ event.message }}</span>
+                <span class="msg" [class.ai]="isAI(item.event)">{{ item.event.message }}</span>
               }
             </div>
           }
@@ -85,6 +81,19 @@ import { hexToPixel } from '../../shared/hex/hex-math';
       font-size: 0.7rem;
       padding: 0.15rem 0.25rem;
       border-bottom: 1px solid var(--divider);
+      animation: log-slide-in 0.3s ease-out;
+    }
+    @keyframes log-slide-in {
+      from {
+        opacity: 0;
+        transform: translateY(-100%);
+        max-height: 0;
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 2rem;
+      }
     }
     .turn {
       color: var(--accent-blue);
@@ -124,25 +133,9 @@ export class EventLogComponent {
   private readonly eventLog = inject(EventLogService);
   private readonly audio = inject(AudioService);
   private readonly camera = inject(CameraService);
-  private readonly scrollContainer = viewChild<ElementRef<HTMLDivElement>>('scrollContainer');
 
   readonly collapsed = signal(true);
-  readonly recentEvents = computed(() => {
-    const events = this.eventLog.events();
-    return events.slice(-50);
-  });
-
-  constructor() {
-    effect(() => {
-      this.recentEvents();
-      const container = this.scrollContainer()?.nativeElement;
-      if (container) {
-        queueMicrotask(() => {
-          container.scrollTop = container.scrollHeight;
-        });
-      }
-    });
-  }
+  readonly graduatedEvents = this.eventLog.graduatedEvents;
 
   toggle(): void {
     this.audio.playClick();

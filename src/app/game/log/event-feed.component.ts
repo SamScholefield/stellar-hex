@@ -159,6 +159,9 @@ export class EventFeedComponent {
       this._items.update((list) => list.map((i) => (i.id === id ? { ...i, expiring: true } : i)));
       setTimeout(() => {
         this._items.update((list) => list.filter((i) => i.id !== id));
+        if (!event.message.startsWith('[AI] Scout collected') && !event.message.startsWith('[AI] Discovered')) {
+          this.eventLog.graduate(event);
+        }
       }, FADE_MS);
     }, DISPLAY_MS);
 
