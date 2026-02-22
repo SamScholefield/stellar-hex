@@ -19,36 +19,15 @@ interface GroupedQueueItem {
         @for (group of grouped(); track group.unitType) {
           <div class="queue-item">
             <span>{{ group.unitType | formatName }}@if (group.count > 1) { <span class="count">{{ group.count }}</span>}</span>
-            <span class="turns">{{ group.nextTurns }} turn{{ group.nextTurns > 1 ? 's' : '' }}</span>
+            <span class="queue-turns">{{ group.nextTurns }} turn{{ group.nextTurns > 1 ? 's' : '' }}</span>
           </div>
         }
       </div>
     }
   `,
   styles: `
-    .queue-section {
-      padding: 0.25rem;
-      background: #111827;
-      border-radius: 0.25rem;
-    }
-    .queue-title {
-      font-size: 0.7rem;
-      color: #6b7280;
-      margin-bottom: 0.15rem;
-    }
-    .queue-item {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: #e0e0e0;
-      padding: 0.1rem 0;
-    }
-    .turns {
-      color: #fbbf24;
-      font-size: 0.7rem;
-    }
     .count {
-      color: #9ca3af;
+      color: var(--text-secondary);
       font-size: 0.7rem;
       font-weight: 700;
       margin-left: 0.35rem;

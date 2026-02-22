@@ -17,22 +17,22 @@ interface BuildOption {
   imports: [FormatNamePipe],
   template: `
     @if (options().length > 0) {
-      <div class="menu">
-        <div class="title">Build</div>
+      <div class="menu-panel">
+        <div class="menu-title">Build</div>
         @for (opt of options(); track opt.type) {
           <button
-            class="build-option"
+            class="menu-option"
             [class.disabled]="!opt.affordable"
             [disabled]="!opt.affordable"
             (click)="onBuild(opt.type)"
           >
-            <span class="name">{{ opt.type | formatName }}</span>
+            <span class="menu-option-name">{{ opt.type | formatName }}</span>
             <span class="yield">
               @for (y of yieldEntries(opt.stats); track y.key) {
                 <span class="yield-item">+{{ y.value }} {{ y.key }}</span>
               }
             </span>
-            <span class="cost">
+            <span class="cost-row">
               @for (c of costEntries(opt.stats); track c.key) {
                 <span class="cost-item" [class.sufficient]="c.current >= c.value">{{ c.current }}/{{ c.value }} {{ c.key }}</span>
               }
@@ -43,48 +43,7 @@ interface BuildOption {
     }
   `,
   styles: `
-    .menu {
-      background: var(--panel-bg-solid);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
-      padding: 0.5rem;
-      min-width: 180px;
-      margin-top: 0.5rem;
-    }
-    .title {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.25rem;
-      padding: 0 0.25rem;
-    }
-    .build-option {
-      display: flex;
-      flex-direction: column;
-      gap: 0.1rem;
-      width: 100%;
-      padding: 0.35rem 0.5rem;
-      background: var(--btn-bg);
-      border: 1px solid var(--btn-border);
-      border-radius: var(--panel-radius-sm);
-      cursor: pointer;
-      color: var(--text-primary);
-      text-align: left;
-      margin-bottom: 0.25rem;
-      transition: background 0.15s;
-    }
-    .build-option:hover:not(:disabled) {
-      background: var(--btn-border);
-    }
-    .build-option.disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-    .name {
-      font-size: 0.85rem;
-      font-weight: 600;
+    .menu-option-name {
       text-transform: capitalize;
     }
     .yield {
@@ -93,17 +52,6 @@ interface BuildOption {
     }
     .yield-item {
       font-size: 0.7rem;
-      color: var(--accent-teal);
-    }
-    .cost {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .cost-item {
-      font-size: 0.7rem;
-      color: var(--accent-red);
-    }
-    .cost-item.sufficient {
       color: var(--accent-teal);
     }
   `,

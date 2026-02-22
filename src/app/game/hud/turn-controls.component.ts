@@ -11,7 +11,7 @@ import { TECH_TREE } from '../../models/game-state';
   selector: 'app-turn-controls',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="controls">
+    <div class="panel controls">
       @if (currentPlayer(); as player) {
         <span class="player-dot" [style.background]="player.color"></span>
         <span class="player-name">{{ player.name }}</span>
@@ -21,7 +21,7 @@ import { TECH_TREE } from '../../models/game-state';
         @if (undo.canUndo()) {
           <button class="undo-btn" (click)="undoAction()">Undo</button>
         }
-        <button class="end-turn" [style.visibility]="aiExecuting() ? 'hidden' : 'visible'" [disabled]="!!gameOver()" (click)="endTurn()">End Turn</button>
+        <button class="btn-primary end-turn" [style.visibility]="aiExecuting() ? 'hidden' : 'visible'" [disabled]="!!gameOver()" (click)="endTurn()">End Turn</button>
         @if (aiExecuting()) {
           <span class="ai-thinking">AI thinking...</span>
         }
@@ -33,9 +33,6 @@ import { TECH_TREE } from '../../models/game-state';
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
       padding: 0.4rem 1rem;
     }
     .player-dot {
@@ -56,20 +53,6 @@ import { TECH_TREE } from '../../models/game-state';
     .end-turn {
       padding: 0.3rem 0.75rem;
       font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      background: var(--btn-bg);
-      border: 1px solid var(--btn-border);
-      border-radius: var(--panel-radius-sm);
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .end-turn:hover:not(:disabled) {
-      background: var(--btn-border);
-    }
-    .end-turn:disabled {
-      opacity: 0.4;
-      cursor: default;
     }
     .undo-btn {
       padding: 0.3rem 0.6rem;

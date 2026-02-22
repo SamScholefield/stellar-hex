@@ -32,11 +32,11 @@ import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-sta
       <app-resource-bar />
       <div class="hud-top-center">
         @if (homeBase(); as hb) {
-          <button class="home-btn" (click)="focusHome(hb)">&#8962; Home</button>
+          <button class="btn-toolbar home-btn" (click)="focusHome(hb)">&#8962; Home</button>
         }
-        <button class="overlay-btn" [class.active]="influenceActive()" (click)="toggleInfluence()">Influence</button>
-        <button class="overlay-btn" [class.active]="attackRangeActive()" (click)="toggleAttackRange()">Attack Range</button>
-        <button class="help-btn" (click)="onHelp()">?</button>
+        <button class="btn-toolbar overlay-btn" [class.active]="influenceActive()" (click)="toggleInfluence()">Influence</button>
+        <button class="btn-toolbar overlay-btn" [class.active]="attackRangeActive()" (click)="toggleAttackRange()">Attack Range</button>
+        <button class="btn-toolbar help-btn" (click)="onHelp()">?</button>
       </div>
     </div>
     <div class="hud-unit-panel">
@@ -142,33 +142,13 @@ import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-sta
       gap: 4px;
     }
 .home-btn {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
-      padding: 0.4rem 0.75rem;
       color: var(--text-primary);
       font-size: 0.8rem;
-      cursor: pointer;
-      transition: background 0.15s;
-      white-space: nowrap;
-    }
-    .home-btn:hover {
-      background: rgba(30, 40, 60, 0.95);
     }
     .overlay-btn {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
-      padding: 0.4rem 0.75rem;
       color: var(--text-secondary);
       font-size: 0.75rem;
-      cursor: pointer;
       transition: background 0.15s, border-color 0.15s;
-      white-space: nowrap;
-    }
-    .overlay-btn:hover {
-      background: rgba(30, 40, 60, 0.95);
-      color: var(--text-primary);
     }
     .overlay-btn.active {
       border-color: var(--accent-blue);
@@ -176,23 +156,13 @@ import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-sta
       color: var(--text-primary);
     }
     .help-btn {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
-      padding: 0.4rem 0.75rem;
       color: var(--text-secondary);
       font-size: 0.85rem;
       font-weight: 700;
-      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s;
       flex-shrink: 0;
-    }
-    .help-btn:hover {
-      background: rgba(30, 40, 60, 0.95);
-      color: var(--text-primary);
     }
     .ai-overlay {
       position: absolute;

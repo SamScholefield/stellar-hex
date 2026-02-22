@@ -6,7 +6,7 @@ import { EconomyService } from '../../core/economy/economy.service';
   selector: 'app-resource-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="bar">
+    <div class="panel bar">
       @if (resources(); as r) {
         <span class="res">
           <span class="label">Energy</span> {{ r.energy }}
@@ -77,9 +77,6 @@ import { EconomyService } from '../../core/economy/economy.service';
       display: flex;
       align-items: center;
       gap: 1.25rem;
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
       padding: 0.4rem 1rem;
     }
     .res {

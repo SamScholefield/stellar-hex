@@ -8,32 +8,23 @@ import { GameStateService } from '../../core/state/game-state.service';
   template: `
     @if (gameOver(); as go) {
       <div class="backdrop">
-        <div class="card">
+        <div class="panel-solid card">
           <h1 [class.victory]="isVictory()" [class.defeat]="!isVictory()">
             {{ isVictory() ? 'VICTORY' : 'DEFEAT' }}
           </h1>
           <p class="winner">{{ winnerName() }}</p>
           <p class="reason">{{ go.reason === 'domination' ? 'Domination Victory' : 'Economic Victory' }}</p>
-          <button class="menu-btn" (click)="returnToMenu()">Return to Menu</button>
+          <button class="btn-primary menu-btn" (click)="returnToMenu()">Return to Menu</button>
         </div>
       </div>
     }
   `,
   styles: `
     .backdrop {
-      position: fixed;
-      inset: 0;
       z-index: 300;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       background: rgba(0, 0, 0, 0.7);
-      pointer-events: auto;
     }
     .card {
-      background: var(--panel-bg-solid);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
       padding: 2.5rem 3rem;
       text-align: center;
       min-width: 320px;
@@ -63,16 +54,6 @@ import { GameStateService } from '../../core/state/game-state.service';
     .menu-btn {
       padding: 0.5rem 1.5rem;
       font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      background: var(--btn-bg);
-      border: 1px solid var(--btn-border);
-      border-radius: var(--panel-radius-sm);
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .menu-btn:hover {
-      background: var(--btn-border);
     }
   `,
 })

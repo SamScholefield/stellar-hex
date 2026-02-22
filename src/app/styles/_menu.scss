@@ -1,0 +1,79 @@
+// Side-panel menu container
+.menu-panel {
+  background: linear-gradient(165deg, rgba(180, 200, 210, 0.06) 0%, rgba(10, 12, 18, 0.82) 100%);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  padding: 0.5rem;
+  min-width: 180px;
+  margin-top: 0.5rem;
+}
+
+// Menu section title
+.menu-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+  padding: 0 0.25rem;
+}
+
+// Fixed-position dropdown (context menu / click popup)
+.dropdown {
+  position: fixed;
+  z-index: 100;
+  background: linear-gradient(165deg, rgba(180, 200, 210, 0.06) 0%, rgba(10, 12, 18, 0.82) 100%);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  padding: 0.25rem 0;
+  min-width: 120px;
+  pointer-events: auto;
+}
+
+// Dropdown menu item
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--hover-bg);
+  }
+
+  &:disabled {
+    color: var(--text-dim);
+    cursor: not-allowed;
+  }
+
+  &.attack,
+  &.attack-here {
+    color: var(--accent-red);
+  }
+
+  &.build {
+    color: var(--accent-teal);
+  }
+
+  &.collect {
+    color: var(--accent-amber);
+  }
+
+  &.move {
+    color: var(--accent-blue);
+  }
+
+  &.cancel {
+    color: var(--text-muted);
+  }
+}

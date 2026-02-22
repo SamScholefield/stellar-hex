@@ -1,3 +1,6 @@
+@use './button';
+@use './panel';
+@use './menu';
 @font-face {
   font-family: 'DIN Next LT Pro';
   src: url('/fonts/DINNextLTPro-Regular.ttf') format('truetype');

@@ -56,22 +56,22 @@ export interface ContextMenuState {
   },
   template: `
     @if (state(); as s) {
-      <div class="menu" [style.left.px]="s.screenX" [style.top.px]="s.screenY">
+      <div class="dropdown" [style.left.px]="s.screenX" [style.top.px]="s.screenY">
         @if (s.canCollect) {
-          <button class="item collect" (click)="onCollect()">Collect {{ s.collectAnomalyName }}</button>
+          <button class="dropdown-item collect" (click)="onCollect()">Collect {{ s.collectAnomalyName }}</button>
         }
         @if (s.canAttack) {
-          <button class="item attack" (click)="onAttack()">Attack</button>
+          <button class="dropdown-item attack" (click)="onAttack()">Attack</button>
         }
         @if (s.canMoveHere) {
-          <button class="item move" (click)="onMoveHere()">Move Here</button>
+          <button class="dropdown-item move" (click)="onMoveHere()">Move Here</button>
         }
         @if (s.canAttackHere) {
-          <button class="item attack-here" (click)="onAttackHere()">Attack Here</button>
+          <button class="dropdown-item attack-here" (click)="onAttackHere()">Attack Here</button>
         }
         @for (opt of s.buildOptions; track opt.type) {
           <button
-            class="item build"
+            class="dropdown-item build"
             [disabled]="!opt.affordable"
             (click)="onBuild(opt.type)"
           >
@@ -83,62 +83,18 @@ export interface ContextMenuState {
             </span>
           </button>
         }
-        <button class="item" (click)="onInspect()">Inspect</button>
+        <button class="dropdown-item" (click)="onInspect()">Inspect</button>
       </div>
     }
   `,
   styles: `
-    .menu {
-      position: fixed;
-      z-index: 100;
-      background: var(--panel-bg-solid);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius-sm);
-      padding: 0.25rem 0;
+    .dropdown {
       min-width: 130px;
-      pointer-events: auto;
     }
-    .item {
-      display: block;
-      width: 100%;
-      padding: 0.4rem 0.75rem;
-      font-size: 0.85rem;
-      color: var(--text-primary);
-      background: none;
-      border: none;
-      text-align: left;
-      cursor: pointer;
-    }
-    .item:hover:not(:disabled) {
-      background: var(--hover-bg);
-    }
-    .item:disabled {
-      color: var(--text-dim);
-      cursor: not-allowed;
-    }
-    .item.attack {
-      color: var(--accent-red);
-    }
-    .item.build {
-      color: var(--accent-teal);
-    }
-    .item.collect {
-      color: var(--accent-amber);
-    }
-    .item.move {
-      color: var(--accent-blue);
-    }
-    .item.attack-here {
-      color: var(--accent-red);
-    }
-    .item.build {
+    .dropdown-item.build {
       display: flex;
       flex-direction: column;
       gap: 0.1rem;
-    }
-    .cost-row {
-      display: flex;
-      gap: 0.4rem;
     }
     .cost-tag {
       font-size: 0.65rem;

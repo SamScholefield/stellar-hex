@@ -11,7 +11,7 @@ export type SaveModalResult = 'save' | 'discard' | 'cancel';
   template: `
     @if (visible()) {
       <div class="backdrop" (click)="onCancel()">
-        <div class="panel" (click)="$event.stopPropagation()">
+        <div class="panel-solid" (click)="$event.stopPropagation()">
           <h2>Game in progress</h2>
           <p>Save before leaving?</p>
           <div class="actions">
@@ -25,18 +25,9 @@ export type SaveModalResult = 'save' | 'discard' | 'cancel';
   `,
   styles: `
     .backdrop {
-      position: fixed;
-      inset: 0;
       z-index: 200;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, 0.6);
     }
-    .panel {
-      background: var(--panel-bg-solid);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
+    .panel-solid {
       padding: 1.5rem 2rem;
       min-width: 320px;
       max-width: 400px;

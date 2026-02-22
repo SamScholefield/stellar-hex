@@ -42,10 +42,10 @@ export interface ClickPopupState {
   },
   template: `
     @if (state(); as s) {
-      <div class="popup" [style.left.px]="s.screenX" [style.top.px]="s.screenY">
+      <div class="dropdown" [style.left.px]="s.screenX" [style.top.px]="s.screenY">
         @for (opt of s.options; track opt.kind + opt.unitId) {
           <button
-            class="option"
+            class="dropdown-item"
             [class.attack]="opt.kind === 'attack'"
             [class.move]="opt.kind === 'move'"
             [class.cancel]="opt.kind === 'cancel_waypoint'"
@@ -53,41 +53,6 @@ export interface ClickPopupState {
           >{{ opt.label }}</button>
         }
       </div>
-    }
-  `,
-  styles: `
-    .popup {
-      position: fixed;
-      z-index: 100;
-      background: var(--panel-bg-solid);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius-sm);
-      padding: 0.25rem 0;
-      min-width: 120px;
-      pointer-events: auto;
-    }
-    .option {
-      display: block;
-      width: 100%;
-      padding: 0.4rem 0.75rem;
-      font-size: 0.85rem;
-      color: var(--text-primary);
-      background: none;
-      border: none;
-      text-align: left;
-      cursor: pointer;
-    }
-    .option:hover {
-      background: var(--hover-bg);
-    }
-    .option.attack {
-      color: var(--accent-red);
-    }
-    .option.move {
-      color: var(--accent-blue);
-    }
-    .option.cancel {
-      color: var(--text-muted);
     }
   `,
 })

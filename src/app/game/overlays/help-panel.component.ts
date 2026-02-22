@@ -6,7 +6,7 @@ import { ChangeDetectionStrategy, Component, input, model } from '@angular/core'
   template: `
     @if (visible()) {
       <div class="backdrop" (click)="visible.set(false)">
-        <div class="panel" (click)="$event.stopPropagation()">
+        <div class="panel-solid" (click)="$event.stopPropagation()">
           <h2>Keyboard Shortcuts</h2>
           <table>
             <tbody>
@@ -25,19 +25,9 @@ import { ChangeDetectionStrategy, Component, input, model } from '@angular/core'
   `,
   styles: `
     .backdrop {
-      position: fixed;
-      inset: 0;
       z-index: 200;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, 0.6);
-      pointer-events: auto;
     }
-    .panel {
-      background: var(--panel-bg-solid);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
+    .panel-solid {
       padding: 1.5rem 2rem;
       min-width: 340px;
       max-width: 440px;

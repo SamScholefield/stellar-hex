@@ -8,7 +8,7 @@ import { hexToPixel } from '../../shared/hex/hex-math';
   selector: 'app-event-log',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="log-panel" [class.collapsed]="collapsed()">
+    <div class="panel log-panel" [class.collapsed]="collapsed()">
       <button class="toggle" (click)="toggle()">
         @if (collapsed()) {
           Log
@@ -30,7 +30,7 @@ import { hexToPixel } from '../../shared/hex/hex-math';
               }
             </div>
           } @empty {
-            <div class="empty">No events yet.</div>
+            <div class="panel-empty">No events yet.</div>
           }
         </div>
       }
@@ -40,9 +40,6 @@ import { hexToPixel } from '../../shared/hex/hex-math';
     .log-panel {
       width: 100%;
       max-height: 200px;
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -116,12 +113,6 @@ import { hexToPixel } from '../../shared/hex/hex-math';
     }
     .msg.link.ai:hover {
       color: #fbbf24;
-    }
-    .empty {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      padding: 0.5rem;
-      text-align: center;
     }
   `,
 })

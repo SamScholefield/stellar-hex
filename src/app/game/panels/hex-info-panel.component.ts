@@ -58,12 +58,12 @@ import { ProductionQueueComponent } from './production-queue.component';
               <app-production-queue [items]="b.productionQueue" />
             }
             @if (b.researchQueue && b.researchQueue.length > 0) {
-              <div class="research-queue">
+              <div class="queue-section">
                 <div class="queue-title">Researching</div>
                 @for (item of b.researchQueue; track item.techId) {
                   <div class="queue-item">
                     <span>{{ techName(item.techId) }}</span>
-                    <span class="turns">{{ item.turnsRemaining }}T</span>
+                    <span class="queue-turns">{{ item.turnsRemaining }}T</span>
                   </div>
                 }
               </div>
@@ -75,9 +75,6 @@ import { ProductionQueueComponent } from './production-queue.component';
   `,
   styles: `
     .panel {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
       padding: 0.75rem 1rem;
       min-width: 220px;
     }
@@ -147,27 +144,8 @@ import { ProductionQueueComponent } from './production-queue.component';
       display: block;
       margin-top: 0.5rem;
     }
-    .research-queue {
+    .queue-section {
       margin-top: 0.5rem;
-      padding: 0.25rem;
-      background: #111827;
-      border-radius: 0.25rem;
-    }
-    .queue-title {
-      font-size: 0.7rem;
-      color: #6b7280;
-      margin-bottom: 0.15rem;
-    }
-    .queue-item {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: #e0e0e0;
-      padding: 0.1rem 0;
-    }
-    .turns {
-      color: #fbbf24;
-      font-size: 0.7rem;
     }
   `,
 })

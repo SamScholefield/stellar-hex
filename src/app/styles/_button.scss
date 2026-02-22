@@ -1,0 +1,87 @@
+// Primary action button
+.btn-primary {
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  border-radius: var(--panel-radius-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--btn-border);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+// HUD toolbar button
+.btn-toolbar {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--panel-radius);
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(30, 40, 60, 0.95);
+    color: var(--text-primary);
+  }
+}
+
+// Card-style menu option button (build / produce / research)
+.menu-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  border-radius: var(--panel-radius-sm);
+  cursor: pointer;
+  color: var(--text-primary);
+  text-align: left;
+  margin-bottom: 0.25rem;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--btn-border);
+  }
+
+  &.disabled,
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.menu-option-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+// Cost display
+.cost-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cost-item {
+  font-size: 0.7rem;
+  color: var(--accent-red);
+
+  &.sufficient {
+    color: var(--accent-teal);
+  }
+}
+
+.build-turns {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}

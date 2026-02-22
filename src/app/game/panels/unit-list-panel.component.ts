@@ -17,8 +17,8 @@ interface UnitGroup {
   imports: [FormatNamePipe],
   template: `
     <div class="panel">
-      <button class="header" (click)="toggle()">
-        <span class="arrow">{{ collapsed() ? '\u25B6' : '\u25BC' }}</span>
+      <button class="collapsible-header" (click)="toggle()">
+        <span class="collapsible-arrow">{{ collapsed() ? '\u25B6' : '\u25BC' }}</span>
         Units ({{ totalCount() }})
       </button>
       @if (!collapsed()) {
@@ -40,7 +40,7 @@ interface UnitGroup {
             }
           }
           @empty {
-            <div class="empty">No units</div>
+            <div class="panel-empty">No units</div>
           }
         </div>
       }
@@ -48,28 +48,9 @@ interface UnitGroup {
   `,
   styles: `
     .panel {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
       overflow: hidden;
       width: 100%;
     }
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      width: 100%;
-      padding: 0.3rem 0.5rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      text-align: left;
-    }
-    .header:hover { color: var(--text-primary); }
-    .arrow { font-size: 0.6rem; }
     .list {
       max-height: 220px;
       overflow-y: auto;
@@ -103,12 +84,6 @@ interface UnitGroup {
     .mp { color: var(--text-muted); }
     .mp.active { color: var(--accent-amber); }
     .coords { color: var(--text-muted); margin-left: auto; }
-    .empty {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      padding: 0.4rem;
-      text-align: center;
-    }
   `,
 })
 export class UnitListPanelComponent {

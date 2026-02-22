@@ -54,9 +54,57 @@ const FILL_COLORS: Record<StellarObjectType, string> = {
   asteroid: '#808080',
   asteroid_field: '#606060',
   comet: '#40e0d0',
-  nebula: '#6a0dad',
+  nebula: 'rgba(106, 13, 173, 0.35)',
   black_hole: '#8b0000',
   empty: 'rgba(13, 17, 23, 0.35)',
+};
+
+// Celestial bodies rendered as stroked circles instead of flat hex fills
+const CELESTIAL_CIRCLE: Record<string, { stroke: string; radiusRatio: number; lineWidth: number }> = {
+  star:   { stroke: '#f0c040', radiusRatio: 0.55, lineWidth: 2.5 },
+  planet: { stroke: '#4080d0', radiusRatio: 0.40, lineWidth: 2.0 },
+  moon:   { stroke: '#a0a0b0', radiusRatio: 0.28, lineWidth: 1.5 },
+};
+
+// Asteroid debris configuration per type
+interface AsteroidDebrisConfig {
+  /** Number of debris pieces: [min, max] */
+  count: [number, number];
+  /** Size range of each square (fraction of hexSize): [min, max] */
+  sizeRange: [number, number];
+  /** Global alpha range: [min, max] */
+  alphaRange: [number, number];
+  /** Palette of earthy/rocky RGBA base colors */
+  palette: string[];
+}
+
+const ASTEROID_DEBRIS: Record<'asteroid' | 'asteroid_field', AsteroidDebrisConfig> = {
+  asteroid: {
+    count: [4, 8],
+    sizeRange: [0.04, 0.10],
+    alphaRange: [0.3, 0.6],
+    palette: [
+      '#6b5b4f', // warm dark brown
+      '#7a6e63', // medium brown
+      '#5c5550', // dark gray-brown
+      '#8a7d72', // tan
+      '#4e4842', // charcoal brown
+    ],
+  },
+  asteroid_field: {
+    count: [10, 20],
+    sizeRange: [0.05, 0.16],
+    alphaRange: [0.4, 0.8],
+    palette: [
+      '#6b5b4f', // warm dark brown
+      '#7a6e63', // medium brown
+      '#8a7d72', // tan
+      '#5c5550', // dark gray-brown
+      '#4e4842', // charcoal brown
+      '#9a8b7a', // light sandy
+      '#a09080', // pale rock
+    ],
+  },
 };
 
 @Injectable({ providedIn: 'root' })
@@ -379,8 +427,22 @@ export class HexCanvasRendererService {
       const ly = y - offsetY;
 
       const objType = hex.object?.type ?? 'empty';
-      tctx.fillStyle = FILL_COLORS[objType] ?? FILL_COLORS.empty;
+      const celestial = CELESTIAL_CIRCLE[objType];
+      const isAsteroid = objType === 'asteroid' || objType === 'asteroid_field';
+
+      // Celestial bodies and asteroids use the default space background
+      tctx.fillStyle = (celestial || isAsteroid) ? FILL_COLORS.empty : (FILL_COLORS[objType] ?? FILL_COLORS.empty);
       this.drawHex(tctx, lx, ly, hexSize);
+
+      // Draw scattered debris pattern for asteroids
+      if (isAsteroid) {
+        this.drawAsteroidDebris(tctx, lx, ly, hexSize, hex.q, hex.r, objType as 'asteroid' | 'asteroid_field');
+      }
+
+      // Draw stroked circle indicator for celestial bodies
+      if (celestial) {
+        this.drawCelestialCircle(tctx, lx, ly, hexSize, celestial);
+      }
     }
 
     chunk.dirty = false;
@@ -822,5 +884,22 @@ export class HexCanvasRendererService {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+  }
+
+  private drawCelestialCircle(
+    ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    hexSize: number,
+    config: { stroke: string; radiusRatio: number; lineWidth: number },
+  ): void {
+    ctx.save();
+    const r = hexSize * config.radiusRatio;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = config.stroke;
+    ctx.lineWidth = config.lineWidth;
+    ctx.stroke();
+    ctx.restore();
   }
 }

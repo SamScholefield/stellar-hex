@@ -14,8 +14,8 @@ interface ResearchOption {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (building(); as b) {
-      <div class="menu">
-        <div class="title">Research Lab</div>
+      <div class="menu-panel">
+        <div class="menu-title">Research Lab</div>
 
         @if (queue().length > 0) {
           <div class="queue-section">
@@ -23,7 +23,7 @@ interface ResearchOption {
             @for (item of queue(); track item.techId) {
               <div class="queue-item">
                 <span>{{ techName(item.techId) }}</span>
-                <span class="turns">{{ item.turnsRemaining }} turn{{ item.turnsRemaining > 1 ? 's' : '' }}</span>
+                <span class="queue-turns">{{ item.turnsRemaining }} turn{{ item.turnsRemaining > 1 ? 's' : '' }}</span>
               </div>
             }
           </div>
@@ -33,14 +33,14 @@ interface ResearchOption {
           <div class="section-title">Available Research</div>
           @for (opt of options(); track opt.techId) {
             <button
-              class="research-option"
+              class="menu-option"
               [class.disabled]="!opt.affordable"
               [disabled]="!opt.affordable"
               (click)="onResearch(opt.techId)"
             >
-              <span class="name">{{ opt.def.name }}</span>
+              <span class="menu-option-name">{{ opt.def.name }}</span>
               <span class="bonus">{{ bonusLabel(opt.def) }}</span>
-              <span class="cost">
+              <span class="cost-row">
                 @for (c of costEntries(opt.def); track c.key) {
                   <span class="cost-item" [class.sufficient]="c.current >= c.value">{{ c.current }}/{{ c.value }} {{ c.key }}</span>
                 }
@@ -53,44 +53,8 @@ interface ResearchOption {
     }
   `,
   styles: `
-    .menu {
-      background: var(--panel-bg-solid);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
-      padding: 0.5rem;
-      min-width: 180px;
-      margin-top: 0.5rem;
-    }
-    .title {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.25rem;
-      padding: 0 0.25rem;
-    }
     .queue-section {
-      padding: 0.25rem;
-      background: #111827;
-      border-radius: 0.25rem;
       margin-bottom: 0.5rem;
-    }
-    .queue-title {
-      font-size: 0.7rem;
-      color: #6b7280;
-      margin-bottom: 0.15rem;
-    }
-    .queue-item {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: #e0e0e0;
-      padding: 0.1rem 0;
-    }
-    .turns {
-      color: #fbbf24;
-      font-size: 0.7rem;
     }
     .section-title {
       font-size: 0.7rem;
@@ -98,50 +62,9 @@ interface ResearchOption {
       margin-bottom: 0.15rem;
       padding: 0 0.25rem;
     }
-    .research-option {
-      display: flex;
-      flex-direction: column;
-      gap: 0.1rem;
-      width: 100%;
-      padding: 0.35rem 0.5rem;
-      background: var(--btn-bg);
-      border: 1px solid var(--btn-border);
-      border-radius: var(--panel-radius-sm);
-      cursor: pointer;
-      color: var(--text-primary);
-      text-align: left;
-      margin-bottom: 0.25rem;
-      transition: background 0.15s;
-    }
-    .research-option:hover:not(:disabled) {
-      background: var(--btn-border);
-    }
-    .research-option.disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-    .name {
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
     .bonus {
       font-size: 0.7rem;
       color: var(--accent-teal);
-    }
-    .cost {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .cost-item {
-      font-size: 0.7rem;
-      color: var(--accent-red);
-    }
-    .cost-item.sufficient {
-      color: var(--accent-teal);
-    }
-    .build-turns {
-      font-size: 0.7rem;
-      color: var(--text-muted);
     }
   `,
 })

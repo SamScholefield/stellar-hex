@@ -11,7 +11,7 @@ import { hexToPixel } from '../../shared/hex/hex-math';
   imports: [UpperCasePipe],
   template: `
     @if (unitData(); as unit) {
-      <div class="panel glass">
+      <div class="panel">
         <div class="header">
           <span class="unit-type clickable" (click)="centerOnUnit(unit.q, unit.r)">{{ unit.name }}</span>
           @if (isEnemy(unit.ownerId)) {
@@ -78,26 +78,8 @@ import { hexToPixel } from '../../shared/hex/hex-math';
   `,
   styles: `
     .panel {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: var(--panel-radius);
       padding: 0.75rem 1rem;
       min-width: 180px;
-    }
-    .glass {
-      position: relative;
-      overflow: hidden;
-      border-radius: 9px;
-      background: linear-gradient(165deg, var(--glass-tint) 0%, var(--glass-bg) 100%);
-      backdrop-filter: blur(18px) saturate(1.3);
-      -webkit-backdrop-filter: blur(18px) saturate(1.3);
-      border: 1px solid var(--glass-border);
-
-      --glass-tint: rgba(180, 200, 210, 0.06);
-      --glass-bg: rgba(10, 12, 18, 0.55);
-      --glass-border: rgba(255, 255, 255, 0.12);
-      --led-color: #4ade80;
-      --heading-color: rgba(255, 255, 255, 0.5);
     }
     .header {
       display: flex;
