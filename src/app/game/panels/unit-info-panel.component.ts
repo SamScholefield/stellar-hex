@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { UpperCasePipe } from '@angular/common';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
+import { CameraService } from '../../core/camera/camera.service';
+import { hexToPixel } from '../../shared/hex/hex-math';
 
 @Component({
   selector: 'app-unit-info-panel',
@@ -11,7 +13,7 @@ import { GameStateService } from '../../core/state/game-state.service';
     @if (unitData(); as unit) {
       <div class="panel glass">
         <div class="header">
-          <span class="unit-type">{{ unit.name }}</span>
+          <span class="unit-type clickable" (click)="centerOnUnit(unit.q, unit.r)">{{ unit.name }}</span>
           @if (isEnemy(unit.ownerId)) {
             <span class="owner">{{ ownerName(unit.ownerId) }}</span>
           }
@@ -109,6 +111,12 @@ import { GameStateService } from '../../core/state/game-state.service';
       color: var(--text-primary);
       text-transform: capitalize;
     }
+    .unit-type.clickable {
+      cursor: pointer;
+    }
+    .unit-type.clickable:hover {
+      color: var(--accent-teal, #5eead4);
+    }
     .owner {
       font-size: 0.7rem;
       color: var(--text-muted);
@@ -185,8 +193,14 @@ import { GameStateService } from '../../core/state/game-state.service';
 export class UnitInfoPanelComponent {
   private readonly selection = inject(SelectionService);
   private readonly gameState = inject(GameStateService);
+  private readonly camera = inject(CameraService);
 
   readonly unitData = this.selection.selectedUnitData;
+
+  centerOnUnit(q: number, r: number): void {
+    const { x, y } = hexToPixel(q, r, 30);
+    this.camera.centerOn(x, y);
+  }
 
   isEnemy(ownerId: string): boolean {
     return ownerId !== this.gameState.humanPlayer()?.id;
