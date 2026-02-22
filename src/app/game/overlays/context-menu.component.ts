@@ -10,7 +10,7 @@ import { UndoService } from '../../core/state/undo.service';
 
 import { WaypointService } from '../../core/state/waypoint.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance, hexesInRange, pixelToHex } from '../../shared/hex/hex-math';
+import { hexDistance, hexesInRange, hexNeighbors, pixelToHex } from '../../shared/hex/hex-math';
 import { attackWithResult } from '../../core/state/game-reducer';
 import { getReachableHexes, getUnitCostOverride } from '../../core/pathfinding/hex-pathfinder';
 import { BuildingType, BuildingStats, BUILDING_STATS, ANOMALY_REWARDS } from '../../models/game-state';
@@ -236,6 +236,13 @@ export class ContextMenuComponent {
                 return hd?.object?.type === 'planet';
               });
               if (!hasPlanet) continue;
+            }
+            if (type === 'solar_collector') {
+              const hasAdjacentStar = hexNeighbors(hex.q, hex.r).some(n => {
+                const hd = this.chunkManager.getHex(n.q, n.r);
+                return hd?.object?.type === 'star';
+              });
+              if (!hasAdjacentStar) continue;
             }
             const affordable = resources.energy >= (stats.cost.energy ?? 0)
               && resources.minerals >= (stats.cost.minerals ?? 0)

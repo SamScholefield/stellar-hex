@@ -218,6 +218,15 @@ export function scoreBuild(
           if (!hasPlanet) continue;
         }
 
+        // Solar collector requires adjacent star
+        if (bt === 'solar_collector') {
+          const hasAdjacentStar = hexNeighbors(hex.q, hex.r).some(n => {
+            const hd = hexLookup(n.q, n.r);
+            return hd?.object?.type === 'star';
+          });
+          if (!hasAdjacentStar) continue;
+        }
+
         // Score: yield per cost ratio
         const totalYield = (stats.yield.energy ?? 0) + (stats.yield.minerals ?? 0)
           + (stats.yield.alloys ?? 0) + (stats.yield.credits ?? 0);
