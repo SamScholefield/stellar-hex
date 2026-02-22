@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
-import { BuildingData, BUILDING_STATS } from '../../models/game-state';
+import { BuildingData, BUILDING_STATS, TECH_TREE, TechId } from '../../models/game-state';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 import { ProductionQueueComponent } from './production-queue.component';
 
@@ -56,6 +56,17 @@ import { ProductionQueueComponent } from './production-queue.component';
             </div>
             @if (b.productionQueue && b.productionQueue.length > 0) {
               <app-production-queue [items]="b.productionQueue" />
+            }
+            @if (b.researchQueue && b.researchQueue.length > 0) {
+              <div class="research-queue">
+                <div class="queue-title">Researching</div>
+                @for (item of b.researchQueue; track item.techId) {
+                  <div class="queue-item">
+                    <span>{{ techName(item.techId) }}</span>
+                    <span class="turns">{{ item.turnsRemaining }}T</span>
+                  </div>
+                }
+              </div>
             }
           </div>
         }
@@ -136,6 +147,28 @@ import { ProductionQueueComponent } from './production-queue.component';
       display: block;
       margin-top: 0.5rem;
     }
+    .research-queue {
+      margin-top: 0.5rem;
+      padding: 0.25rem;
+      background: #111827;
+      border-radius: 0.25rem;
+    }
+    .queue-title {
+      font-size: 0.7rem;
+      color: #6b7280;
+      margin-bottom: 0.15rem;
+    }
+    .queue-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #e0e0e0;
+      padding: 0.1rem 0;
+    }
+    .turns {
+      color: #fbbf24;
+      font-size: 0.7rem;
+    }
   `,
 })
 export class HexInfoPanelComponent {
@@ -154,6 +187,10 @@ export class HexInfoPanelComponent {
 
   ownerName(ownerId: string): string {
     return this.gameState.playerNames().get(ownerId) ?? ownerId;
+  }
+
+  techName(techId: TechId): string {
+    return TECH_TREE[techId]?.name ?? techId;
   }
 
   buildingYield(b: BuildingData): { key: string; value: number }[] {
