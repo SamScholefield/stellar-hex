@@ -92,6 +92,11 @@ export class ChunkManagerService {
     return coords;
   }
 
+  /** Discard all cached chunks (e.g. when starting a new game with a new seed). */
+  clearCache(): void {
+    this.cache.clear();
+  }
+
   /** Mark the chunk containing hex (q, r) as dirty. */
   markDirty(q: number, r: number): void {
     const cx = Math.floor(q / CHUNK_SIZE);

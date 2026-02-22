@@ -1,10 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
-import { GameState, PlayerState, Resources, UnitData, UnitType, UNIT_STATS, generateUnitName } from '../../models/game-state';
+import { GameState, PlayerState, Resources, UnitData, UnitType, UNIT_STATS, BuildingData, BUILDING_STATS, generateUnitName } from '../../models/game-state';
 import { GameStateService } from './game-state.service';
 import { GameSaveService } from './game-save.service';
 import { EventLogService } from './event-log.service';
+import { UndoService } from './undo.service';
 import { WaypointService } from './waypoint.service';
+import { SelectionService } from '../selection/selection.service';
+import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
 import { hexToPixel, hexDistance, hexesInRange } from '../../shared/hex/hex-math';
@@ -28,8 +31,10 @@ const BASE_POSITIONS: { q: number; r: number }[] = [
   { q: 20, r: 10 },
 ];
 
-/** Max hex distance from a planet for a spawn point (scout 4 MP x 2 turns). */
-const SPAWN_PLANET_RANGE = 8;
+/** Preferred max hex distance from a star for a spawn point. */
+const SPAWN_STAR_RANGE = 4;
+/** Widened search range if preferred range has no valid hex. */
+const SPAWN_STAR_RANGE_MAX = 8;
 
 function makeStartResources(): Resources {
   return { energy: 100, minerals: 50, alloys: 20, credits: 50 };
@@ -62,7 +67,10 @@ export class GameInitService {
   private readonly gameState = inject(GameStateService);
   private readonly gameSave = inject(GameSaveService);
   private readonly eventLog = inject(EventLogService);
+  private readonly undoSvc = inject(UndoService);
   private readonly waypointSvc = inject(WaypointService);
+  private readonly selectionSvc = inject(SelectionService);
+  private readonly chunkManager = inject(ChunkManagerService);
   private readonly worldGenerator = inject(WorldGeneratorService);
   private readonly camera = inject(CameraService);
   private readonly router = inject(Router);
@@ -70,7 +78,10 @@ export class GameInitService {
   newGame(config: NewGameConfig): void {
     this.eventLog.clear();
     this.waypointSvc.clearAll();
+    this.undoSvc.clearHistory();
+    this.selectionSvc.deselectAll();
     this.gameSave.deleteSave();
+    this.chunkManager.clearCache();
     const seed = config.seed ?? Date.now();
     this.worldGenerator.setSeed(seed);
 
@@ -102,19 +113,46 @@ export class GameInitService {
 
     const takenPositions = new Set<string>();
     const units = new Map<string, UnitData>();
+    const buildings = new Map<string, BuildingData>();
+    const starbaseStats = BUILDING_STATS.starbase;
+    const scoutStats = UNIT_STATS.scout;
+    const revealRange = Math.max(starbaseStats.sightRange, scoutStats.sightRange);
+
+    // Spawn human player first, then track their visible hexes
+    let humanVisibleHexes: Set<string> | null = null;
+
     for (let i = 0; i < players.length; i++) {
       const base = BASE_POSITIONS[i % BASE_POSITIONS.length];
-      const pos = this.findSpawnNearPlanet(base.q, base.r, takenPositions);
+      const pos = this.findSpawnNearStar(base.q, base.r, takenPositions, humanVisibleHexes);
       takenPositions.add(`${pos.q},${pos.r}`);
 
+      // Place starting starbase
+      const starbaseId = `starbase-${players[i].id}`;
+      buildings.set(starbaseId, {
+        id: starbaseId,
+        ownerId: players[i].id,
+        type: 'starbase',
+        q: pos.q,
+        r: pos.r,
+        health: starbaseStats.maxHealth,
+        maxHealth: starbaseStats.maxHealth,
+      });
+      players[i].homeBaseId = starbaseId;
+
+      // Place starting scout on the same hex
       const name = generateUnitName('scout', units);
       const unit = makeUnit(`scout-${players[i].id}`, name, players[i].id, 'scout', pos.q, pos.r);
       units.set(unit.id, unit);
 
-      // Reveal starting area
-      const visible = hexesInRange({ q: pos.q, r: pos.r, s: -pos.q - pos.r }, unit.sightRange);
+      // Reveal starting area (starbase sightRange is larger than scout)
+      const visible = hexesInRange({ q: pos.q, r: pos.r, s: -pos.q - pos.r }, revealRange);
       for (const hex of visible) {
         players[i].exploredHexes.add(`${hex.q},${hex.r}`);
+      }
+
+      // After human spawn, record their visible hexes so AI spawns avoid them
+      if (i === 0) {
+        humanVisibleHexes = new Set(players[0].exploredHexes);
       }
     }
 
@@ -123,7 +161,7 @@ export class GameInitService {
       currentPlayerIndex: 0,
       players,
       units,
-      buildings: new Map(),
+      buildings,
       dynamicObjects: new Map(),
       chunkOverrides: new Map(),
       anomalies: new Map(),
@@ -133,68 +171,60 @@ export class GameInitService {
     this.gameState.setState(state);
 
     // Center camera on player 0's starting position
-    const p0Unit = units.get(`scout-${players[0].id}`)!;
-    const { x, y } = hexToPixel(p0Unit.q, p0Unit.r, 30);
+    const p0Base = buildings.get(`starbase-${players[0].id}`)!;
+    const { x, y } = hexToPixel(p0Base.q, p0Base.r, 30);
     this.camera.centerOn(x, y);
 
     this.router.navigate(['/game']);
   }
 
-  /** Find a spawn hex within SPAWN_PLANET_RANGE of a planet, near the base position. */
-  private findSpawnNearPlanet(
+  /**
+   * Find a spawn hex near a star hex, on empty/nebula (valid for starbase).
+   * If excludeHexes is provided, candidates within that set are rejected
+   * (used to keep AI spawns outside the human player's starting vision).
+   */
+  private findSpawnNearStar(
     baseQ: number,
     baseR: number,
     takenPositions: Set<string>,
+    excludeHexes: Set<string> | null,
   ): { q: number; r: number } {
     const base: HexCoord = { q: baseQ, r: baseR, s: -baseQ - baseR };
+    const starbaseAllowed = new Set(BUILDING_STATS.starbase.allowedHexTypes);
 
-    // Find nearby star systems and scan orbital rings for planets
+    // Collect all star hexes from nearby systems (stars are at system centers)
     const systems = this.worldGenerator.getNearbySystems(baseQ, baseR);
-    let nearestPlanet: HexCoord | null = null;
-    let nearestDist = Infinity;
-
+    const stars: { star: HexCoord; dist: number }[] = [];
     for (const sys of systems) {
-      const orbitals = hexesInRange(sys.center, 4);
-      for (const hex of orbitals) {
-        if (hexDistance(hex, sys.center) < 2) continue;
-        const obj = this.worldGenerator.getHexObject(hex.q, hex.r);
-        if (obj?.type === 'planet') {
-          const d = hexDistance(hex, base);
-          if (d < nearestDist) {
-            nearestDist = d;
-            nearestPlanet = hex;
-          }
+      const obj = this.worldGenerator.getHexObject(sys.center.q, sys.center.r);
+      if (obj?.type === 'star') {
+        stars.push({ star: sys.center, dist: hexDistance(sys.center, base) });
+      }
+    }
+    stars.sort((a, b) => a.dist - b.dist);
+
+    // Try each star, preferring the closest to base position
+    for (const { star } of stars) {
+      // First try preferred range, then widen if needed
+      for (const range of [SPAWN_STAR_RANGE, SPAWN_STAR_RANGE_MAX]) {
+        const candidates = hexesInRange(star, range);
+        // Sort by distance to star (spawn close to star for solar collector access)
+        candidates.sort((a, b) => hexDistance(a, star) - hexDistance(b, star));
+
+        for (const hex of candidates) {
+          const key = `${hex.q},${hex.r}`;
+          if (takenPositions.has(key)) continue;
+          if (excludeHexes?.has(key)) continue;
+          const obj = this.worldGenerator.getHexObject(hex.q, hex.r);
+          const hexType = obj?.type ?? 'empty';
+          if (!starbaseAllowed.has(hexType)) continue;
+          return { q: hex.q, r: hex.r };
         }
       }
     }
 
-    // Base is already within range of a planet and on passable terrain
-    if (nearestPlanet && nearestDist <= SPAWN_PLANET_RANGE) {
-      const baseKey = `${baseQ},${baseR}`;
-      if (!takenPositions.has(baseKey)) {
-        const baseObj = this.worldGenerator.getHexObject(baseQ, baseR);
-        if (!baseObj || (baseObj.type !== 'star' && baseObj.type !== 'black_hole')) {
-          return { q: baseQ, r: baseR };
-        }
-      }
-    }
-
-    // Find an empty hex within SPAWN_PLANET_RANGE of the nearest planet
-    if (nearestPlanet) {
-      const candidates = hexesInRange(nearestPlanet, SPAWN_PLANET_RANGE);
-      // Prefer hexes closer to the base position
-      candidates.sort((a, b) => hexDistance(a, base) - hexDistance(b, base));
-
-      for (const hex of candidates) {
-        const key = `${hex.q},${hex.r}`;
-        if (takenPositions.has(key)) continue;
-        const obj = this.worldGenerator.getHexObject(hex.q, hex.r);
-        if (obj && (obj.type === 'star' || obj.type === 'black_hole')) continue;
-        return { q: hex.q, r: hex.r };
-      }
-    }
-
-    // Fallback: no planet found (extremely unlikely), use base
-    return { q: baseQ, r: baseR };
+    // Last resort: use an adjacent empty hex near the base position
+    const adjacentHex: HexCoord = { q: baseQ + 1, r: baseR, s: -baseQ - 1 - baseR };
+    return { q: adjacentHex.q, r: adjacentHex.r };
   }
 }
