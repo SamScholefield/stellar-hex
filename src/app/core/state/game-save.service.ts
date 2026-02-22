@@ -163,6 +163,18 @@ export class GameSaveService {
   private readonly _saves = signal<SaveEntry[]>(this.buildSaveList());
   readonly saves = this._saves.asReadonly();
 
+  /** The most recently saved entry (by savedAt timestamp), or null. */
+  readonly latestSave = computed<SaveEntry | null>(() => {
+    let latest: SaveEntry | null = null;
+    for (const entry of this._saves()) {
+      if (!entry.savedAt) continue;
+      if (!latest || entry.savedAt > latest.savedAt!) {
+        latest = entry;
+      }
+    }
+    return latest;
+  });
+
   autoSave(): void {
     const state = this.gameState.getState();
     const camera = {

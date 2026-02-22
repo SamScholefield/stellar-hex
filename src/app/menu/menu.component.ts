@@ -11,9 +11,10 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
   imports: [FormsModule, DatePipe],
   template: `
     <div class="layout">
-      <div class="column start-column">
-        <h1>Stellar Hex</h1>
-        <p class="subtitle">A hex-based real-time strategy game</p>
+      <h1>Stellar Hex</h1>
+      <p class="subtitle">A hex-based real-time strategy game</p>
+
+      <div class="start-row">
         <div class="form">
           <label>
             <span>Player Name</span>
@@ -30,14 +31,17 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
             </select>
           </label>
         </div>
-        <button class="primary" (click)="startGame()">New Game</button>
+        <div class="buttons">
+          <button class="primary" (click)="startGame()">New Game</button>
+          @if (saveSvc.latestSave(); as latest) {
+            <button class="continue" (click)="continueSave()">Continue</button>
+          }
+        </div>
       </div>
 
-      <div class="column saves-column">
-        <h2>Saved Games</h2>
-        @if (saveSvc.saves().length === 0) {
-          <p class="no-saves">No saved games found.</p>
-        } @else {
+      @if (saveSvc.saves().length > 0) {
+        <div class="saves-section">
+          <h2>Saved Games</h2>
           <table class="saves-table">
             <thead>
               <tr>
@@ -52,7 +56,9 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
                 <tr>
                   <td>{{ entry.playerName }}</td>
                   <td>{{ entry.turn }}</td>
-                  <td class="date-cell">{{ entry.savedAt ? (entry.savedAt | date:'short') : '—' }}</td>
+                  <td class="date-cell">
+                    {{ entry.savedAt ? (entry.savedAt | date: 'short') : '—' }}
+                  </td>
                   <td class="actions-cell">
                     <button class="btn-load" (click)="loadSave(entry)">Load</button>
                     <button class="btn-delete" (click)="deleteSave(entry)">Delete</button>
@@ -61,10 +67,11 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
               }
             </tbody>
           </table>
-        }
-        <div class="dev-actions">
-          <button class="btn-dev" (click)="installDevSaves()">Install Dev Saves</button>
         </div>
+      }
+
+      <div class="dev-actions">
+        <button class="btn-dev" (click)="installDevSaves()">Install Dev Saves</button>
       </div>
     </div>
   `,
@@ -75,19 +82,17 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
       justify-content: center;
       width: 100vw;
       height: 100vh;
+      overflow-y: auto;
       background: radial-gradient(ellipse at center, #0f1a2e 0%, #0a0a1a 70%);
     }
     .layout {
       display: flex;
-      gap: 4rem;
-      align-items: flex-start;
-      padding: 2rem;
-    }
-    .column {
-      min-width: 280px;
-    }
-    .start-column {
+      flex-direction: column;
+      align-items: center;
       text-align: center;
+      padding: 2rem;
+      width: 100%;
+      max-width: 600px;
     }
     h1 {
       font-size: 3.5rem;
@@ -104,11 +109,18 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
       color: #6b7280;
       margin-bottom: 2rem;
     }
+    .start-row {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      width: 100%;
+      margin-bottom: 2rem;
+    }
     .form {
       display: flex;
       flex-direction: column;
       gap: 1rem;
-      margin-bottom: 2rem;
+      flex: 1;
     }
     label {
       display: flex;
@@ -118,7 +130,8 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
       font-size: 0.9rem;
       color: #9ca3af;
     }
-    input, select {
+    input,
+    select {
       padding: 0.4rem 0.75rem;
       font-size: 0.9rem;
       color: #e0e0e0;
@@ -128,12 +141,19 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
       outline: none;
       width: 160px;
     }
-    input:focus, select:focus {
+    input:focus,
+    select:focus {
       border-color: #5eead4;
     }
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      flex-shrink: 0;
+    }
     .primary {
-      padding: 0.75rem 2.5rem;
-      font-size: 1.1rem;
+      padding: 0.65rem 2rem;
+      font-size: 1.05rem;
       font-weight: 600;
       color: #0a0a1a;
       background: linear-gradient(135deg, #5eead4, #818cf8);
@@ -145,20 +165,30 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
     .primary:hover {
       opacity: 0.85;
     }
-
-    /* Saves column */
-    .saves-column {
-      min-width: 380px;
+    .continue {
+      padding: 0.55rem 2rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #5eead4;
+      background: transparent;
+      border: 1px solid #5eead4;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .continue:hover {
+      background: rgba(94, 234, 212, 0.1);
+    }
+    .saves-section {
+      width: 100%;
+      margin-bottom: 1rem;
+      margin-top: 5rem;
     }
     h2 {
-      font-size: 1.4rem;
+      font-size: 1.2rem;
       font-weight: 600;
       color: #e0e0e0;
-      margin-bottom: 1rem;
-    }
-    .no-saves {
-      color: #6b7280;
-      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
     }
     .saves-table {
       width: 100%;
@@ -185,7 +215,8 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
       display: flex;
       gap: 0.4rem;
     }
-    .btn-load, .btn-delete {
+    .btn-load,
+    .btn-delete {
       padding: 0.25rem 0.6rem;
       font-size: 0.78rem;
       border-radius: 0.25rem;
@@ -210,7 +241,7 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
       border-color: #f87171;
     }
     .dev-actions {
-      margin-top: 1rem;
+      margin-top: 0.5rem;
     }
     .btn-dev {
       padding: 0.25rem 0.6rem;
@@ -244,6 +275,13 @@ export class MenuComponent {
       playerName: name,
       aiOpponents: this.aiOpponents,
     });
+  }
+
+  async continueSave(): Promise<void> {
+    const latest = this.saveSvc.latestSave();
+    if (!latest) return;
+    await this.audio.ensureContext();
+    this.saveSvc.loadFromKey(latest.key);
   }
 
   async loadSave(entry: SaveEntry): Promise<void> {
