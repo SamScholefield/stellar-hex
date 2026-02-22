@@ -42,7 +42,7 @@ interface ResearchOption {
               <span class="bonus">{{ bonusLabel(opt.def) }}</span>
               <span class="cost">
                 @for (c of costEntries(opt.def); track c.key) {
-                  <span class="cost-item">{{ c.value }} {{ c.key }}</span>
+                  <span class="cost-item" [class.sufficient]="c.current >= c.value">{{ c.current }}/{{ c.value }} {{ c.key }}</span>
                 }
                 <span class="build-turns">{{ opt.def.researchTurns }}T</span>
               </span>
@@ -136,6 +136,9 @@ interface ResearchOption {
       font-size: 0.7rem;
       color: var(--accent-red);
     }
+    .cost-item.sufficient {
+      color: var(--accent-teal);
+    }
     .build-turns {
       font-size: 0.7rem;
       color: var(--text-muted);
@@ -195,10 +198,11 @@ export class ResearchMenuComponent {
     return parts.join(', ');
   }
 
-  costEntries(def: TechDefinition): { key: string; value: number }[] {
+  costEntries(def: TechDefinition): { key: string; value: number; current: number }[] {
+    const resources = this.gameState.resources();
     return Object.entries(def.cost)
       .filter(([, v]) => v != null && v > 0)
-      .map(([k, v]) => ({ key: k, value: v! }));
+      .map(([k, v]) => ({ key: k, value: v!, current: (resources as Record<string, number> | null)?.[k] ?? 0 }));
   }
 
   onResearch(techId: TechId): void {

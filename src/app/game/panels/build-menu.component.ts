@@ -34,7 +34,7 @@ interface BuildOption {
             </span>
             <span class="cost">
               @for (c of costEntries(opt.stats); track c.key) {
-                <span class="cost-item">{{ c.value }} {{ c.key }}</span>
+                <span class="cost-item" [class.sufficient]="c.current >= c.value">{{ c.current }}/{{ c.value }} {{ c.key }}</span>
               }
             </span>
           </button>
@@ -103,6 +103,9 @@ interface BuildOption {
       font-size: 0.7rem;
       color: var(--accent-red);
     }
+    .cost-item.sufficient {
+      color: var(--accent-teal);
+    }
   `,
 })
 export class BuildMenuComponent {
@@ -130,10 +133,11 @@ export class BuildMenuComponent {
       .map(([k, v]) => ({ key: k, value: v! }));
   }
 
-  costEntries(stats: BuildingStats): { key: string; value: number }[] {
+  costEntries(stats: BuildingStats): { key: string; value: number; current: number }[] {
+    const resources = this.gameState.resources();
     return Object.entries(stats.cost)
       .filter(([, v]) => v != null && v > 0)
-      .map(([k, v]) => ({ key: k, value: v! }));
+      .map(([k, v]) => ({ key: k, value: v!, current: (resources as Record<string, number> | null)?.[k] ?? 0 }));
   }
 
   onBuild(type: BuildingType): void {

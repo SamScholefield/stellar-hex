@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { EventLogService, GameEvent } from '../../core/state/event-log.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { CameraService } from '../../core/camera/camera.service';
@@ -27,13 +22,14 @@ import { hexToPixel } from '../../shared/hex/hex-math';
             <div class="entry">
               <span class="turn">T{{ item.event.turn }}</span>
               @if (item.event.q != null) {
-                <a class="msg link" [class.ai]="isAI(item.event)" (click)="goTo(item.event)">{{ item.event.message }}</a>
+                <a class="msg link" [class.ai]="isAI(item.event)" (click)="goTo(item.event)">{{
+                  item.event.message
+                }}</a>
               } @else {
                 <span class="msg" [class.ai]="isAI(item.event)">{{ item.event.message }}</span>
               }
             </div>
-          }
-          @empty {
+          } @empty {
             <div class="empty">No events yet.</div>
           }
         </div>
@@ -78,7 +74,7 @@ import { hexToPixel } from '../../shared/hex/hex-math';
       padding: 0.25rem;
     }
     .entry {
-      font-size: 0.7rem;
+      font-size: 0.8rem;
       padding: 0.15rem 0.25rem;
       border-bottom: 1px solid var(--divider);
       animation: log-slide-in 0.3s ease-out;

@@ -98,4 +98,31 @@ export class EconomyService {
   readonly netIncome = computed<Resources>(() =>
     computeNetIncome(this.income(), this.upkeep())
   );
+
+  /** Human-pinned signals — never flash during AI turns. */
+  readonly humanIncome = computed<Resources>(() => {
+    const player = this.gameState.humanPlayer();
+    if (!player) return { energy: 0, minerals: 0, alloys: 0, credits: 0 };
+
+    const buildingIncome = computeIncome(this.gameState.buildings(), player.id);
+    const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+    const miningIncome = computeMiningDroneIncome(this.gameState.units(), player.id, hexLookup);
+
+    return {
+      energy: buildingIncome.energy + (miningIncome.energy ?? 0),
+      minerals: buildingIncome.minerals + (miningIncome.minerals ?? 0),
+      alloys: buildingIncome.alloys + (miningIncome.alloys ?? 0),
+      credits: buildingIncome.credits + (miningIncome.credits ?? 0),
+    };
+  });
+
+  readonly humanUpkeep = computed<Resources>(() => {
+    const player = this.gameState.humanPlayer();
+    if (!player) return { energy: 0, minerals: 0, alloys: 0, credits: 0 };
+    return computeUpkeep(this.gameState.units(), player.id);
+  });
+
+  readonly humanNetIncome = computed<Resources>(() =>
+    computeNetIncome(this.humanIncome(), this.humanUpkeep())
+  );
 }

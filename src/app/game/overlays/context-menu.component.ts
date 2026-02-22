@@ -74,7 +74,14 @@ export interface ContextMenuState {
             class="item build"
             [disabled]="!opt.affordable"
             (click)="onBuild(opt.type)"
-          >Build {{ opt.type | formatName }}</button>
+          >
+            <span>Build {{ opt.type | formatName }}</span>
+            <span class="cost-row">
+              @for (c of costEntries(opt.stats); track c.key) {
+                <span class="cost-tag" [class.sufficient]="c.current >= c.value">{{ c.current }}/{{ c.value }} {{ c.key }}</span>
+              }
+            </span>
+          </button>
         }
         <button class="item" (click)="onInspect()">Inspect</button>
       </div>
@@ -123,6 +130,22 @@ export interface ContextMenuState {
     }
     .item.attack-here {
       color: var(--accent-red);
+    }
+    .item.build {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .cost-row {
+      display: flex;
+      gap: 0.4rem;
+    }
+    .cost-tag {
+      font-size: 0.65rem;
+      color: var(--accent-red);
+    }
+    .cost-tag.sufficient {
+      color: var(--accent-teal);
     }
   `,
 })
@@ -415,6 +438,13 @@ export class ContextMenuComponent {
         this.selection.deselectAll();
       }
     });
+  }
+
+  costEntries(stats: BuildingStats): { key: string; value: number; current: number }[] {
+    const resources = this.gameState.currentPlayer()?.resources;
+    return Object.entries(stats.cost)
+      .filter(([, v]) => v != null && v > 0)
+      .map(([k, v]) => ({ key: k, value: v!, current: (resources as Record<string, number> | undefined)?.[k] ?? 0 }));
   }
 
   onBuild(buildingType: BuildingType): void {
