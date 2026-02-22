@@ -80,6 +80,19 @@ describe('computeInfluenceForPlayer', () => {
     expect(result.has('6,0')).toBe(false);
   });
 
+  it('extends influence range when sightRangeBonus is provided', () => {
+    const buildings = new Map<string, BuildingData>([
+      ['b1', makeBuilding({ id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0 })],
+    ]);
+    // mining_station base sightRange is 2, bonus of 2 → effective range 4
+    const result = computeInfluenceForPlayer(buildings, 'p1', 2);
+    expect(result.has('4,0')).toBe(true);
+    expect(result.has('0,4')).toBe(true);
+    expect(result.has('-4,0')).toBe(true);
+    // range 5 still out
+    expect(result.has('5,0')).toBe(false);
+  });
+
   it('deduplicates overlapping ranges', () => {
     const buildings = new Map<string, BuildingData>([
       ['b1', makeBuilding({ id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0 })],

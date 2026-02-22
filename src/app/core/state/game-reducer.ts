@@ -254,9 +254,13 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   );
   if (dist > attacker.range) return { newState: state, combat: null };
 
-  // Compute influence for combat modifiers
-  const attackerInfluence = computeInfluenceForPlayer(state.buildings, attacker.ownerId);
-  const defenderInfluence = computeInfluenceForPlayer(state.buildings, defender.ownerId);
+  // Compute influence for combat modifiers (include tech sight bonus)
+  const attackerPlayer = state.players.find(p => p.id === attacker.ownerId);
+  const defenderPlayer = state.players.find(p => p.id === defender.ownerId);
+  const attackerSightBonus = attackerPlayer ? (computeTechBonuses(attackerPlayer.researchedTechs).sightRange ?? 0) : 0;
+  const defenderSightBonus = defenderPlayer ? (computeTechBonuses(defenderPlayer.researchedTechs).sightRange ?? 0) : 0;
+  const attackerInfluence = computeInfluenceForPlayer(state.buildings, attacker.ownerId, attackerSightBonus);
+  const defenderInfluence = computeInfluenceForPlayer(state.buildings, defender.ownerId, defenderSightBonus);
   const combatOptions: CombatOptions = {
     attackerInOwnInfluence: attackerInfluence.has(`${attacker.q},${attacker.r}`),
     defenderInOwnInfluence: defenderInfluence.has(`${defender.q},${defender.r}`),
@@ -369,7 +373,8 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     );
 
     // Influence regen: +2 HP, +1 shield for units in own influence, not near enemies
-    const influence = computeInfluenceForPlayer(state.buildings, currentPlayer.id);
+    const regenSightBonus = computeTechBonuses(currentPlayer.researchedTechs).sightRange ?? 0;
+    const influence = computeInfluenceForPlayer(state.buildings, currentPlayer.id, regenSightBonus);
     for (const [id, unit] of units) {
       if (unit.ownerId !== currentPlayer.id) continue;
       const key = `${unit.q},${unit.r}`;

@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { GameStateService } from '../state/game-state.service';
-import { BUILDING_STATS, UNIT_STATS } from '../../models/game-state';
+import { BUILDING_STATS, UNIT_STATS, computeTechBonuses } from '../../models/game-state';
 import { computeInfluenceForPlayer } from './influence';
 
 @Injectable({ providedIn: 'root' })
@@ -17,7 +17,8 @@ export class InfluenceService {
   readonly humanInfluenceHexes = computed<Set<string>>(() => {
     const human = this.gameState.humanPlayer();
     if (!human) return new Set();
-    return computeInfluenceForPlayer(this.gameState.buildings(), human.id);
+    const sightBonus = computeTechBonuses(human.researchedTechs).sightRange ?? 0;
+    return computeInfluenceForPlayer(this.gameState.buildings(), human.id, sightBonus);
   });
 
   /** All hex keys within weapon range of the human player's armed units. */
