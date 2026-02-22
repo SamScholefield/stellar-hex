@@ -2,7 +2,8 @@ import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, Unit
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
-import { resolveCombat, CombatResult, maybePromote } from '../combat/combat-resolver';
+import { resolveCombat, CombatResult, CombatOptions, maybePromote } from '../combat/combat-resolver';
+import { computeInfluenceForPlayer, isNearAnyEnemyUnit } from '../influence/influence';
 import { GameAction } from './actions';
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -215,8 +216,18 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   );
   if (dist > attacker.range) return { newState: state, combat: null };
 
+  // Compute influence for combat modifiers
+  const attackerInfluence = computeInfluenceForPlayer(state.buildings, attacker.ownerId);
+  const defenderInfluence = computeInfluenceForPlayer(state.buildings, defender.ownerId);
+  const combatOptions: CombatOptions = {
+    attackerInOwnInfluence: attackerInfluence.has(`${attacker.q},${attacker.r}`),
+    defenderInOwnInfluence: defenderInfluence.has(`${defender.q},${defender.r}`),
+    attackerInEnemyInfluence: defenderInfluence.has(`${attacker.q},${attacker.r}`),
+    defenderInEnemyInfluence: attackerInfluence.has(`${defender.q},${defender.r}`),
+  };
+
   // Resolve combat
-  const combat = resolveCombat(attacker, defender, dist, state.seed + state.turn);
+  const combat = resolveCombat(attacker, defender, dist, state.seed + state.turn, combatOptions);
 
   const units = new Map(state.units);
 
@@ -318,6 +329,20 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     players = state.players.map((p, i) =>
       i === currentPlayerIndex ? { ...p, resources: newResources } : p
     );
+
+    // Influence regen: +2 HP, +1 shield for units in own influence, not near enemies
+    const influence = computeInfluenceForPlayer(state.buildings, currentPlayer.id);
+    for (const [id, unit] of units) {
+      if (unit.ownerId !== currentPlayer.id) continue;
+      const key = `${unit.q},${unit.r}`;
+      if (!influence.has(key)) continue;
+      if (isNearAnyEnemyUnit(unit.q, unit.r, units, currentPlayer.id)) continue;
+      const newHealth = Math.min(unit.health + 2, unit.maxHealth);
+      const newShields = Math.min(unit.shields + 1, unit.maxShields);
+      if (newHealth !== unit.health || newShields !== unit.shields) {
+        units.set(id, { ...unit, health: newHealth, shields: newShields });
+      }
+    }
   }
 
   // Process production queues for current player's starbases

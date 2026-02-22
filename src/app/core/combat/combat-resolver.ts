@@ -21,6 +21,13 @@ export interface CombatResult {
   defenderStrike: StrikeResult | null;
 }
 
+export interface CombatOptions {
+  attackerInOwnInfluence?: boolean;
+  defenderInOwnInfluence?: boolean;
+  attackerInEnemyInfluence?: boolean;
+  defenderInEnemyInfluence?: boolean;
+}
+
 /**
  * Resolve combat between attacker and defender.
  */
@@ -29,11 +36,22 @@ export function resolveCombat(
   defender: UnitData,
   attackerRange: number,
   seed: number,
+  options?: CombatOptions,
 ): CombatResult {
   const rng = seededRNG(seed);
 
+  // Compute influence damage multipliers
+  // Defender takes less damage in own influence, more in enemy influence
+  let defenderIncomingMul = 1.0;
+  if (options?.defenderInOwnInfluence) defenderIncomingMul *= 0.9;
+  if (options?.defenderInEnemyInfluence) defenderIncomingMul *= 1.1;
+
+  let attackerIncomingMul = 1.0;
+  if (options?.attackerInOwnInfluence) attackerIncomingMul *= 0.9;
+  if (options?.attackerInEnemyInfluence) attackerIncomingMul *= 1.1;
+
   // Attacker strikes
-  const attackerStrike = resolveStrike(attacker, defender, rng);
+  const attackerStrike = resolveStrike(attacker, defender, rng, defenderIncomingMul);
 
   // Apply attacker's strike to defender
   const defenderShieldsAfter = Math.max(0, defender.shields - attackerStrike.shieldDamage);
@@ -49,7 +67,7 @@ export function resolveCombat(
       shields: defenderShieldsAfter,
       health: defenderHealthAfter,
     };
-    defenderStrike = resolveStrike(defenderAfterHit, attacker, rng);
+    defenderStrike = resolveStrike(defenderAfterHit, attacker, rng, attackerIncomingMul);
   }
 
   const attackerHullDmg = defenderStrike?.hullDamage ?? 0;
@@ -94,6 +112,7 @@ function resolveStrike(
   striker: UnitData,
   target: UnitData,
   rng: { next(): number },
+  incomingDamageMul: number = 1.0,
 ): StrikeResult {
   if (striker.weapon == null) {
     return { rawDamage: 0, shieldDamage: 0, hullDamage: 0, isCrit: false };
@@ -123,6 +142,9 @@ function resolveStrike(
   // 5. Variance: ±10%
   const variance = damage * 0.10 * (2 * rng.next() - 1);
   damage += variance;
+
+  // 5b. Influence multiplier
+  damage *= incomingDamageMul;
 
   // 6. Shield absorption — laser deals bonus damage to shields
   const shieldDamage = Math.min(Math.ceil(damage * weaponStats.shieldBonus), target.shields);

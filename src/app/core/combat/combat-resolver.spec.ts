@@ -274,6 +274,42 @@ describe('resolveCombat', () => {
   });
 });
 
+describe('resolveCombat with CombatOptions', () => {
+  it('no options: identical behavior (backward compat)', () => {
+    const attacker = makeUnit({ id: 'a', attack: 10 });
+    const defender = makeUnit({ id: 'd', ownerId: 'p2', shields: 0, maxShields: 0, armor: 0, health: 50, maxHealth: 50 });
+    const r1 = resolveCombat(attacker, defender, 1, 42);
+    const r2 = resolveCombat(attacker, defender, 1, 42, {});
+    expect(r1).toEqual(r2);
+  });
+
+  it('defender in own influence takes less damage', () => {
+    const attacker = makeUnit({ id: 'a', attack: 10 });
+    const defender = makeUnit({ id: 'd', ownerId: 'p2', shields: 0, maxShields: 0, armor: 0, health: 100, maxHealth: 100 });
+
+    let totalWithout = 0;
+    let totalWith = 0;
+    for (let seed = 0; seed < 50; seed++) {
+      totalWithout += resolveCombat(attacker, defender, 1, seed).defenderDamage;
+      totalWith += resolveCombat(attacker, defender, 1, seed, { defenderInOwnInfluence: true }).defenderDamage;
+    }
+    expect(totalWith).toBeLessThan(totalWithout);
+  });
+
+  it('defender in enemy influence takes more damage', () => {
+    const attacker = makeUnit({ id: 'a', attack: 10 });
+    const defender = makeUnit({ id: 'd', ownerId: 'p2', shields: 0, maxShields: 0, armor: 0, health: 100, maxHealth: 100 });
+
+    let totalWithout = 0;
+    let totalWith = 0;
+    for (let seed = 0; seed < 50; seed++) {
+      totalWithout += resolveCombat(attacker, defender, 1, seed).defenderDamage;
+      totalWith += resolveCombat(attacker, defender, 1, seed, { defenderInEnemyInfluence: true }).defenderDamage;
+    }
+    expect(totalWith).toBeGreaterThan(totalWithout);
+  });
+});
+
 describe('maybePromote', () => {
   it('returns standard below 50 XP', () => {
     expect(maybePromote('standard', 0)).toBe('standard');

@@ -95,6 +95,8 @@ export class HelpPanelComponent {
     { key: 'Tab / Shift+Tab', action: 'Cycle through owned units' },
     { key: 'B', action: 'Open build menu at selected hex' },
     { key: 'H', action: 'Center on home base' },
+    { key: 'I', action: 'Toggle influence overlay' },
+    { key: 'R', action: 'Toggle attack range overlay' },
     { key: 'Escape', action: 'Deselect / close panels' },
     { key: 'Ctrl+Z', action: 'Undo last action' },
     { key: '?', action: 'Toggle this help panel' },

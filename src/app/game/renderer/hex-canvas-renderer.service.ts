@@ -24,6 +24,8 @@ const FOG_UNEXPLORED_REACHABLE = 'rgba(0, 0, 0, 0.5)';
 const FOG_UNEXPLORED = 'rgba(0, 0, 0, 0.9)';
 const RANGE_VISIBLE = 'rgba(59, 130, 246, 0.15)';
 const RANGE_FOG = 'rgba(59, 130, 246, 0.3)';
+const INFLUENCE_OVERLAY = 'rgba(34, 197, 94, 0.12)';
+const ATTACK_RANGE_OVERLAY = 'rgba(239, 68, 68, 0.12)';
 
 // Starfield parallax background
 const STAR_TILE_SIZE = 256;       // virtual tile size in screen pixels
@@ -67,6 +69,8 @@ export class HexCanvasRendererService {
     combatAnimation?: CombatAnimation | null,
     anomalies?: Map<string, Anomaly>,
     waypoints?: Map<string, Waypoint>,
+    influenceOverlay?: Set<string> | null,
+    attackRangeOverlay?: Set<string> | null,
   ): void {
     const w = camera.canvasWidth();
     const h = camera.canvasHeight();
@@ -101,6 +105,24 @@ export class HexCanvasRendererService {
             this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, fogColor, null);
           }
         }
+      }
+    }
+
+    // Influence overlay — drawn after fog, before buildings
+    if (influenceOverlay) {
+      for (const key of influenceOverlay) {
+        if (hasFog && !visibleHexes!.has(key) && !exploredHexes!.has(key)) continue;
+        const [q, r] = key.split(',').map(Number);
+        this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, INFLUENCE_OVERLAY, null);
+      }
+    }
+
+    // Attack range overlay
+    if (attackRangeOverlay) {
+      for (const key of attackRangeOverlay) {
+        if (hasFog && !visibleHexes!.has(key) && !exploredHexes!.has(key)) continue;
+        const [q, r] = key.split(',').map(Number);
+        this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, ATTACK_RANGE_OVERLAY, null);
       }
     }
 

@@ -16,6 +16,7 @@ import { ChunkManagerService } from '../core/chunks/chunk-manager.service';
 
 import { AudioService } from '../core/audio/audio.service';
 import { WaypointService } from '../core/state/waypoint.service';
+import { InfluenceService } from '../core/influence/influence.service';
 import { ANOMALY_REWARDS } from '../models/game-state';
 import { hexToPixel } from '../shared/hex/hex-math';
 
@@ -91,6 +92,7 @@ export class GameComponent implements OnDestroy {
 
   private readonly audio = inject(AudioService);
   private readonly waypointSvc = inject(WaypointService);
+  private readonly influenceSvc = inject(InfluenceService);
   private readonly el = inject(ElementRef);
   private readonly clickPopup = viewChild(ClickPopupComponent);
   private readonly contextMenu = viewChild(ContextMenuComponent);
@@ -260,6 +262,14 @@ export class GameComponent implements OnDestroy {
         }
         break;
       }
+      case 'i':
+      case 'I':
+        this.influenceSvc.toggleInfluenceOverlay();
+        break;
+      case 'r':
+      case 'R':
+        this.influenceSvc.toggleAttackRangeOverlay();
+        break;
       case 'h':
       case 'H': {
         const homeId = this.gameState.homeBaseId();

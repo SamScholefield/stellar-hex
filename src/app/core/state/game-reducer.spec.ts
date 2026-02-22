@@ -831,6 +831,83 @@ describe('gameReducer', () => {
     });
   });
 
+  describe('END_TURN influence regen', () => {
+    it('heals unit in own influence with no enemies nearby', () => {
+      // Place a building and a damaged unit at the same location
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+      ]);
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0, health: 10 })],
+        // Need a p2 unit far away so p2 isn't eliminated
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p2', type: 'scout', q: 50, r: 50 })],
+      ]);
+      const state = makeState({ buildings, units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      const unit = next.units.get('u1')!;
+      expect(unit.health).toBe(12); // 10 + 2
+    });
+
+    it('caps HP at maxHealth', () => {
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+      ]);
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0, health: 14 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p2', type: 'scout', q: 50, r: 50 })],
+      ]);
+      const state = makeState({ buildings, units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      const unit = next.units.get('u1')!;
+      // maxHealth for fighter is 15, 14 + 2 = 16 -> capped at 15
+      expect(unit.health).toBe(UNIT_STATS.fighter.maxHealth);
+    });
+
+    it('regens shields up to maxShields', () => {
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+      ]);
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0, shields: 0 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p2', type: 'scout', q: 50, r: 50 })],
+      ]);
+      const state = makeState({ buildings, units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      const unit = next.units.get('u1')!;
+      expect(unit.shields).toBe(1); // 0 + 1
+    });
+
+    it('does NOT regen unit outside influence', () => {
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
+      ]);
+      const units = new Map<string, UnitData>([
+        // mining_station sightRange is 2, unit at distance 5 is outside influence
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 5, r: 5, health: 10 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p2', type: 'scout', q: 50, r: 50 })],
+      ]);
+      const state = makeState({ buildings, units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      const unit = next.units.get('u1')!;
+      expect(unit.health).toBe(10); // unchanged
+    });
+
+    it('does NOT regen unit near an enemy', () => {
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+      ]);
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0, health: 10 })],
+        // Enemy scout at distance 1 — scout sightRange=4, so 0,0 is within range
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p2', type: 'scout', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ buildings, units });
+      const next = gameReducer(state, { type: 'END_TURN' });
+      const unit = next.units.get('u1')!;
+      expect(unit.health).toBe(10); // unchanged
+    });
+  });
+
   describe('pure helpers', () => {
     it('computeUpkeepForPlayer sums upkeep for player units', () => {
       const units = new Map<string, UnitData>([

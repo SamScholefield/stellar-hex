@@ -23,6 +23,7 @@ import { hexToPixel, pixelToHex } from '../../shared/hex/hex-math';
 import { findPath, getReachableHexes, getUnitCostOverride, pathCost } from '../../core/pathfinding/hex-pathfinder';
 import { VisionService } from '../../core/vision/vision.service';
 import { WaypointService } from '../../core/state/waypoint.service';
+import { InfluenceService } from '../../core/influence/influence.service';
 import { SpriteAtlasService } from '../../core/sprites/sprite-atlas.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 
@@ -70,6 +71,7 @@ export class GameViewportComponent implements OnDestroy {
   private readonly undo = inject(UndoService);
   private readonly spriteAtlas = inject(SpriteAtlasService);
   private readonly waypointSvc = inject(WaypointService);
+  private readonly influenceSvc = inject(InfluenceService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
   readonly showClickPopup = output<{ clientX: number; clientY: number }>();
@@ -177,11 +179,13 @@ export class GameViewportComponent implements OnDestroy {
       const buildings = this.gameState.buildings();
       const anomalies = this.gameState.anomalies();
       const waypoints = this.waypointSvc.waypoints();
+      const influenceHexes = this.influenceSvc.showInfluenceOverlay() ? this.influenceSvc.humanInfluenceHexes() : null;
+      const attackRangeHexes = this.influenceSvc.showAttackRangeOverlay() ? this.influenceSvc.humanAttackRangeHexes() : null;
 
       const canvas = this.canvasRef().nativeElement;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId, buildings, null, combatAnim, anomalies, waypoints);
+        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId, buildings, null, combatAnim, anomalies, waypoints, influenceHexes, attackRangeHexes);
       }
     });
   }

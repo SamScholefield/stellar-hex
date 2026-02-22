@@ -1,5 +1,6 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { GameStateService } from '../state/game-state.service';
+import { BUILDING_STATS } from '../../models/game-state';
 
 // Cache hex offsets by sight range to avoid repeated allocations in hexesInRange()
 const rangeOffsetCache = new Map<number, ReadonlyArray<{ dq: number; dr: number }>>();
@@ -112,7 +113,7 @@ export class VisionService {
     }
     for (const building of this.gameState.buildings().values()) {
       if (building.ownerId === playerId) {
-        sources.push({ q: building.q, r: building.r, sightRange: 2 });
+        sources.push({ q: building.q, r: building.r, sightRange: BUILDING_STATS[building.type].sightRange });
       }
     }
     return sources;

@@ -18,6 +18,7 @@ import { AIService } from '../../core/ai/ai.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { CameraService } from '../../core/camera/camera.service';
 import { UndoService } from '../../core/state/undo.service';
+import { InfluenceService } from '../../core/influence/influence.service';
 import { hexToPixel } from '../../shared/hex/hex-math';
 import { BuildingData, UnitType } from '../../models/game-state';
 
@@ -32,6 +33,8 @@ import { BuildingData, UnitType } from '../../models/game-state';
         @if (homeBase(); as hb) {
           <button class="home-btn" (click)="focusHome(hb)">&#8962; Home</button>
         }
+        <button class="overlay-btn" [class.active]="influenceActive()" (click)="toggleInfluence()">Influence</button>
+        <button class="overlay-btn" [class.active]="attackRangeActive()" (click)="toggleAttackRange()">Attack Range</button>
         <button class="help-btn" (click)="onHelp()">?</button>
       </div>
     </div>
@@ -148,6 +151,26 @@ import { BuildingData, UnitType } from '../../models/game-state';
     .home-btn:hover {
       background: rgba(30, 40, 60, 0.95);
     }
+    .overlay-btn {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--panel-radius);
+      padding: 0.4rem 0.75rem;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .overlay-btn:hover {
+      background: rgba(30, 40, 60, 0.95);
+      color: var(--text-primary);
+    }
+    .overlay-btn.active {
+      border-color: var(--accent-blue);
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--text-primary);
+    }
     .help-btn {
       background: var(--panel-bg);
       border: 1px solid var(--panel-border);
@@ -211,6 +234,10 @@ export class HudComponent {
   private readonly audio = inject(AudioService);
   private readonly camera = inject(CameraService);
   private readonly undo = inject(UndoService);
+  private readonly influenceSvc = inject(InfluenceService);
+
+  readonly influenceActive = this.influenceSvc.showInfluenceOverlay;
+  readonly attackRangeActive = this.influenceSvc.showAttackRangeOverlay;
 
   readonly aiExecuting = this.ai.executing;
   readonly gameOver = this.gameState.gameOver;
@@ -244,6 +271,16 @@ export class HudComponent {
     if (!player) return;
     this.undo.dispatch({ type: 'SET_HOME_BASE', playerId: player.id, buildingId: building.id });
     this.eventLog.push({ turn: this.gameState.turn(), message: 'Home base reassigned' });
+  }
+
+  toggleInfluence(): void {
+    this.audio.playClick();
+    this.influenceSvc.toggleInfluenceOverlay();
+  }
+
+  toggleAttackRange(): void {
+    this.audio.playClick();
+    this.influenceSvc.toggleAttackRangeOverlay();
   }
 
   onHelp(): void {
