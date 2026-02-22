@@ -10,6 +10,7 @@ import {
   HexOverride,
   Anomaly,
   UNIT_STATS,
+  BUILDING_STATS,
   TechId,
 } from '../../models/game-state';
 import { GameStateService } from './game-state.service';
@@ -123,6 +124,16 @@ export function deserialize(json: string): {
     }
   }
 
+  // Migrate buildings: fill shields fields if missing
+  const rawBuildings = new Map(s.buildings);
+  for (const [id, building] of rawBuildings) {
+    if ((building as any).shields === undefined) {
+      const stats = BUILDING_STATS[building.type];
+      const maxShields = stats?.maxShields ?? 0;
+      rawBuildings.set(id, { ...building, shields: maxShields, maxShields });
+    }
+  }
+
   const state: GameState = {
     turn: s.turn,
     currentPlayerIndex: s.currentPlayerIndex,
@@ -138,7 +149,7 @@ export function deserialize(json: string): {
       researchedTechs: new Set((p.researchedTechs ?? []) as TechId[]),
     })),
     units: rawUnits,
-    buildings: new Map(s.buildings),
+    buildings: rawBuildings,
     dynamicObjects: new Map(s.dynamicObjects),
     chunkOverrides: new Map(s.chunkOverrides),
     anomalies: new Map(s.anomalies),

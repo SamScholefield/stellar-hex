@@ -140,7 +140,7 @@ describe('scoreProduction', () => {
     const player = makePlayer({ id: 'p1' });
     const starbase: BuildingData = {
       id: 'b1', ownerId: 'p1', type: 'starbase',
-      q: 0, r: 0, health: 50, maxHealth: 50,
+      q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15,
     };
     const buildings = new Map([['b1', starbase]]);
     const units = new Map<string, UnitData>();
@@ -156,7 +156,7 @@ describe('scoreProduction', () => {
     const player = makePlayer({ id: 'p1' });
     const starbase: BuildingData = {
       id: 'b1', ownerId: 'p1', type: 'starbase',
-      q: 0, r: 0, health: 50, maxHealth: 50,
+      q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15,
     };
     const buildings = new Map([['b1', starbase]]);
     const units = new Map<string, UnitData>();
@@ -170,7 +170,7 @@ describe('scoreProduction', () => {
     const player = makePlayer({ id: 'p1', resources: { energy: 200, minerals: 100, alloys: 100, credits: 100 } });
     const starbase: BuildingData = {
       id: 'b1', ownerId: 'p1', type: 'starbase',
-      q: 0, r: 0, health: 50, maxHealth: 50,
+      q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15,
     };
     const buildings = new Map([['b1', starbase]]);
     const units = new Map<string, UnitData>();
@@ -190,7 +190,7 @@ describe('scoreProduction', () => {
     const player = makePlayer({ id: 'p1' });
     const starbase: BuildingData = {
       id: 'b1', ownerId: 'p1', type: 'starbase',
-      q: 0, r: 0, health: 50, maxHealth: 50,
+      q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15,
     };
     const buildings = new Map([['b1', starbase]]);
     const units = new Map<string, UnitData>();

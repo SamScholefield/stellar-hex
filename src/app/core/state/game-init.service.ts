@@ -136,6 +136,8 @@ export class GameInitService {
         r: pos.r,
         health: starbaseStats.maxHealth,
         maxHealth: starbaseStats.maxHealth,
+        shields: starbaseStats.maxShields,
+        maxShields: starbaseStats.maxShields,
       });
       players[i].homeBaseId = starbaseId;
 

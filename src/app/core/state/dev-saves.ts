@@ -55,7 +55,7 @@ function makeBuilding(
   r: number,
 ): BuildingData {
   const stats = BUILDING_STATS[type];
-  return { id, ownerId, type, q, r, health: stats.maxHealth, maxHealth: stats.maxHealth };
+  return { id, ownerId, type, q, r, health: stats.maxHealth, maxHealth: stats.maxHealth, shields: stats.maxShields, maxShields: stats.maxShields };
 }
 
 function exploredSet(centerQ: number, centerR: number, radius: number): Set<string> {

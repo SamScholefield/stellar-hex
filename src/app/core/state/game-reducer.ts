@@ -2,7 +2,7 @@ import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, Unit
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
-import { resolveCombat, CombatResult, CombatOptions, maybePromote } from '../combat/combat-resolver';
+import { resolveCombat, resolveBuildingCombat, CombatResult, CombatOptions, maybePromote } from '../combat/combat-resolver';
 import { computeInfluenceForPlayer, isNearAnyEnemyUnit } from '../influence/influence';
 import { GameAction } from './actions';
 
@@ -117,6 +117,8 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
     r: hex.r,
     health: stats.maxHealth,
     maxHealth: stats.maxHealth,
+    shields: stats.maxShields,
+    maxShields: stats.maxShields,
   };
   buildings.set(id, building);
 
@@ -238,42 +240,98 @@ function attack(state: GameState, attackerId: string, targetId: string): GameSta
 
 export function attackWithResult(state: GameState, attackerId: string, targetId: string): AttackResult {
   const attacker = state.units.get(attackerId);
-  const defender = state.units.get(targetId);
-  if (!attacker || !defender) return { newState: state, combat: null };
-
-  // Cannot attack own units
-  if (attacker.ownerId === defender.ownerId) return { newState: state, combat: null };
+  if (!attacker) return { newState: state, combat: null };
 
   // Must not have already attacked this turn (MP = -1 after attacking)
   if (attacker.movementPoints < 0) return { newState: state, combat: null };
 
+  // Try unit target first, then building target
+  const defender = state.units.get(targetId);
+  const targetBuilding = !defender ? state.buildings.get(targetId) : null;
+
+  if (!defender && !targetBuilding) return { newState: state, combat: null };
+
+  // Cannot attack own entities
+  const targetOwnerId = defender ? defender.ownerId : targetBuilding!.ownerId;
+  if (attacker.ownerId === targetOwnerId) return { newState: state, combat: null };
+
+  const targetQ = defender ? defender.q : targetBuilding!.q;
+  const targetR = defender ? defender.r : targetBuilding!.r;
+
   // Check range
   const dist = hexDistance(
     { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
-    { q: defender.q, r: defender.r, s: -defender.q - defender.r },
+    { q: targetQ, r: targetR, s: -targetQ - targetR },
   );
   if (dist > attacker.range) return { newState: state, combat: null };
 
   // Compute influence for combat modifiers (include tech sight bonus)
   const attackerPlayer = state.players.find(p => p.id === attacker.ownerId);
-  const defenderPlayer = state.players.find(p => p.id === defender.ownerId);
+  const defenderPlayer = state.players.find(p => p.id === targetOwnerId);
   const attackerSightBonus = attackerPlayer ? (computeTechBonuses(attackerPlayer.researchedTechs).sightRange ?? 0) : 0;
   const defenderSightBonus = defenderPlayer ? (computeTechBonuses(defenderPlayer.researchedTechs).sightRange ?? 0) : 0;
   const attackerInfluence = computeInfluenceForPlayer(state.buildings, attacker.ownerId, attackerSightBonus);
-  const defenderInfluence = computeInfluenceForPlayer(state.buildings, defender.ownerId, defenderSightBonus);
+  const defenderInfluence = computeInfluenceForPlayer(state.buildings, targetOwnerId, defenderSightBonus);
+
+  // --- Building target path ---
+  if (targetBuilding) {
+    let defenderIncomingMul = 1.0;
+    if (defenderInfluence.has(`${targetQ},${targetR}`)) defenderIncomingMul *= 0.9;
+    if (attackerInfluence.has(`${targetQ},${targetR}`)) defenderIncomingMul *= 1.1;
+
+    const bCombat = resolveBuildingCombat(attacker, targetBuilding, state.seed + state.turn, defenderIncomingMul);
+
+    const units = new Map(state.units);
+    const newXp = attacker.xp + bCombat.attackerXpGain;
+    units.set(attackerId, {
+      ...attacker,
+      movementPoints: -1,
+      xp: newXp,
+      veteranTier: maybePromote(attacker.veteranTier, newXp),
+    });
+
+    let buildings = state.buildings;
+    if (bCombat.destroyed) {
+      buildings = new Map(state.buildings);
+      buildings.delete(targetId);
+    } else {
+      buildings = new Map(state.buildings);
+      buildings.set(targetId, {
+        ...targetBuilding,
+        health: targetBuilding.health - bCombat.hullDamage,
+        shields: Math.max(0, targetBuilding.shields - bCombat.shieldDamage),
+      });
+    }
+
+    // Map BuildingCombatResult to CombatResult shape for callers
+    const combat: CombatResult = {
+      attackerDamage: 0,
+      defenderDamage: bCombat.damage,
+      attackerShieldDamage: 0,
+      defenderShieldDamage: bCombat.shieldDamage,
+      attackerDestroyed: false,
+      defenderDestroyed: bCombat.destroyed,
+      attackerXpGain: bCombat.attackerXpGain,
+      defenderXpGain: 0,
+      attackerStrike: bCombat.strike,
+      defenderStrike: null,
+    };
+
+    return { newState: { ...state, units, buildings }, combat };
+  }
+
+  // --- Unit target path ---
   const combatOptions: CombatOptions = {
     attackerInOwnInfluence: attackerInfluence.has(`${attacker.q},${attacker.r}`),
-    defenderInOwnInfluence: defenderInfluence.has(`${defender.q},${defender.r}`),
+    defenderInOwnInfluence: defenderInfluence.has(`${defender!.q},${defender!.r}`),
     attackerInEnemyInfluence: defenderInfluence.has(`${attacker.q},${attacker.r}`),
-    defenderInEnemyInfluence: attackerInfluence.has(`${defender.q},${defender.r}`),
+    defenderInEnemyInfluence: attackerInfluence.has(`${defender!.q},${defender!.r}`),
   };
 
-  // Resolve combat
-  const combat = resolveCombat(attacker, defender, dist, state.seed + state.turn, combatOptions);
+  const combat = resolveCombat(attacker, defender!, dist, state.seed + state.turn, combatOptions);
 
   const units = new Map(state.units);
 
-  // Apply damage and set attacker MP to 0
   if (combat.attackerDestroyed) {
     units.delete(attackerId);
   } else {
@@ -291,13 +349,13 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   if (combat.defenderDestroyed) {
     units.delete(targetId);
   } else {
-    const newXp = defender.xp + combat.defenderXpGain;
+    const newXp = defender!.xp + combat.defenderXpGain;
     units.set(targetId, {
-      ...defender,
-      health: defender.health - combat.attackerStrike.hullDamage,
-      shields: Math.max(0, defender.shields - combat.attackerStrike.shieldDamage),
+      ...defender!,
+      health: defender!.health - combat.attackerStrike.hullDamage,
+      shields: Math.max(0, defender!.shields - combat.attackerStrike.shieldDamage),
       xp: newXp,
-      veteranTier: maybePromote(defender.veteranTier, newXp),
+      veteranTier: maybePromote(defender!.veteranTier, newXp),
     });
   }
 
@@ -316,6 +374,8 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
   // Collect income from current player's buildings before switching
   let players = state.players;
   let units = new Map(state.units);
+  let buildings = state.buildings;
+  let buildingsChanged = false;
 
   if (currentPlayer && !currentPlayer.eliminated) {
     const income = { energy: 0, minerals: 0, alloys: 0, credits: 0 };
@@ -386,12 +446,26 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
         units.set(id, { ...unit, health: newHealth, shields: newShields });
       }
     }
+
+    // Building regen: +2 HP, +1 shield for buildings in own influence, not near enemies
+    for (const [bId, building] of (buildingsChanged ? buildings : state.buildings)) {
+      if (building.ownerId !== currentPlayer.id) continue;
+      const bKey = `${building.q},${building.r}`;
+      if (!influence.has(bKey)) continue;
+      if (isNearAnyEnemyUnit(building.q, building.r, units, currentPlayer.id)) continue;
+      const newHealth = Math.min(building.health + 2, building.maxHealth);
+      const newShields = Math.min(building.shields + 1, building.maxShields);
+      if (newHealth !== building.health || newShields !== building.shields) {
+        if (!buildingsChanged) {
+          buildings = new Map(state.buildings);
+          buildingsChanged = true;
+        }
+        buildings.set(bId, { ...building, health: newHealth, shields: newShields });
+      }
+    }
   }
 
   // Process production queues for current player's starbases
-  let buildings = state.buildings;
-  let buildingsChanged = false;
-
   for (const [bId, building] of state.buildings) {
     if (building.ownerId !== currentPlayer?.id) continue;
     if (!building.productionQueue || building.productionQueue.length === 0) continue;

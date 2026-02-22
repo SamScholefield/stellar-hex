@@ -13,6 +13,7 @@ import { VisionService } from '../../core/vision/vision.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance, pixelToHex } from '../../shared/hex/hex-math';
 import { attackWithResult } from '../../core/state/game-reducer';
+import { BUILDING_STATS } from '../../models/game-state';
 import { findPath, getReachableHexes, getUnitCostOverride, pathCost } from '../../core/pathfinding/hex-pathfinder';
 
 const HEX_SIZE = 30;
@@ -128,6 +129,29 @@ export class ClickPopupComponent {
         });
       }
     } else {
+      // Check for enemy building at hex
+      const buildingIndex = this.gameState.buildingAtHex();
+      const buildingAtHex = buildingIndex.get(hexKey);
+      if (buildingAtHex && buildingAtHex.ownerId !== currentPlayer.id
+          && selectedUnit.weapon != null && selectedUnit.movementPoints >= 0) {
+        const visHexes = this.vision.visibleHexes();
+        if (visHexes.has(hexKey)) {
+          const dist = hexDistance(
+            { q: selectedUnit.q, r: selectedUnit.r, s: -selectedUnit.q - selectedUnit.r },
+            { q: buildingAtHex.q, r: buildingAtHex.r, s: -buildingAtHex.q - buildingAtHex.r },
+          );
+          const inRange = dist <= selectedUnit.range;
+          const buildingLabel = buildingAtHex.type.replace(/_/g, ' ');
+          options.push({
+            kind: 'attack',
+            label: inRange ? `Attack ${buildingLabel}` : 'Attack Here',
+            unitId: selectedUnitId,
+            targetId: buildingAtHex.id,
+            target: hex,
+            inRange,
+          });
+        }
+      }
       // Friendly only — offer move + select
       const isSameHex = selectedUnit.q === hex.q && selectedUnit.r === hex.r;
 
@@ -230,16 +254,19 @@ export class ClickPopupComponent {
     if (!combat) return;
 
     const attacker = state.units.get(attackerId)!;
-    const defender = state.units.get(targetId)!;
+    const defender = state.units.get(targetId);
+    const targetBuilding = !defender ? state.buildings.get(targetId) : null;
+    const targetName = defender ? defender.type : (targetBuilding?.type.replace(/_/g, ' ') ?? 'unknown');
+    const targetCoord = defender ?? targetBuilding!;
 
     this.animation.animateCombat(attackerId, targetId).then(() => {
       this.undo.dispatch({ type: 'ATTACK', attackerId, targetId });
 
       const turn = this.gameState.turn();
-      const msg = `${attacker.type} attacked ${defender.type}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
-        + (combat.defenderDestroyed ? ` — ${defender.type} destroyed!` : '')
+      const msg = `${attacker.type} attacked ${targetName}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
+        + (combat.defenderDestroyed ? ` — ${targetName} destroyed!` : '')
         + (combat.attackerDestroyed ? ` — ${attacker.type} destroyed!` : '');
-      this.eventLog.push({ turn, message: msg, q: defender.q, r: defender.r });
+      this.eventLog.push({ turn, message: msg, q: targetCoord.q, r: targetCoord.r });
 
       if (!combat.attackerDestroyed) {
         this.selection.selectUnit(attackerId);

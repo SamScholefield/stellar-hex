@@ -92,6 +92,8 @@ function makeTestState(): GameState {
           r: -1,
           health: 15,
           maxHealth: 15,
+          shields: 5,
+          maxShields: 5,
         },
       ],
     ]),

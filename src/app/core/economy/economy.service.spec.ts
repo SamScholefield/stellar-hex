@@ -151,8 +151,8 @@ describe('computeMiningDroneIncome', () => {
 describe('computeIncome', () => {
   it('sums building yields for the specified player', () => {
     const buildings = new Map<string, BuildingData>([
-      ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
-      ['b2', { id: 'b2', ownerId: 'p1', type: 'colony', q: 1, r: 0, health: 30, maxHealth: 30 }],
+      ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15, shields: 5, maxShields: 5 }],
+      ['b2', { id: 'b2', ownerId: 'p1', type: 'colony', q: 1, r: 0, health: 30, maxHealth: 30, shields: 10, maxShields: 10 }],
     ]);
     const income = computeIncome(buildings, 'p1');
     expect(income.minerals).toBe(3);
@@ -162,7 +162,7 @@ describe('computeIncome', () => {
 
   it('ignores buildings owned by other players', () => {
     const buildings = new Map<string, BuildingData>([
-      ['b1', { id: 'b1', ownerId: 'p2', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
+      ['b1', { id: 'b1', ownerId: 'p2', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15, shields: 5, maxShields: 5 }],
     ]);
     const income = computeIncome(buildings, 'p1');
     expect(income.minerals).toBe(0);

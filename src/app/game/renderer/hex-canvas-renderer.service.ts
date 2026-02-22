@@ -259,13 +259,13 @@ export class HexCanvasRendererService {
 
     // Combat animation flash
     if (combatAnimation && units) {
-      const flashUnit = combatAnimation.phase === 'flash_attacker'
+      const flashEntity = combatAnimation.phase === 'flash_attacker'
         ? units.get(combatAnimation.attackerId)
         : combatAnimation.phase === 'flash_defender'
-          ? units.get(combatAnimation.defenderId)
+          ? (units.get(combatAnimation.defenderId) ?? buildings?.get(combatAnimation.defenderId) ?? null)
           : null;
-      if (flashUnit) {
-        const { x, y } = hexToPixel(flashUnit.q, flashUnit.r, hexSize);
+      if (flashEntity) {
+        const { x, y } = hexToPixel(flashEntity.q, flashEntity.r, hexSize);
         const flashColor = combatAnimation.phase === 'flash_attacker'
           ? 'rgba(255, 255, 255, 0.6)'
           : 'rgba(239, 68, 68, 0.6)';
@@ -663,12 +663,25 @@ export class HexCanvasRendererService {
       ctx.globalAlpha = 1.0;
     }
 
+    // Shield bar (blue, above health bar)
+    let barY = by + r + 3;
+    if (building.maxShields > 0 && building.shields < building.maxShields) {
+      const barW = r * 2;
+      const barH = 2;
+      const barX = bx - r;
+      const shieldRatio = building.shields / building.maxShields;
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = '#3b82f6';
+      ctx.fillRect(barX, barY, barW * shieldRatio, barH);
+      barY += barH + 1;
+    }
+
     // Health bar when damaged
     if (building.health < building.maxHealth) {
       const barW = r * 2;
       const barH = 2;
       const barX = bx - r;
-      const barY = by + r + 3;
       const ratio = building.health / building.maxHealth;
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(barX, barY, barW, barH);

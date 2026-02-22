@@ -161,6 +161,24 @@ export class ContextMenuComponent {
             }
           }
         }
+        // Check for enemy building at hex (if no unit target found)
+        if (!canAttack) {
+          const buildingHere = buildingIndex.get(hexKeyStr);
+          if (buildingHere && buildingHere.ownerId !== currentPlayer.id) {
+            const dist = hexDistance(
+              { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
+              { q: buildingHere.q, r: buildingHere.r, s: -buildingHere.q - buildingHere.r },
+            );
+            if (dist <= attacker.range) {
+              const visHexes = this.vision.visibleHexes();
+              if (visHexes.has(hexKeyStr)) {
+                canAttack = true;
+                attackerId = selectedUnitId;
+                targetId = buildingHere.id;
+              }
+            }
+          }
+        }
       }
     }
 
@@ -271,10 +289,12 @@ export class ContextMenuComponent {
               const visHexes = this.vision.visibleHexes();
               if (visHexes.has(hexKeyTarget)) {
                 const enemyAtTarget = unitIndex.get(hexKeyTarget)?.find(u => u.ownerId !== currentPlayer.id);
-                if (enemyAtTarget) {
+                const enemyBuildingAtTarget = !enemyAtTarget ? buildingIndex.get(hexKeyTarget) : null;
+                const attackTarget = enemyAtTarget ?? (enemyBuildingAtTarget && enemyBuildingAtTarget.ownerId !== currentPlayer.id ? enemyBuildingAtTarget : null);
+                if (attackTarget) {
                   canAttackHere = true;
                   attackHereUnitId = selectedUnitId;
-                  attackHereTargetId = enemyAtTarget.id;
+                  attackHereTargetId = attackTarget.id;
                   // Don't show Move Here when Attack Here is available
                   canMoveHere = false;
                   moveHereUnitId = null;
@@ -332,16 +352,19 @@ export class ContextMenuComponent {
     if (!combat) return;
 
     const attacker = state.units.get(attackerId)!;
-    const defender = state.units.get(targetId)!;
+    const defender = state.units.get(targetId);
+    const targetBuilding = !defender ? state.buildings.get(targetId) : null;
+    const targetName = defender ? defender.type : (targetBuilding?.type.replace(/_/g, ' ') ?? 'unknown');
+    const targetCoord = defender ?? targetBuilding!;
 
     this.animation.animateCombat(attackerId, targetId).then(() => {
       this.undo.dispatch({ type: 'ATTACK', attackerId, targetId });
 
       const turn = this.gameState.turn();
-      const msg = `${attacker.type} attacked ${defender.type}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
-        + (combat.defenderDestroyed ? ` — ${defender.type} destroyed!` : '')
+      const msg = `${attacker.type} attacked ${targetName}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
+        + (combat.defenderDestroyed ? ` — ${targetName} destroyed!` : '')
         + (combat.attackerDestroyed ? ` — ${attacker.type} destroyed!` : '');
-      this.eventLog.push({ turn, message: msg, q: defender.q, r: defender.r });
+      this.eventLog.push({ turn, message: msg, q: targetCoord.q, r: targetCoord.r });
 
       if (!combat.attackerDestroyed) {
         this.selection.selectUnit(attackerId);

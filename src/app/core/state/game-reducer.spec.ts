@@ -263,7 +263,7 @@ describe('gameReducer', () => {
         ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 5, r: 3 })],
       ]);
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 5, r: 3, health: 15, maxHealth: 15 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 5, r: 3, health: 15, maxHealth: 15, shields: 5, maxShields: 5 }],
       ]);
       const state = makeState({ units, buildings });
       const hex = { q: 5, r: 3, s: -8 };
@@ -300,8 +300,8 @@ describe('gameReducer', () => {
   describe('END_TURN resource collection', () => {
     it('collects income from current player buildings', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
-        ['b2', { id: 'b2', ownerId: 'p1', type: 'colony', q: 1, r: 0, health: 30, maxHealth: 30 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15, shields: 5, maxShields: 5 }],
+        ['b2', { id: 'b2', ownerId: 'p1', type: 'colony', q: 1, r: 0, health: 30, maxHealth: 30, shields: 10, maxShields: 10 }],
       ]);
       const state = makeState({ buildings });
       const next = gameReducer(state, { type: 'END_TURN' });
@@ -312,7 +312,7 @@ describe('gameReducer', () => {
 
     it('does not collect income from other player buildings', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p2', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
+        ['b1', { id: 'b1', ownerId: 'p2', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15, shields: 5, maxShields: 5 }],
       ]);
       const state = makeState({ buildings });
       const next = gameReducer(state, { type: 'END_TURN' });
@@ -328,7 +328,7 @@ describe('gameReducer', () => {
 
     it('combines building income and miningYields', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15, shields: 5, maxShields: 5 }],
       ]);
       const state = makeState({ buildings });
       const next = gameReducer(state, { type: 'END_TURN', miningYields: { minerals: 4 } });
@@ -361,7 +361,7 @@ describe('gameReducer', () => {
     it('decrements production timer and spawns unit when complete', () => {
       const buildings = new Map<string, BuildingData>([
         ['b1', {
-          id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50,
+          id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15,
           productionQueue: [{ unitType: 'scout', turnsRemaining: 1 }],
         }],
       ]);
@@ -385,7 +385,7 @@ describe('gameReducer', () => {
     it('decrements timer but does not spawn if turns remaining > 1', () => {
       const buildings = new Map<string, BuildingData>([
         ['b1', {
-          id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50,
+          id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15,
           productionQueue: [{ unitType: 'cruiser', turnsRemaining: 3 }],
         }],
       ]);
@@ -401,7 +401,7 @@ describe('gameReducer', () => {
   describe('PRODUCE_UNIT', () => {
     it('adds item to starbase production queue and deducts cost', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
       ]);
       const state = makeState({ buildings });
       const next = gameReducer(state, { type: 'PRODUCE_UNIT', buildingId: 'b1', unitType: 'scout' });
@@ -415,7 +415,7 @@ describe('gameReducer', () => {
 
     it('uses variable build turns from UNIT_STATS', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
       ]);
       const state = makeState({
         buildings,
@@ -434,7 +434,7 @@ describe('gameReducer', () => {
 
     it('rejects production on non-starbase building', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15, shields: 5, maxShields: 5 }],
       ]);
       const state = makeState({ buildings });
       const next = gameReducer(state, { type: 'PRODUCE_UNIT', buildingId: 'b1', unitType: 'scout' });
@@ -443,7 +443,7 @@ describe('gameReducer', () => {
 
     it('rejects production with insufficient resources', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
       ]);
       const state = makeState({
         buildings,
@@ -804,7 +804,7 @@ describe('gameReducer', () => {
         ['u2', makeUnitData({ id: 'u2', ownerId: 'p2', type: 'scout', q: 5, r: 0 })],
       ]);
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'colony', q: 0, r: 1, health: 30, maxHealth: 30 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'colony', q: 0, r: 1, health: 30, maxHealth: 30, shields: 10, maxShields: 10 }],
       ]);
       const state = makeState({
         units,
@@ -835,7 +835,7 @@ describe('gameReducer', () => {
     it('heals unit in own influence with no enemies nearby', () => {
       // Place a building and a damaged unit at the same location
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
       ]);
       const units = new Map<string, UnitData>([
         ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0, health: 10 })],
@@ -850,7 +850,7 @@ describe('gameReducer', () => {
 
     it('caps HP at maxHealth', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
       ]);
       const units = new Map<string, UnitData>([
         ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0, health: 14 })],
@@ -865,7 +865,7 @@ describe('gameReducer', () => {
 
     it('regens shields up to maxShields', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
       ]);
       const units = new Map<string, UnitData>([
         ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0, shields: 0 })],
@@ -879,7 +879,7 @@ describe('gameReducer', () => {
 
     it('does NOT regen unit outside influence', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15, shields: 5, maxShields: 5 }],
       ]);
       const units = new Map<string, UnitData>([
         // mining_station sightRange is 2, unit at distance 5 is outside influence
@@ -894,7 +894,7 @@ describe('gameReducer', () => {
 
     it('does NOT regen unit near an enemy', () => {
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 0, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
       ]);
       const units = new Map<string, UnitData>([
         ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0, health: 10 })],
@@ -938,7 +938,7 @@ describe('gameReducer', () => {
     it('shouldEliminate returns false when player has buildings', () => {
       const player = { id: 'p1', name: 'P1', color: '#fff', resources: makeResources(), isAI: false, exploredHexes: new Set<string>(), eliminated: false, researchedTechs: new Set<import('../../models/game-state').TechId>() };
       const buildings = new Map<string, BuildingData>([
-        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15 }],
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'mining_station', q: 0, r: 0, health: 15, maxHealth: 15, shields: 5, maxShields: 5 }],
       ]);
       expect(shouldEliminate(player, new Map(), buildings)).toBe(false);
     });

@@ -13,6 +13,7 @@ export type BuildingType = 'mining_station' | 'colony' | 'solar_collector' | 'st
 export interface BuildingStats {
   cost: Partial<Resources>;
   maxHealth: number;
+  maxShields: number;
   buildTurns: number;
   yield: Partial<Resources>;
   allowedHexTypes: StellarObjectType[];
@@ -20,11 +21,11 @@ export interface BuildingStats {
 }
 
 export const BUILDING_STATS: Record<BuildingType, BuildingStats> = {
-  mining_station:  { cost: { energy: 20, minerals: 5 },  maxHealth: 15, buildTurns: 1, yield: { minerals: 3 },              allowedHexTypes: ['asteroid', 'asteroid_field'], sightRange: 2 },
-  colony:          { cost: { energy: 30, alloys: 10 },    maxHealth: 30, buildTurns: 2, yield: { alloys: 2, credits: 2 },    allowedHexTypes: ['planet'],                      sightRange: 5 },
-  solar_collector: { cost: { energy: 10, credits: 15 },   maxHealth: 10, buildTurns: 1, yield: { energy: 4 },                allowedHexTypes: ['empty'],                       sightRange: 2 },
-  starbase:        { cost: { energy: 40, alloys: 20, credits: 20 }, maxHealth: 50, buildTurns: 3, yield: { energy: 2, credits: 1 }, allowedHexTypes: ['empty', 'nebula'],              sightRange: 5 },
-  research_lab:    { cost: { energy: 25, alloys: 10 },    maxHealth: 12, buildTurns: 2, yield: { energy: 1, credits: 1 },    allowedHexTypes: ['nebula'],                       sightRange: 4 },
+  mining_station:  { cost: { energy: 20, minerals: 5 },  maxHealth: 15, maxShields: 5,  buildTurns: 1, yield: { minerals: 3 },              allowedHexTypes: ['asteroid', 'asteroid_field'], sightRange: 2 },
+  colony:          { cost: { energy: 30, alloys: 10 },    maxHealth: 30, maxShields: 10, buildTurns: 2, yield: { alloys: 2, credits: 2 },    allowedHexTypes: ['planet'],                      sightRange: 5 },
+  solar_collector: { cost: { energy: 10, credits: 15 },   maxHealth: 10, maxShields: 3,  buildTurns: 1, yield: { energy: 4 },                allowedHexTypes: ['empty'],                       sightRange: 2 },
+  starbase:        { cost: { energy: 40, alloys: 20, credits: 20 }, maxHealth: 50, maxShields: 15, buildTurns: 3, yield: { energy: 2, credits: 1 }, allowedHexTypes: ['empty', 'nebula'],              sightRange: 5 },
+  research_lab:    { cost: { energy: 25, alloys: 10 },    maxHealth: 12, maxShields: 5,  buildTurns: 2, yield: { energy: 1, credits: 1 },    allowedHexTypes: ['nebula'],                       sightRange: 4 },
 };
 
 export interface ProductionItem {
@@ -257,6 +258,8 @@ export interface BuildingData {
   r: number;
   health: number;
   maxHealth: number;
+  shields: number;
+  maxShields: number;
   productionQueue?: ProductionItem[];
   researchQueue?: ResearchItem[];
 }

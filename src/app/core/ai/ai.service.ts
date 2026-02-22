@@ -3,7 +3,7 @@ import { GameStateService } from '../state/game-state.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { AnimationService } from '../../game/renderer/animation.service';
 import { EventLogService } from '../state/event-log.service';
-import { ANOMALY_REWARDS, BUILDING_STATS, PlayerState, UnitData, UNIT_UPKEEP, TECH_TREE } from '../../models/game-state';
+import { ANOMALY_REWARDS, BuildingData, BUILDING_STATS, PlayerState, UnitData, UNIT_UPKEEP, TECH_TREE } from '../../models/game-state';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance } from '../../shared/hex/hex-math';
 import { findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
@@ -70,6 +70,14 @@ export class AIService {
         }
       }
 
+      // Gather visible enemy buildings
+      const visibleEnemyBuildings: BuildingData[] = [];
+      for (const b of state.buildings.values()) {
+        if (b.ownerId !== playerId && player.exploredHexes.has(`${b.q},${b.r}`)) {
+          visibleEnemyBuildings.push(b);
+        }
+      }
+
       if (myUnits.length === 0) break;
 
       // Sort: combat units first, then scouts, then others
@@ -87,20 +95,23 @@ export class AIService {
 
       // Try attack
       if (unit.weapon != null && unit.movementPoints >= 0) {
-        const attackResult = scoreAttack(unit, visibleEnemies, state.seed + state.turn);
+        const attackResult = scoreAttack(unit, visibleEnemies, state.seed + state.turn, visibleEnemyBuildings);
         if (attackResult) {
           const target = state.units.get(attackResult.targetId);
-          if (target) {
+          const targetBuilding = !target ? state.buildings.get(attackResult.targetId) : null;
+          if (target || targetBuilding) {
             const { combat } = attackWithResult(state, unit.id, attackResult.targetId);
             if (combat) {
               await this.animation.animateCombat(unit.id, attackResult.targetId);
               this.gameState.dispatch({ type: 'ATTACK', attackerId: unit.id, targetId: attackResult.targetId });
 
+              const targetName = target ? target.type : (targetBuilding!.type.replace(/_/g, ' '));
+              const targetCoord = target ?? targetBuilding!;
               const turn = this.gameState.getState().turn;
-              const msg = `[AI] ${unit.type} attacked ${target.type}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
-                + (combat.defenderDestroyed ? ` — ${target.type} destroyed!` : '')
+              const msg = `[AI] ${unit.type} attacked ${targetName}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
+                + (combat.defenderDestroyed ? ` — ${targetName} destroyed!` : '')
                 + (combat.attackerDestroyed ? ` — ${unit.type} destroyed!` : '');
-              this.eventLog.push({ turn, message: msg, q: target.q, r: target.r });
+              this.eventLog.push({ turn, message: msg, q: targetCoord.q, r: targetCoord.r });
 
               await delay(ACTION_DELAY);
               acted = true;

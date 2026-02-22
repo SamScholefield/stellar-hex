@@ -1,4 +1,4 @@
-import { UnitData, VeteranTier, VETERAN_BONUSES, VETERAN_XP_THRESHOLDS, WEAPON_STATS } from '../../models/game-state';
+import { BuildingData, UnitData, VeteranTier, VETERAN_BONUSES, VETERAN_XP_THRESHOLDS, WEAPON_STATS } from '../../models/game-state';
 import { seededRNG } from '../generation/noise';
 
 export interface StrikeResult {
@@ -170,4 +170,68 @@ export function maybePromote(currentTier: VeteranTier, xp: number): VeteranTier 
   if (xp >= VETERAN_XP_THRESHOLDS.advanced) return 'advanced';
   if (xp >= VETERAN_XP_THRESHOLDS.improved) return 'improved';
   return 'standard';
+}
+
+export interface BuildingCombatResult {
+  damage: number;
+  shieldDamage: number;
+  hullDamage: number;
+  destroyed: boolean;
+  attackerXpGain: number;
+  strike: StrikeResult;
+}
+
+/**
+ * Resolve one-way combat: a unit attacks a building (no retaliation).
+ * Buildings are treated as large targets with 0 armor.
+ */
+export function resolveBuildingCombat(
+  attacker: UnitData,
+  building: BuildingData,
+  seed: number,
+  incomingDamageMul: number = 1.0,
+): BuildingCombatResult {
+  const rng = seededRNG(seed);
+
+  // Create a synthetic target with building stats
+  const syntheticTarget: UnitData = {
+    id: building.id,
+    name: building.type,
+    ownerId: building.ownerId,
+    type: 'scout', // unused, only size/armor/shields matter
+    q: building.q,
+    r: building.r,
+    movementPoints: 0,
+    maxMovementPoints: 0,
+    health: building.health,
+    maxHealth: building.maxHealth,
+    attack: 0,
+    defense: 0,
+    range: 0,
+    sightRange: 0,
+    size: 'large',
+    weapon: null,
+    armor: 0,
+    shields: building.shields,
+    maxShields: building.maxShields,
+    xp: 0,
+    veteranTier: 'standard',
+  };
+
+  const strike = resolveStrike(attacker, syntheticTarget, rng, incomingDamageMul);
+
+  const destroyed = (building.health - strike.hullDamage) <= 0;
+
+  let attackerXpGain = strike.hullDamage;
+  if (destroyed) attackerXpGain += Math.floor(building.maxHealth * 0.5);
+  attackerXpGain += 10; // survival bonus (attacker can't die attacking buildings)
+
+  return {
+    damage: strike.shieldDamage + strike.hullDamage,
+    shieldDamage: strike.shieldDamage,
+    hullDamage: strike.hullDamage,
+    destroyed,
+    attackerXpGain,
+    strike,
+  };
 }

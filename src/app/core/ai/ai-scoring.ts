@@ -16,7 +16,7 @@ import {
   canResearch,
 } from '../../models/game-state';
 import { hexDistance, hexNeighbors, hexesInRange } from '../../shared/hex/hex-math';
-import { resolveCombat } from '../combat/combat-resolver';
+import { resolveCombat, resolveBuildingCombat } from '../combat/combat-resolver';
 import { findPath } from '../pathfinding/hex-pathfinder';
 import { HexLookup } from '../pathfinding/hex-pathfinder';
 
@@ -91,12 +91,13 @@ export function scoreExplore(
 
 /**
  * Score attack targets for a unit.
- * Previews combat and returns the best favorable target.
+ * Previews combat and returns the best favorable target (units or buildings).
  */
 export function scoreAttack(
   attacker: UnitData,
   enemies: UnitData[],
   seed: number,
+  enemyBuildings?: BuildingData[],
 ): AttackScoreResult | null {
   if (attacker.weapon == null || attacker.movementPoints < 0) return null;
 
@@ -122,6 +123,24 @@ export function scoreAttack(
 
     if (!bestResult || score > bestResult.score) {
       bestResult = { targetId: enemy.id, score };
+    }
+  }
+
+  // Score building targets — no retaliation makes these attractive
+  if (enemyBuildings) {
+    for (const building of enemyBuildings) {
+      const bCoord: HexCoord = { q: building.q, r: building.r, s: -building.q - building.r };
+      const dist = hexDistance(attackerCoord, bCoord);
+      if (dist > attacker.range) continue;
+
+      const bCombat = resolveBuildingCombat(attacker, building, seed);
+      // Buildings can't retaliate — always favorable. Bonus for economic damage.
+      let score = bCombat.damage + 5; // +5 bonus for no-risk attack
+      if (bCombat.destroyed) score += 25; // big bonus for destroying economic infrastructure
+
+      if (!bestResult || score > bestResult.score) {
+        bestResult = { targetId: building.id, score };
+      }
     }
   }
 

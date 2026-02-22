@@ -9,6 +9,8 @@ function makeBuilding(overrides: Partial<BuildingData> & { id: string; ownerId: 
     r: 0,
     health: stats.maxHealth,
     maxHealth: stats.maxHealth,
+    shields: stats.maxShields,
+    maxShields: stats.maxShields,
     ...overrides,
   };
 }
