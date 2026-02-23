@@ -1,7 +1,7 @@
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance, hexNeighbors } from '../../shared/hex/hex-math';
+import { hexDistance, hexKey, hexNeighbors } from '../../shared/hex/hex-math';
 import { HexData, StellarObjectType } from '../../models/hex-data';
-import { UnitType } from '../../models/game-state';
+import { UnitType, UnitData, BuildingData } from '../../models/game-state';
 
 export type HexLookup = (q: number, r: number) => HexData | null;
 export type UnitBlockCheck = (q: number, r: number) => boolean;
@@ -55,8 +55,28 @@ export function getUnitCostOverride(type: UnitType): MoveCostOverride | undefine
   }
 }
 
-function hexKey(q: number, r: number): string {
-  return `${q},${r}`;
+/**
+ * Build a set of hex keys blocked by enemy units and buildings.
+ * Optionally excludes a specific unit (the moving unit) and an attack target.
+ */
+export function buildBlockedSet(
+  units: Map<string, UnitData>,
+  buildings: Map<string, BuildingData>,
+  playerId: string,
+  excludeUnitId?: string,
+  excludeTargetId?: string,
+): Set<string> {
+  const blocked = new Set<string>();
+  for (const u of units.values()) {
+    if (u.id === excludeUnitId) continue;
+    if (u.id === excludeTargetId) continue;
+    if (u.ownerId !== playerId) blocked.add(hexKey(u.q, u.r));
+  }
+  for (const b of buildings.values()) {
+    if (b.id === excludeTargetId) continue;
+    if (b.ownerId !== playerId) blocked.add(hexKey(b.q, b.r));
+  }
+  return blocked;
 }
 
 // --- Binary min-heap ---
@@ -185,9 +205,7 @@ export function findPath(
   const gScore = new Map<string, number>();
   gScore.set(startKey, 0);
 
-  const fScore = new Map<string, number>();
   const startF = hexDistance(from, to);
-  fScore.set(startKey, startF);
 
   const cameFrom = new Map<string, HexCoord>();
 
@@ -233,7 +251,6 @@ export function findPath(
         cameFrom.set(nKey, current.coord);
         gScore.set(nKey, tentativeG);
         const f = tentativeG + hexDistance(neighbor, to);
-        fScore.set(nKey, f);
 
         if (!openSet.has(nKey)) {
           open.push({ key: nKey, coord: neighbor, priority: f });

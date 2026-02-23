@@ -1,15 +1,13 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance } from '../../shared/hex/hex-math';
+import { hexDistance, hexKey, toHexCoord } from '../../shared/hex/hex-math';
 import { GameStateService } from './game-state.service';
 import { UndoService } from './undo.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { AnimationService } from '../../game/renderer/animation.service';
-import { EventLogService } from './event-log.service';
+import { ActionExecutionService } from './action-execution.service';
 
-import { AudioService } from '../audio/audio.service';
-import { findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
-import { attackWithResult } from './game-reducer';
+import { buildBlockedSet, findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
 
 export interface Waypoint {
   unitId: string;
@@ -52,9 +50,7 @@ export class WaypointService {
   private readonly undo = inject(UndoService);
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly animation = inject(AnimationService);
-  private readonly eventLog = inject(EventLogService);
-
-  private readonly audio = inject(AudioService);
+  private readonly actionExec = inject(ActionExecutionService);
 
   private readonly _waypoints = signal<Map<string, Waypoint>>(new Map());
   readonly waypoints = computed(() => this._waypoints());
@@ -132,14 +128,14 @@ export class WaypointService {
       }
 
       // Update target position (it may have moved)
-      const targetCoord: HexCoord = { q: target.q, r: target.r, s: -target.q - target.r };
+      const targetCoord: HexCoord = toHexCoord(target.q, target.r);
       wp.target = targetCoord;
       // Re-store the updated waypoint
       this.setWaypoint(unitId, targetCoord, wp.attackTargetId);
 
       // Check if already in attack range
       const dist = hexDistance(
-        { q: unit.q, r: unit.r, s: -unit.q - unit.r },
+        toHexCoord(unit.q, unit.r),
         targetCoord,
       );
       if (dist <= unit.range && unit.weapon != null && !unit.hasAttacked) {
@@ -151,23 +147,11 @@ export class WaypointService {
 
     // Build blocked set (enemy units and buildings block movement)
     // Exclude the attack target so pathfinding can route toward it
-    const blocked = new Set<string>();
-    for (const u of units.values()) {
-      if (u.id !== unitId && u.ownerId !== currentPlayer.id) {
-        if (wp.attackTargetId && u.id === wp.attackTargetId) continue;
-        blocked.add(`${u.q},${u.r}`);
-      }
-    }
     const buildings = this.gameState.buildings();
-    for (const b of buildings.values()) {
-      if (b.ownerId !== currentPlayer.id) {
-        if (wp.attackTargetId && b.id === wp.attackTargetId) continue;
-        blocked.add(`${b.q},${b.r}`);
-      }
-    }
-    const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
+    const blocked = buildBlockedSet(units, buildings, currentPlayer.id, unitId, wp.attackTargetId);
+    const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
     const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-    const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+    const from: HexCoord = toHexCoord(unit.q, unit.r);
     const override = getUnitCostOverride(unit.type);
 
     const path = findPartialPath(from, wp.target, unit.movementPoints, hexLookup, isBlocked, override);
@@ -205,8 +189,8 @@ export class WaypointService {
           return;
         }
         const dist = hexDistance(
-          { q: freshUnit.q, r: freshUnit.r, s: -freshUnit.q - freshUnit.r },
-          { q: target.q, r: target.r, s: -target.q - target.r },
+          toHexCoord(freshUnit.q, freshUnit.r),
+          toHexCoord(target.q, target.r),
         );
         if (dist <= freshUnit.range && freshUnit.weapon != null && !freshUnit.hasAttacked) {
           await this.performAttack(unitId, wp.attackTargetId);
@@ -240,20 +224,6 @@ export class WaypointService {
   }
 
   private async performAttack(attackerId: string, targetId: string): Promise<void> {
-    const state = this.gameState.getState();
-    const { combat } = attackWithResult(state, attackerId, targetId);
-    if (!combat) return;
-
-    const attacker = state.units.get(attackerId)!;
-    const defender = state.units.get(targetId)!;
-
-    await this.animation.animateCombat(attackerId, targetId);
-    this.undo.dispatch({ type: 'ATTACK', attackerId, targetId });
-
-    const turn = this.gameState.turn();
-    const msg = `${attacker.type} attacked ${defender.type}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
-      + (combat.defenderDestroyed ? ` — ${defender.type} destroyed!` : '')
-      + (combat.attackerDestroyed ? ` — ${attacker.type} destroyed!` : '');
-    this.eventLog.push({ turn, message: msg, q: defender.q, r: defender.r });
+    await this.actionExec.executeAttack(attackerId, targetId);
   }
 }

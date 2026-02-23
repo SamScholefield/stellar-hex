@@ -2,6 +2,18 @@ import { HexCoord } from './hex-coord.type';
 
 const SQRT3 = Math.sqrt(3);
 
+export const HEX_SIZE = 30;
+
+/** Create a string key from axial coordinates for use as a Map/Set key. */
+export function hexKey(q: number, r: number): string {
+  return `${q},${r}`;
+}
+
+/** Create a HexCoord from axial (q, r), computing s automatically. */
+export function toHexCoord(q: number, r: number): HexCoord {
+  return { q, r, s: -q - r };
+}
+
 /** Flat-top hex: convert axial (q, r) to pixel center. */
 export function hexToPixel(q: number, r: number, size: number): { x: number; y: number } {
   return {

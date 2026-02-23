@@ -7,18 +7,16 @@ import { AudioService } from '../../core/audio/audio.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { AnimationService } from '../renderer/animation.service';
 import { UndoService } from '../../core/state/undo.service';
+import { ActionExecutionService } from '../../core/state/action-execution.service';
 
 import { WaypointService } from '../../core/state/waypoint.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance, hexesInRange, hexNeighbors, pixelToHex } from '../../shared/hex/hex-math';
-import { attackWithResult } from '../../core/state/game-reducer';
-import { getReachableHexes, getUnitCostOverride } from '../../core/pathfinding/hex-pathfinder';
-import { BuildingType, BuildingStats, BUILDING_STATS, ANOMALY_REWARDS } from '../../models/game-state';
+import { HEX_SIZE, hexDistance, hexesInRange, hexKey, hexNeighbors, pixelToHex, toHexCoord } from '../../shared/hex/hex-math';
+import { buildBlockedSet, getReachableHexes, getUnitCostOverride } from '../../core/pathfinding/hex-pathfinder';
+import { BuildingType, BuildingStats, BUILDING_STATS, ANOMALY_REWARDS, canAfford } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { VisionService } from '../../core/vision/vision.service';
-import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
-
-const HEX_SIZE = 30;
+import { FormatNamePipe, formatName } from '../../shared/pipes/format-name.pipe';
 
 interface BuildOption {
   type: BuildingType;
@@ -119,6 +117,7 @@ export class ContextMenuComponent {
   private readonly animation = inject(AnimationService);
   private readonly vision = inject(VisionService);
   private readonly undo = inject(UndoService);
+  private readonly actionExec = inject(ActionExecutionService);
 
 
   private readonly waypointSvc = inject(WaypointService);
@@ -140,7 +139,7 @@ export class ContextMenuComponent {
     const unitIndex = this.gameState.unitsAtHex();
     const buildingIndex = this.gameState.buildingAtHex();
     const selectedUnitId = this.selection.selectedUnit();
-    const hexKeyStr = `${hex.q},${hex.r}`;
+    const hexKeyStr = hexKey(hex.q, hex.r);
 
     // Check for attackable enemy units and buildings at hex
     const attackOptions: AttackOption[] = [];
@@ -151,8 +150,8 @@ export class ContextMenuComponent {
         const visHexes = this.vision.visibleHexes();
         if (visHexes.has(hexKeyStr)) {
           const dist = hexDistance(
-            { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
-            { q: hex.q, r: hex.r, s: -hex.q - hex.r },
+            toHexCoord(attacker.q, attacker.r),
+            toHexCoord(hex.q, hex.r),
           );
           if (dist <= attacker.range) {
             // Add each enemy unit at this hex
@@ -165,7 +164,7 @@ export class ContextMenuComponent {
             // Add enemy building at this hex
             const buildingHere = buildingIndex.get(hexKeyStr);
             if (buildingHere && buildingHere.ownerId !== currentPlayer.id) {
-              attackOptions.push({ attackerId: selectedUnitId, targetId: buildingHere.id, label: buildingHere.type.replace(/_/g, ' ') });
+              attackOptions.push({ attackerId: selectedUnitId, targetId: buildingHere.id, label: formatName(buildingHere.type) });
             }
           }
         }
@@ -194,7 +193,7 @@ export class ContextMenuComponent {
             if (!stats.allowedHexTypes.includes(hexType)) continue;
             if (type === 'starbase' && !hasScout) continue;
             if (type === 'starbase') {
-              const nearby = hexesInRange({ q: hex.q, r: hex.r, s: -hex.q - hex.r }, 8);
+              const nearby = hexesInRange(toHexCoord(hex.q, hex.r), 8);
               const hasPlanet = nearby.some(h => {
                 const hd = this.chunkManager.getHex(h.q, h.r);
                 return hd?.object?.type === 'planet';
@@ -208,10 +207,7 @@ export class ContextMenuComponent {
               });
               if (!hasAdjacentStar) continue;
             }
-            const affordable = resources.energy >= (stats.cost.energy ?? 0)
-              && resources.minerals >= (stats.cost.minerals ?? 0)
-              && resources.alloys >= (stats.cost.alloys ?? 0)
-              && resources.credits >= (stats.cost.credits ?? 0);
+            const affordable = canAfford(resources, stats.cost);
             buildOptions.push({ type, stats, affordable });
           }
         }
@@ -250,27 +246,19 @@ export class ContextMenuComponent {
     if (selectedUnitId && attackOptions.length === 0) {
       const attacker = units.get(selectedUnitId);
       if (attacker && attacker.ownerId === currentPlayer.id) {
-        const from: HexCoord = { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r };
+        const from: HexCoord = toHexCoord(attacker.q, attacker.r);
         const isSameHex = attacker.q === hex.q && attacker.r === hex.r;
 
         if (!isSameHex) {
           // Check if hex is within reachable range via normal pathfinding
           const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-          const blocked = new Set<string>();
-          for (const u of units.values()) {
-            if (u.id !== selectedUnitId && u.ownerId !== currentPlayer.id) {
-              blocked.add(`${u.q},${u.r}`);
-            }
-          }
-          for (const b of this.gameState.buildings().values()) {
-            if (b.ownerId !== currentPlayer.id) blocked.add(`${b.q},${b.r}`);
-          }
-          const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
+          const blocked = buildBlockedSet(units, this.gameState.buildings(), currentPlayer.id, selectedUnitId);
+          const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
           const override = getUnitCostOverride(attacker.type);
           const reachable = attacker.movementPoints > 0
             ? getReachableHexes(from, attacker.movementPoints, hexLookup, isBlocked, override)
             : new Map<string, number>();
-          const hexKeyTarget = `${hex.q},${hex.r}`;
+          const hexKeyTarget = hexKey(hex.q, hex.r);
 
           if (!reachable.has(hexKeyTarget)) {
             // Hex is outside reachable range — show Move Here
@@ -334,33 +322,7 @@ export class ContextMenuComponent {
   onAttack(atk: AttackOption): void {
     this.audio.playClick();
     this.close();
-
-    const { attackerId, targetId } = atk;
-    const state = this.gameState.getState();
-    const { combat } = attackWithResult(state, attackerId, targetId);
-    if (!combat) return;
-
-    const attacker = state.units.get(attackerId)!;
-    const defender = state.units.get(targetId);
-    const targetBuilding = !defender ? state.buildings.get(targetId) : null;
-    const targetName = defender ? defender.type : (targetBuilding?.type.replace(/_/g, ' ') ?? 'unknown');
-    const targetCoord = defender ?? targetBuilding!;
-
-    this.animation.animateCombat(attackerId, targetId).then(() => {
-      this.undo.dispatch({ type: 'ATTACK', attackerId, targetId });
-
-      const turn = this.gameState.turn();
-      const msg = `${attacker.type} attacked ${targetName}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
-        + (combat.defenderDestroyed ? ` — ${targetName} destroyed!` : '')
-        + (combat.attackerDestroyed ? ` — ${attacker.type} destroyed!` : '');
-      this.eventLog.push({ turn, message: msg, q: targetCoord.q, r: targetCoord.r });
-
-      if (!combat.attackerDestroyed) {
-        this.selection.selectUnit(attackerId);
-      } else {
-        this.selection.deselectAll();
-      }
-    });
+    this.actionExec.executeAttack(atk.attackerId, atk.targetId);
   }
 
   onCollect(): void {
@@ -433,7 +395,7 @@ export class ContextMenuComponent {
 
     this.undo.dispatch({ type: 'BUILD', playerId: player.id, buildingType, hex: s.hex, hexType: s.hexType });
     const turn = this.gameState.turn();
-    this.eventLog.push({ turn, message: `Built ${buildingType.replace(/_/g, ' ')} at (${s.hex.q}, ${s.hex.r})`, q: s.hex.q, r: s.hex.r });
+    this.eventLog.push({ turn, message: `Built ${formatName(buildingType)} at (${s.hex.q}, ${s.hex.r})`, q: s.hex.q, r: s.hex.r });
   }
 
 }

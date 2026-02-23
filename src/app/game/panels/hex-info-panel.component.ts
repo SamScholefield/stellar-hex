@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AudioService } from '../../core/audio/audio.service';
+import { hexKey } from '../../shared/hex/hex-math';
 import { BuildingData, BUILDING_STATS, TECH_TREE, TechId, UnitData, UNIT_STATS } from '../../models/game-state';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 import { ProductionQueueComponent } from './production-queue.component';
@@ -220,7 +221,7 @@ export class HexInfoPanelComponent {
     if (!data || data.visibility !== 'visible') return null;
     const coord = this.activeCoord();
     if (!coord) return null;
-    return this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`) ?? null;
+    return this.gameState.buildingAtHex().get(hexKey(coord.q, coord.r)) ?? null;
   });
 
   readonly unitsAtHex = computed<UnitData[]>(() => {

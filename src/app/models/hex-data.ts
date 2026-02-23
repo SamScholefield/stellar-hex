@@ -1,4 +1,5 @@
 import { HexCoord } from '../shared/hex/hex-coord.type';
+import { AnomalyType, Resources } from './game-state';
 
 export type StellarObjectType =
   | 'star'
@@ -11,29 +12,20 @@ export type StellarObjectType =
   | 'black_hole'
   | 'empty';
 
-export interface ResourceYield {
-  energy?: number;
-  minerals?: number;
-  alloys?: number;
-  credits?: number;
-}
-
 export interface StellarObject {
   type: StellarObjectType;
   subtype?: string;
   size: number;
-  resources?: ResourceYield;
+  resources?: Partial<Resources>;
   orbitAnchor?: HexCoord;
   velocity?: HexCoord;
 }
-
-export type AnomalyHexType = 'derelict_ship' | 'resource_cache' | 'alien_signal' | 'wormhole' | 'ancient_ruins';
 
 export interface HexData {
   q: number;
   r: number;
   object: StellarObject | null;
-  anomaly?: AnomalyHexType;
+  anomaly?: AnomalyType;
   /** True when this hex falls within a nebula noise region, even if its primary object is not a nebula. */
   inNebula?: boolean;
 }

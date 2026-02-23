@@ -19,15 +19,15 @@ import { AnimationService } from '../renderer/animation.service';
 import { AIService } from '../../core/ai/ai.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { UndoService } from '../../core/state/undo.service';
-import { hexToPixel, pixelToHex } from '../../shared/hex/hex-math';
-import { findPath, getReachableHexes, getUnitCostOverride, pathCost } from '../../core/pathfinding/hex-pathfinder';
+import { ActionExecutionService } from '../../core/state/action-execution.service';
+import { HEX_SIZE, hexKey, hexToPixel, pixelToHex, toHexCoord } from '../../shared/hex/hex-math';
+import { buildBlockedSet, findPath, getReachableHexes, getUnitCostOverride } from '../../core/pathfinding/hex-pathfinder';
 import { VisionService } from '../../core/vision/vision.service';
 import { WaypointService } from '../../core/state/waypoint.service';
 import { InfluenceService } from '../../core/influence/influence.service';
 import { SpriteAtlasService } from '../../core/sprites/sprite-atlas.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 
-const HEX_SIZE = 30;
 const CLICK_THRESHOLD = 4;
 
 @Component({
@@ -72,6 +72,7 @@ export class GameViewportComponent implements OnDestroy {
   private readonly spriteAtlas = inject(SpriteAtlasService);
   private readonly waypointSvc = inject(WaypointService);
   private readonly influenceSvc = inject(InfluenceService);
+  private readonly actionExec = inject(ActionExecutionService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
   readonly showClickPopup = output<{ clientX: number; clientY: number }>();
@@ -94,18 +95,9 @@ export class GameViewportComponent implements OnDestroy {
 
   // Pre-built set of enemy-occupied hex keys (friendly units allow stacking)
   private readonly blockedHexSet = computed(() => {
-    const units = this.gameState.units();
     const selectedId = this.selection.selectedUnit();
-    const currentPlayer = this.gameState.currentPlayer();
-    const playerId = currentPlayer?.id;
-    const set = new Set<string>();
-    for (const u of units.values()) {
-      if (u.id !== selectedId && u.ownerId !== playerId) set.add(`${u.q},${u.r}`);
-    }
-    for (const b of this.gameState.buildings().values()) {
-      if (b.ownerId !== playerId) set.add(`${b.q},${b.r}`);
-    }
-    return set;
+    const playerId = this.gameState.currentPlayer()?.id ?? '';
+    return buildBlockedSet(this.gameState.units(), this.gameState.buildings(), playerId, selectedId ?? undefined);
   });
 
   // Reachable hexes — only recomputes when selected unit or units map changes
@@ -118,8 +110,8 @@ export class GameViewportComponent implements OnDestroy {
 
     const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
     const blocked = this.blockedHexSet();
-    const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
-    const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+    const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
+    const from: HexCoord = toHexCoord(unit.q, unit.r);
     const override = getUnitCostOverride(unit.type);
     return getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked, override);
   });
@@ -129,7 +121,7 @@ export class GameViewportComponent implements OnDestroy {
     const reachable = this.reachable();
     const hoveredHex = this.selection.hoveredHexCoord();
     if (!reachable || !hoveredHex) return null;
-    if (!reachable.has(`${hoveredHex.q},${hoveredHex.r}`)) return null;
+    if (!reachable.has(hexKey(hoveredHex.q, hoveredHex.r))) return null;
 
     const selectedUnitId = this.selection.selectedUnit();
     if (!selectedUnitId) return null;
@@ -138,8 +130,8 @@ export class GameViewportComponent implements OnDestroy {
 
     const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
     const blocked = this.blockedHexSet();
-    const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
-    const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+    const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
+    const from: HexCoord = toHexCoord(unit.q, unit.r);
     const override = getUnitCostOverride(unit.type);
     return findPath(from, hoveredHex, unit.movementPoints, hexLookup, isBlocked, override);
   });
@@ -188,7 +180,7 @@ export class GameViewportComponent implements OnDestroy {
       const canvas = this.canvasRef().nativeElement;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId, buildings, null, combatAnim, anomalies, waypoints, influenceHexes, attackRangeHexes);
+        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId, buildings, combatAnim, anomalies, waypoints, influenceHexes, attackRangeHexes);
       }
     });
   }
@@ -307,27 +299,14 @@ export class GameViewportComponent implements OnDestroy {
         }
 
         if (unit.movementPoints > 0) {
-          const hexKey = `${hex.q},${hex.r}`;
-          const unitsAtHex = this.gameState.unitsAtHex().get(hexKey) ?? [];
+          const hKey = hexKey(hex.q, hex.r);
+          const unitsAtHex = this.gameState.unitsAtHex().get(hKey) ?? [];
 
           if (unitsAtHex.length === 0) {
             // Empty hex — try direct movement
-            const from = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
-            const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-            const blocked = this.blockedHexSet();
-            const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
-
-            const override = getUnitCostOverride(unit.type);
-            const path = findPath(from, hex, unit.movementPoints, hexLookup, isBlocked, override);
-            if (path && path.length > 1) {
-              this.audio.playClick();
-              const cost = pathCost(path, hexLookup, override);
-              this.animation.animateUnitMovement(selectedUnitId, path).then(() => {
-                this.undo.dispatch({ type: 'MOVE_UNIT', unitId: selectedUnitId, path, cost });
-                this.selection.selectUnit(selectedUnitId);
-              });
-              return;
-            }
+            this.audio.playClick();
+            this.actionExec.executeMove(selectedUnitId, hex);
+            return;
           } else {
             // Occupied hex — delegate to click popup
             this.showClickPopup.emit({ clientX: event.clientX, clientY: event.clientY });

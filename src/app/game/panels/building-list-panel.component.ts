@@ -3,7 +3,7 @@ import { GameStateService } from '../../core/state/game-state.service';
 import { CameraService } from '../../core/camera/camera.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { SelectionService } from '../../core/selection/selection.service';
-import { BuildingData, BUILDING_STATS, Resources } from '../../models/game-state';
+import { BuildingData, BUILDING_STATS, Resources, ZERO_RESOURCES } from '../../models/game-state';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 import { hexToPixel } from '../../shared/hex/hex-math';
 
@@ -123,7 +123,7 @@ export class BuildingListPanelComponent {
   readonly totalIncome = computed<Partial<Resources> | null>(() => {
     const entries = this.buildingEntries();
     if (entries.length === 0) return null;
-    const total: Resources = { energy: 0, minerals: 0, alloys: 0, credits: 0 };
+    const total: Resources = { ...ZERO_RESOURCES };
     for (const e of entries) {
       total.energy += e.yield.energy ?? 0;
       total.minerals += e.yield.minerals ?? 0;

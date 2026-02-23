@@ -102,18 +102,7 @@ describe('AudioService', () => {
 
   describe('stub methods', () => {
     it('should not throw when called', () => {
-      service.playUnitSelect();
-      service.playMovement(300);
-      service.playLaserZap();
-      service.playImpactThud();
-      service.playBuild();
-      service.playProduce();
-      service.playEndTurn();
       service.playDiscovery();
-      service.playError();
-      service.playStartGame();
-      service.startMenuAmbient();
-      service.startGameAmbient();
     });
   });
 

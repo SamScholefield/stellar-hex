@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
+import { hexKey, toHexCoord } from '../../shared/hex/hex-math';
 import { HexData } from '../../models/hex-data';
 import { UnitData } from '../../models/game-state';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
@@ -66,7 +67,7 @@ export class SelectionService {
     const hex = this.chunkManager.getHex(coord.q, coord.r);
     if (!hex) return null;
 
-    const key = `${coord.q},${coord.r}`;
+    const key = hexKey(coord.q, coord.r);
     let visibility: HexVisibility;
     if (this.vision.visibleHexes().has(key)) {
       visibility = 'visible';
@@ -140,7 +141,7 @@ export class SelectionService {
     const unit = this.gameState.units().get(unitId);
     if (unit) {
       this._selectedUnit.set(unitId);
-      this._selectedHexCoord.set({ q: unit.q, r: unit.r, s: -unit.q - unit.r });
+      this._selectedHexCoord.set(toHexCoord(unit.q, unit.r));
     }
   }
 
@@ -187,6 +188,6 @@ export class SelectionService {
   }
 
   private findUnitsAt(q: number, r: number): UnitData[] {
-    return this.gameState.unitsAtHex().get(`${q},${r}`) ?? [];
+    return this.gameState.unitsAtHex().get(hexKey(q, r)) ?? [];
   }
 }

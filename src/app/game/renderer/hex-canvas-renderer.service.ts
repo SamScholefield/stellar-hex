@@ -4,7 +4,7 @@ import { Chunk } from '../../models/chunk';
 import { Anomaly, AnomalyType, BuildingData, BuildingType, UnitData, UnitType } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexToPixel } from '../../shared/hex/hex-math';
+import { hexKey, hexToPixel, toHexCoord } from '../../shared/hex/hex-math';
 import { CHUNK_SIZE } from '../../core/generation/world-generator.service';
 import { CombatAnimation, UnitAnimation } from './animation.service';
 import { SpriteAtlasService } from '../../core/sprites/sprite-atlas.service';
@@ -127,7 +127,6 @@ export class HexCanvasRendererService {
     exploredHexes?: Set<string> | null,
     currentPlayerId?: string | null,
     buildings?: Map<string, BuildingData>,
-    _attackTargets?: unknown,
     combatAnimation?: CombatAnimation | null,
     anomalies?: Map<string, Anomaly>,
     waypoints?: Map<string, Waypoint>,
@@ -156,15 +155,15 @@ export class HexCanvasRendererService {
     if (hasFog) {
       for (const chunk of chunks) {
         for (const hex of chunk.hexes.values()) {
-          const key = `${hex.q},${hex.r}`;
+          const key = hexKey(hex.q, hex.r);
           if (visibleHexes!.has(key)) continue; // fully visible, no fog
           const isReachable = reachableHexes?.has(key) ?? false;
           if (exploredHexes!.has(key)) {
             const fogColor = isReachable ? FOG_EXPLORED_REACHABLE : FOG_EXPLORED;
-            this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, fogColor, null);
+            this.drawHexOverlay(ctx, toHexCoord(hex.q, hex.r), hexSize, fogColor, null);
           } else {
             const fogColor = isReachable ? FOG_UNEXPLORED_REACHABLE : FOG_UNEXPLORED;
-            this.drawHexOverlay(ctx, { q: hex.q, r: hex.r, s: -hex.q - hex.r }, hexSize, fogColor, null);
+            this.drawHexOverlay(ctx, toHexCoord(hex.q, hex.r), hexSize, fogColor, null);
           }
         }
       }
@@ -175,7 +174,7 @@ export class HexCanvasRendererService {
       for (const key of influenceOverlay) {
         if (hasFog && !visibleHexes!.has(key) && !exploredHexes!.has(key)) continue;
         const [q, r] = key.split(',').map(Number);
-        this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, INFLUENCE_OVERLAY, null);
+        this.drawHexOverlay(ctx, toHexCoord(q, r), hexSize, INFLUENCE_OVERLAY, null);
       }
       this.drawOverlayBorder(ctx, influenceOverlay, hexSize, INFLUENCE_BORDER, 2, hasFog ? visibleHexes! : null, hasFog ? exploredHexes! : null);
     }
@@ -185,7 +184,7 @@ export class HexCanvasRendererService {
       for (const key of attackRangeOverlay) {
         if (hasFog && !visibleHexes!.has(key) && !exploredHexes!.has(key)) continue;
         const [q, r] = key.split(',').map(Number);
-        this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, ATTACK_RANGE_OVERLAY, null);
+        this.drawHexOverlay(ctx, toHexCoord(q, r), hexSize, ATTACK_RANGE_OVERLAY, null);
       }
       this.drawOverlayBorder(ctx, attackRangeOverlay, hexSize, ATTACK_RANGE_BORDER, 2, hasFog ? visibleHexes! : null, hasFog ? exploredHexes! : null);
     }
@@ -194,7 +193,7 @@ export class HexCanvasRendererService {
     if (buildings) {
       for (const building of buildings.values()) {
         if (hasFog) {
-          const bKey = `${building.q},${building.r}`;
+          const bKey = hexKey(building.q, building.r);
           if (!visibleHexes!.has(bKey) && !exploredHexes!.has(bKey)) continue;
         }
         const color = playerColors?.get(building.ownerId) ?? '#ffffff';
@@ -206,7 +205,7 @@ export class HexCanvasRendererService {
     if (anomalies) {
       for (const anomaly of anomalies.values()) {
         if (hasFog) {
-          const aKey = `${anomaly.q},${anomaly.r}`;
+          const aKey = hexKey(anomaly.q, anomaly.r);
           if (!visibleHexes!.has(aKey) && !exploredHexes!.has(aKey)) continue;
         }
         this.drawAnomaly(ctx, anomaly, hexSize);
@@ -218,7 +217,7 @@ export class HexCanvasRendererService {
       for (const key of reachableHexes.keys()) {
         const [q, r] = key.split(',').map(Number);
         const rangeColor = hasFog && !visibleHexes!.has(key) ? RANGE_FOG : RANGE_VISIBLE;
-        this.drawHexOverlay(ctx, { q, r, s: -q - r }, hexSize, rangeColor, null);
+        this.drawHexOverlay(ctx, toHexCoord(q, r), hexSize, rangeColor, null);
       }
     }
 
@@ -232,7 +231,7 @@ export class HexCanvasRendererService {
       for (const unit of units.values()) {
         // Hide enemy units in fog
         if (hasFog && unit.ownerId !== currentPlayerId) {
-          const unitKey = `${unit.q},${unit.r}`;
+          const unitKey = hexKey(unit.q, unit.r);
           if (!visibleHexes!.has(unitKey)) continue;
         }
 

@@ -6,6 +6,7 @@ import { AudioService } from '../../core/audio/audio.service';
 import { UndoService } from '../../core/state/undo.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { TECH_TREE } from '../../models/game-state';
+import { formatName } from '../../shared/pipes/format-name.pipe';
 
 @Component({
   selector: 'app-turn-controls',
@@ -140,7 +141,7 @@ export class TurnControlsComponent {
 
     // Log completed production items
     for (const c of completing) {
-      const label = c.unitType.replace(/_/g, ' ');
+      const label = formatName(c.unitType);
       this.eventLog.push({ turn, message: `${label} construction complete`, q: c.q, r: c.r });
     }
 

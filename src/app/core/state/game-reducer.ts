@@ -1,7 +1,7 @@
-import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName, UNIT_UPKEEP, PlayerState, UnitData, GameOverState, ECONOMIC_VICTORY_CREDITS, TechId, TECH_TREE, canResearch, computeTechBonuses, ResearchItem } from '../../models/game-state';
+import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName, UNIT_UPKEEP, PlayerState, UnitData, GameOverState, ECONOMIC_VICTORY_CREDITS, TechId, TECH_TREE, canResearch, computeTechBonuses, ResearchItem, canAfford, subtractResources, addResources, clampResources, ZERO_RESOURCES } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance } from '../../shared/hex/hex-math';
+import { hexDistance, hexKey, toHexCoord } from '../../shared/hex/hex-math';
 import { resolveCombat, resolveBuildingCombat, CombatResult, CombatOptions, maybePromote } from '../combat/combat-resolver';
 import { computeInfluenceForPlayer, isNearAnyEnemyUnit } from '../influence/influence';
 import { GameAction } from './actions';
@@ -35,22 +35,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-function hasResources(player: { resources: { energy: number; minerals: number; alloys: number; credits: number } }, cost: Partial<{ energy: number; minerals: number; alloys: number; credits: number }>): boolean {
-  return (player.resources.energy >= (cost.energy ?? 0))
-    && (player.resources.minerals >= (cost.minerals ?? 0))
-    && (player.resources.alloys >= (cost.alloys ?? 0))
-    && (player.resources.credits >= (cost.credits ?? 0));
-}
-
-function deductResources(resources: { energy: number; minerals: number; alloys: number; credits: number }, cost: Partial<{ energy: number; minerals: number; alloys: number; credits: number }>) {
-  return {
-    energy: resources.energy - (cost.energy ?? 0),
-    minerals: resources.minerals - (cost.minerals ?? 0),
-    alloys: resources.alloys - (cost.alloys ?? 0),
-    credits: resources.credits - (cost.credits ?? 0),
-  };
-}
-
 function build(state: GameState, playerId: string, buildingType: BuildingType, hex: HexCoord, hexType: StellarObjectType): GameState {
   const stats = BUILDING_STATS[buildingType];
   if (!stats) return state;
@@ -77,7 +61,7 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
   const playerIndex = state.players.findIndex(p => p.id === playerId);
   if (playerIndex === -1) return state;
   const player = state.players[playerIndex];
-  if (!hasResources(player, stats.cost)) return state;
+  if (!canAfford(player.resources, stats.cost)) return state;
 
   // Starbase requires a scout at the hex
   if (buildingType === 'starbase') {
@@ -126,7 +110,7 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
   const autoHome = buildingType === 'starbase' && !player.homeBaseId;
   const players = state.players.map((p, i) => {
     if (i !== playerIndex) return p;
-    const updated = { ...p, resources: deductResources(p.resources, stats.cost) };
+    const updated = { ...p, resources: subtractResources(p.resources, stats.cost) };
     if (autoHome) updated.homeBaseId = id;
     return updated;
   });
@@ -178,11 +162,11 @@ function produceUnit(state: GameState, buildingId: string, unitType: UnitType): 
   const playerIndex = state.players.findIndex(p => p.id === building.ownerId);
   if (playerIndex === -1) return state;
   const player = state.players[playerIndex];
-  if (!hasResources(player, unitStats.cost)) return state;
+  if (!canAfford(player.resources, unitStats.cost)) return state;
 
   // Deduct resources
   const players = state.players.map((p, i) =>
-    i === playerIndex ? { ...p, resources: deductResources(p.resources, unitStats.cost) } : p
+    i === playerIndex ? { ...p, resources: subtractResources(p.resources, unitStats.cost) } : p
   );
 
   // Add to production queue
@@ -214,11 +198,11 @@ function queueResearch(state: GameState, buildingId: string, techId: TechId): Ga
   }
 
   // Check resources
-  if (!hasResources(player, techDef.cost)) return state;
+  if (!canAfford(player.resources, techDef.cost)) return state;
 
   // Deduct resources
   const players = state.players.map((p, i) =>
-    i === playerIndex ? { ...p, resources: deductResources(p.resources, techDef.cost) } : p
+    i === playerIndex ? { ...p, resources: subtractResources(p.resources, techDef.cost) } : p
   );
 
   // Add to research queue
@@ -260,8 +244,8 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
 
   // Check range
   const dist = hexDistance(
-    { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r },
-    { q: targetQ, r: targetR, s: -targetQ - targetR },
+    toHexCoord(attacker.q, attacker.r),
+    toHexCoord(targetQ, targetR),
   );
   if (dist > attacker.range) return { newState: state, combat: null };
 
@@ -276,8 +260,8 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   // --- Building target path ---
   if (targetBuilding) {
     let defenderIncomingMul = 1.0;
-    if (defenderInfluence.has(`${targetQ},${targetR}`)) defenderIncomingMul *= 0.9;
-    if (attackerInfluence.has(`${targetQ},${targetR}`)) defenderIncomingMul *= 1.1;
+    if (defenderInfluence.has(hexKey(targetQ, targetR))) defenderIncomingMul *= 0.9;
+    if (attackerInfluence.has(hexKey(targetQ, targetR))) defenderIncomingMul *= 1.1;
 
     const bCombat = resolveBuildingCombat(attacker, targetBuilding, state.seed + state.turn, defenderIncomingMul);
 
@@ -330,10 +314,10 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
 
   // --- Unit target path ---
   const combatOptions: CombatOptions = {
-    attackerInOwnInfluence: attackerInfluence.has(`${attacker.q},${attacker.r}`),
-    defenderInOwnInfluence: defenderInfluence.has(`${defender!.q},${defender!.r}`),
-    attackerInEnemyInfluence: defenderInfluence.has(`${attacker.q},${attacker.r}`),
-    defenderInEnemyInfluence: attackerInfluence.has(`${defender!.q},${defender!.r}`),
+    attackerInOwnInfluence: attackerInfluence.has(hexKey(attacker.q, attacker.r)),
+    defenderInOwnInfluence: defenderInfluence.has(hexKey(defender!.q, defender!.r)),
+    attackerInEnemyInfluence: defenderInfluence.has(hexKey(attacker.q, attacker.r)),
+    defenderInEnemyInfluence: attackerInfluence.has(hexKey(defender!.q, defender!.r)),
   };
 
   const combat = resolveCombat(attacker, defender!, dist, state.seed + state.turn, combatOptions);
@@ -395,7 +379,7 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
   let buildingsChanged = false;
 
   if (currentPlayer && !currentPlayer.eliminated) {
-    const income = { energy: 0, minerals: 0, alloys: 0, credits: 0 };
+    const income: Resources = { ...ZERO_RESOURCES };
     for (const building of state.buildings.values()) {
       if (building.ownerId !== currentPlayer.id) continue;
       const stats = BUILDING_STATS[building.type];
@@ -454,7 +438,7 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     const influence = computeInfluenceForPlayer(state.buildings, currentPlayer.id, regenSightBonus);
     for (const [id, unit] of units) {
       if (unit.ownerId !== currentPlayer.id) continue;
-      const key = `${unit.q},${unit.r}`;
+      const key = hexKey(unit.q, unit.r);
       if (!influence.has(key)) continue;
       if (isNearAnyEnemyUnit(unit.q, unit.r, units, currentPlayer.id)) continue;
       const newHealth = Math.min(unit.health + 2, unit.maxHealth);
@@ -467,7 +451,7 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     // Building regen: +2 HP, +1 shield for buildings in own influence, not near enemies
     for (const [bId, building] of (buildingsChanged ? buildings : state.buildings)) {
       if (building.ownerId !== currentPlayer.id) continue;
-      const bKey = `${building.q},${building.r}`;
+      const bKey = hexKey(building.q, building.r);
       if (!influence.has(bKey)) continue;
       if (isNearAnyEnemyUnit(building.q, building.r, units, currentPlayer.id)) continue;
       const newHealth = Math.min(building.health + 2, building.maxHealth);
@@ -688,7 +672,7 @@ function collectAnomaly(state: GameState, anomalyId: string, unitId: string): Ga
 }
 
 export function computeUpkeepForPlayer(units: Map<string, UnitData>, playerId: string): Resources {
-  const upkeep: Resources = { energy: 0, minerals: 0, alloys: 0, credits: 0 };
+  const upkeep: Resources = { ...ZERO_RESOURCES };
   for (const unit of units.values()) {
     if (unit.ownerId !== playerId) continue;
     const cost = UNIT_UPKEEP[unit.type];

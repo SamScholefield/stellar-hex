@@ -11,7 +11,7 @@ import {
   Anomaly,
   AnomalyType,
 } from '../../models/game-state';
-import { hexesInRange } from '../../shared/hex/hex-math';
+import { hexesInRange, hexKey } from '../../shared/hex/hex-math';
 import { serialize } from './game-save.service';
 
 function makeUnit(
@@ -63,7 +63,7 @@ function exploredSet(centerQ: number, centerR: number, radius: number): Set<stri
   const set = new Set<string>();
   const hexes = hexesInRange({ q: centerQ, r: centerR, s: -centerQ - centerR }, radius);
   for (const h of hexes) {
-    set.add(`${h.q},${h.r}`);
+    set.add(hexKey(h.q, h.r));
   }
   return set;
 }

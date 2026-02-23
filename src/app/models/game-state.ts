@@ -8,6 +8,42 @@ export interface Resources {
   credits: number;
 }
 
+export const ZERO_RESOURCES: Resources = { energy: 0, minerals: 0, alloys: 0, credits: 0 };
+
+export function canAfford(resources: Resources, cost: Partial<Resources>): boolean {
+  return (resources.energy >= (cost.energy ?? 0))
+    && (resources.minerals >= (cost.minerals ?? 0))
+    && (resources.alloys >= (cost.alloys ?? 0))
+    && (resources.credits >= (cost.credits ?? 0));
+}
+
+export function addResources(a: Resources, b: Partial<Resources>): Resources {
+  return {
+    energy: a.energy + (b.energy ?? 0),
+    minerals: a.minerals + (b.minerals ?? 0),
+    alloys: a.alloys + (b.alloys ?? 0),
+    credits: a.credits + (b.credits ?? 0),
+  };
+}
+
+export function subtractResources(a: Resources, b: Partial<Resources>): Resources {
+  return {
+    energy: a.energy - (b.energy ?? 0),
+    minerals: a.minerals - (b.minerals ?? 0),
+    alloys: a.alloys - (b.alloys ?? 0),
+    credits: a.credits - (b.credits ?? 0),
+  };
+}
+
+export function clampResources(r: Resources): Resources {
+  return {
+    energy: Math.max(0, r.energy),
+    minerals: Math.max(0, r.minerals),
+    alloys: Math.max(0, r.alloys),
+    credits: Math.max(0, r.credits),
+  };
+}
+
 export type BuildingType = 'mining_station' | 'colony' | 'solar_collector' | 'starbase' | 'research_lab';
 
 export interface BuildingStats {

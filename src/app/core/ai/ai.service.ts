@@ -4,8 +4,9 @@ import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { AnimationService } from '../../game/renderer/animation.service';
 import { EventLogService } from '../state/event-log.service';
 import { ANOMALY_REWARDS, BuildingData, BUILDING_STATS, PlayerState, UnitData, UNIT_UPKEEP, TECH_TREE } from '../../models/game-state';
+import { formatName } from '../../shared/pipes/format-name.pipe';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance } from '../../shared/hex/hex-math';
+import { hexDistance, hexKey, toHexCoord } from '../../shared/hex/hex-math';
 import { findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
 import { attackWithResult } from '../state/game-reducer';
 import { scoreExplore, scoreAttack, scoreBuild, scoreProduction, scoreResearch } from './ai-scoring';
@@ -65,7 +66,7 @@ export class AIService {
           if ((u.movementPoints > 0 || !u.hasAttacked) && !processedUnits.has(u.id)) {
             myUnits.push(u);
           }
-        } else if (player.exploredHexes.has(`${u.q},${u.r}`)) {
+        } else if (player.exploredHexes.has(hexKey(u.q, u.r))) {
           visibleEnemies.push(u);
         }
       }
@@ -73,7 +74,7 @@ export class AIService {
       // Gather visible enemy buildings
       const visibleEnemyBuildings: BuildingData[] = [];
       for (const b of state.buildings.values()) {
-        if (b.ownerId !== playerId && player.exploredHexes.has(`${b.q},${b.r}`)) {
+        if (b.ownerId !== playerId && player.exploredHexes.has(hexKey(b.q, b.r))) {
           visibleEnemyBuildings.push(b);
         }
       }
@@ -105,7 +106,7 @@ export class AIService {
               await this.animation.animateCombat(unit.id, attackResult.targetId);
               this.gameState.dispatch({ type: 'ATTACK', attackerId: unit.id, targetId: attackResult.targetId });
 
-              const targetName = target ? target.type : (targetBuilding!.type.replace(/_/g, ' '));
+              const targetName = target ? target.type : formatName(targetBuilding!.type);
               const targetCoord = target ?? targetBuilding!;
               const turn = this.gameState.getState().turn;
               const msg = `[AI] ${unit.type} attacked ${targetName}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
@@ -128,18 +129,18 @@ export class AIService {
           const freshPlayer = freshState.players.find(p => p.id === playerId);
           const moveTarget = freshPlayer ? this.findMoveTarget(freshUnit, freshPlayer, freshState, hexLookup) : null;
           if (moveTarget) {
-            const from: HexCoord = { q: freshUnit.q, r: freshUnit.r, s: -freshUnit.q - freshUnit.r };
+            const from: HexCoord = toHexCoord(freshUnit.q, freshUnit.r);
             const blockedHexes = new Set<string>();
-            const targetKey = `${moveTarget.q},${moveTarget.r}`;
+            const targetKey = hexKey(moveTarget.q, moveTarget.r);
             for (const u of freshState.units.values()) {
-              if (u.id !== freshUnit.id) blockedHexes.add(`${u.q},${u.r}`);
+              if (u.id !== freshUnit.id) blockedHexes.add(hexKey(u.q, u.r));
             }
             for (const b of freshState.buildings.values()) {
-              if (b.ownerId !== playerId) blockedHexes.add(`${b.q},${b.r}`);
+              if (b.ownerId !== playerId) blockedHexes.add(hexKey(b.q, b.r));
             }
             // Exclude the move target so pathfinding can route toward enemy units
             blockedHexes.delete(targetKey);
-            const isBlocked = (q: number, r: number) => blockedHexes.has(`${q},${r}`);
+            const isBlocked = (q: number, r: number) => blockedHexes.has(hexKey(q, r));
 
             const override = getUnitCostOverride(freshUnit.type);
             const path = findPartialPath(from, moveTarget, freshUnit.movementPoints, hexLookup, isBlocked, override);
@@ -188,7 +189,7 @@ export class AIService {
         const turn = this.gameState.getState().turn;
         this.eventLog.push({
           turn,
-          message: `[AI] Built ${buildResult.buildingType.replace(/_/g, ' ')}`,
+          message: `[AI] Built ${formatName(buildResult.buildingType)}`,
           q: buildResult.hex.q,
           r: buildResult.hex.r,
         });
@@ -213,7 +214,7 @@ export class AIService {
         const turn = this.gameState.getState().turn;
         this.eventLog.push({
           turn,
-          message: `[AI] Queued ${prodResult.unitType.replace(/_/g, ' ')} production`,
+          message: `[AI] Queued ${formatName(prodResult.unitType)} production`,
         });
       }
     }
@@ -254,12 +255,12 @@ export class AIService {
     if (unit.weapon != null && unit.type !== 'scout') {
       let nearestEnemy: UnitData | null = null;
       let nearestDist = Infinity;
-      const unitCoord: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+      const unitCoord: HexCoord = toHexCoord(unit.q, unit.r);
 
       for (const u of state.units.values()) {
         if (u.ownerId === player.id) continue;
-        if (!player.exploredHexes.has(`${u.q},${u.r}`)) continue;
-        const enemyCoord: HexCoord = { q: u.q, r: u.r, s: -u.q - u.r };
+        if (!player.exploredHexes.has(hexKey(u.q, u.r))) continue;
+        const enemyCoord: HexCoord = toHexCoord(u.q, u.r);
         const dist = hexDistance(unitCoord, enemyCoord);
         if (dist < nearestDist) {
           nearestDist = dist;
@@ -268,7 +269,7 @@ export class AIService {
       }
 
       if (nearestEnemy) {
-        return { q: nearestEnemy.q, r: nearestEnemy.r, s: -nearestEnemy.q - nearestEnemy.r };
+        return toHexCoord(nearestEnemy.q, nearestEnemy.r);
       }
     }
 
@@ -287,12 +288,12 @@ export class AIService {
     unit: UnitData,
     state: import('../../models/game-state').GameState,
   ): HexCoord | null {
-    const unitCoord: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+    const unitCoord: HexCoord = toHexCoord(unit.q, unit.r);
     let nearest: HexCoord | null = null;
     let nearestDist = Infinity;
 
     for (const anomaly of state.anomalies.values()) {
-      const coord: HexCoord = { q: anomaly.q, r: anomaly.r, s: -anomaly.q - anomaly.r };
+      const coord: HexCoord = toHexCoord(anomaly.q, anomaly.r);
       const dist = hexDistance(unitCoord, coord);
       if (dist < nearestDist) {
         nearestDist = dist;
@@ -341,7 +342,7 @@ export class AIService {
 
     for (const u of state.units.values()) {
       if (u.ownerId === playerId) continue;
-      if (player.exploredHexes.has(`${u.q},${u.r}`)) return true;
+      if (player.exploredHexes.has(hexKey(u.q, u.r))) return true;
     }
     return false;
   }

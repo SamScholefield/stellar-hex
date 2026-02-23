@@ -20,8 +20,9 @@ import { AudioService } from '../../core/audio/audio.service';
 import { CameraService } from '../../core/camera/camera.service';
 import { UndoService } from '../../core/state/undo.service';
 import { InfluenceService } from '../../core/influence/influence.service';
-import { hexToPixel } from '../../shared/hex/hex-math';
+import { hexKey, hexToPixel } from '../../shared/hex/hex-math';
 import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-state';
+import { formatName } from '../../shared/pipes/format-name.pipe';
 
 @Component({
   selector: 'app-hud',
@@ -221,7 +222,7 @@ export class HudComponent {
     if (!coord) return null;
     const currentPlayer = this.gameState.currentPlayer();
     if (!currentPlayer) return null;
-    const b = this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`);
+    const b = this.gameState.buildingAtHex().get(hexKey(coord.q, coord.r));
     if (b && b.type === 'starbase' && b.ownerId === currentPlayer.id) return b;
     return null;
   });
@@ -231,7 +232,7 @@ export class HudComponent {
     if (!coord) return null;
     const currentPlayer = this.gameState.currentPlayer();
     if (!currentPlayer) return null;
-    const b = this.gameState.buildingAtHex().get(`${coord.q},${coord.r}`);
+    const b = this.gameState.buildingAtHex().get(hexKey(coord.q, coord.r));
     if (b && b.type === 'research_lab' && b.ownerId === currentPlayer.id) return b;
     return null;
   });
@@ -271,7 +272,7 @@ export class HudComponent {
     if (!starbase) return;
     this.undo.dispatch({ type: 'PRODUCE_UNIT', buildingId: starbase.id, unitType });
     const turn = this.gameState.turn();
-    this.eventLog.push({ turn, message: `Queued ${unitType.replace(/_/g, ' ')} production` });
+    this.eventLog.push({ turn, message: `Queued ${formatName(unitType)} production` });
   }
 
   onResearch(techId: TechId): void {

@@ -14,8 +14,9 @@ import {
   TechId,
   TECH_TREE,
   canResearch,
+  canAfford,
 } from '../../models/game-state';
-import { hexDistance, hexNeighbors, hexesInRange } from '../../shared/hex/hex-math';
+import { hexDistance, hexKey, hexNeighbors, hexesInRange, toHexCoord } from '../../shared/hex/hex-math';
 import { resolveCombat, resolveBuildingCombat } from '../combat/combat-resolver';
 import { findPath } from '../pathfinding/hex-pathfinder';
 import { HexLookup } from '../pathfinding/hex-pathfinder';
@@ -53,7 +54,7 @@ export function scoreExplore(
   exploredHexes: Set<string>,
   hexLookup: HexLookup,
 ): ExploreResult | null {
-  const unitCoord: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
+  const unitCoord: HexCoord = toHexCoord(unit.q, unit.r);
   const searchRadius = unit.maxMovementPoints * 2;
 
   let bestTarget: HexCoord | null = null;
@@ -63,13 +64,13 @@ export function scoreExplore(
   for (let radius = 1; radius <= searchRadius; radius++) {
     const ring = hexesInRange(unitCoord, radius);
     for (const hex of ring) {
-      const key = `${hex.q},${hex.r}`;
+      const key = hexKey(hex.q, hex.r);
       if (exploredHexes.has(key)) continue;
 
       // Score by number of unexplored neighbors (cluster bonus) and closeness
       let clusterCount = 0;
       for (const neighbor of hexNeighbors(hex.q, hex.r)) {
-        if (!exploredHexes.has(`${neighbor.q},${neighbor.r}`)) {
+        if (!exploredHexes.has(hexKey(neighbor.q, neighbor.r))) {
           clusterCount++;
         }
       }
@@ -101,11 +102,11 @@ export function scoreAttack(
 ): AttackScoreResult | null {
   if (attacker.weapon == null || attacker.hasAttacked) return null;
 
-  const attackerCoord: HexCoord = { q: attacker.q, r: attacker.r, s: -attacker.q - attacker.r };
+  const attackerCoord: HexCoord = toHexCoord(attacker.q, attacker.r);
   let bestResult: AttackScoreResult | null = null;
 
   for (const enemy of enemies) {
-    const enemyCoord: HexCoord = { q: enemy.q, r: enemy.r, s: -enemy.q - enemy.r };
+    const enemyCoord: HexCoord = toHexCoord(enemy.q, enemy.r);
     const dist = hexDistance(attackerCoord, enemyCoord);
     if (dist > attacker.range) continue;
 
@@ -129,7 +130,7 @@ export function scoreAttack(
   // Score building targets — no retaliation makes these attractive
   if (enemyBuildings) {
     for (const building of enemyBuildings) {
-      const bCoord: HexCoord = { q: building.q, r: building.r, s: -building.q - building.r };
+      const bCoord: HexCoord = toHexCoord(building.q, building.r);
       const dist = hexDistance(attackerCoord, bCoord);
       if (dist > attacker.range) continue;
 
@@ -162,19 +163,19 @@ export function scoreBuild(
   // Collect positions of owned units and buildings
   for (const unit of units.values()) {
     if (unit.ownerId === player.id) {
-      ownedPositions.push({ q: unit.q, r: unit.r, s: -unit.q - unit.r });
+      ownedPositions.push(toHexCoord(unit.q, unit.r));
     }
   }
   for (const building of buildings.values()) {
     if (building.ownerId === player.id) {
-      ownedPositions.push({ q: building.q, r: building.r, s: -building.q - building.r });
+      ownedPositions.push(toHexCoord(building.q, building.r));
     }
   }
 
   // Occupied building positions
   const buildingPositions = new Set<string>();
   for (const b of buildings.values()) {
-    buildingPositions.add(`${b.q},${b.r}`);
+    buildingPositions.add(hexKey(b.q, b.r));
   }
 
   let bestResult: BuildScoreResult | null = null;
@@ -183,7 +184,7 @@ export function scoreBuild(
   for (const pos of ownedPositions) {
     const nearby = hexesInRange(pos, 2);
     for (const hex of nearby) {
-      const key = `${hex.q},${hex.r}`;
+      const key = hexKey(hex.q, hex.r);
       if (!player.exploredHexes.has(key)) continue;
       if (buildingPositions.has(key)) continue;
 
@@ -205,7 +206,7 @@ export function scoreBuild(
       for (const [btStr, stats] of Object.entries(BUILDING_STATS)) {
         const bt = btStr as BuildingType;
         if (!stats.allowedHexTypes.includes(hexType as StellarObjectType)) continue;
-        if (!hasResources(player.resources, stats.cost)) continue;
+        if (!canAfford(player.resources, stats.cost)) continue;
 
         // Colony requires colony_ship at location
         if (bt === 'colony') {
@@ -302,34 +303,34 @@ export function scoreProduction(
 
     if (enemyNearby) {
       // Escalate: try battleship > cruiser > frigate > corvette > fighter
-      if (hasResources(player.resources, UNIT_STATS.battleship.cost) && canSustainUpkeep('battleship', netEnergyIncome)) {
+      if (canAfford(player.resources, UNIT_STATS.battleship.cost) && canSustainUpkeep('battleship', netEnergyIncome)) {
         unitType = 'battleship';
         score = 90;
-      } else if (hasResources(player.resources, UNIT_STATS.cruiser.cost) && canSustainUpkeep('cruiser', netEnergyIncome)) {
+      } else if (canAfford(player.resources, UNIT_STATS.cruiser.cost) && canSustainUpkeep('cruiser', netEnergyIncome)) {
         unitType = 'cruiser';
         score = 85;
-      } else if (hasResources(player.resources, UNIT_STATS.frigate.cost) && canSustainUpkeep('frigate', netEnergyIncome)) {
+      } else if (canAfford(player.resources, UNIT_STATS.frigate.cost) && canSustainUpkeep('frigate', netEnergyIncome)) {
         unitType = 'frigate';
         score = 82;
-      } else if (hasResources(player.resources, UNIT_STATS.corvette.cost) && canSustainUpkeep('corvette', netEnergyIncome)) {
+      } else if (canAfford(player.resources, UNIT_STATS.corvette.cost) && canSustainUpkeep('corvette', netEnergyIncome)) {
         unitType = 'corvette';
         score = 80;
-      } else if (hasResources(player.resources, UNIT_STATS.fighter.cost) && canSustainUpkeep('fighter', netEnergyIncome)) {
+      } else if (canAfford(player.resources, UNIT_STATS.fighter.cost) && canSustainUpkeep('fighter', netEnergyIncome)) {
         unitType = 'fighter';
         score = 78;
       } else {
         continue;
       }
-    } else if (scoutCount < 2 && hasResources(player.resources, UNIT_STATS.scout.cost)) {
+    } else if (scoutCount < 2 && canAfford(player.resources, UNIT_STATS.scout.cost)) {
       unitType = 'scout';
       score = 60;
-    } else if (combatCount < 2 && hasResources(player.resources, UNIT_STATS.corvette.cost) && canSustainUpkeep('corvette', netEnergyIncome)) {
+    } else if (combatCount < 2 && canAfford(player.resources, UNIT_STATS.corvette.cost) && canSustainUpkeep('corvette', netEnergyIncome)) {
       unitType = 'corvette';
       score = 50;
-    } else if (combatCount < 2 && hasResources(player.resources, UNIT_STATS.fighter.cost) && canSustainUpkeep('fighter', netEnergyIncome)) {
+    } else if (combatCount < 2 && canAfford(player.resources, UNIT_STATS.fighter.cost) && canSustainUpkeep('fighter', netEnergyIncome)) {
       unitType = 'fighter';
       score = 45;
-    } else if (hasResources(player.resources, UNIT_STATS.scout.cost)) {
+    } else if (canAfford(player.resources, UNIT_STATS.scout.cost)) {
       unitType = 'scout';
       score = 30;
     } else {
@@ -382,7 +383,7 @@ export function scoreResearch(
       const techId = techIdStr as TechId;
       if (queuedTechs.has(techId)) continue;
       if (!canResearch(techId, player.researchedTechs)) continue;
-      if (!hasResources(player.resources, def.cost)) continue;
+      if (!canAfford(player.resources, def.cost)) continue;
 
       // Score by branch priority and tier
       let score: number;
@@ -410,11 +411,4 @@ function canSustainUpkeep(unitType: UnitType, netEnergyIncome?: number): boolean
   const upkeep = UNIT_UPKEEP[unitType];
   const additionalEnergy = upkeep?.energy ?? 0;
   return (netEnergyIncome - additionalEnergy) >= -5;
-}
-
-function hasResources(resources: Resources, cost: Partial<Resources>): boolean {
-  return (resources.energy >= (cost.energy ?? 0))
-    && (resources.minerals >= (cost.minerals ?? 0))
-    && (resources.alloys >= (cost.alloys ?? 0))
-    && (resources.credits >= (cost.credits ?? 0));
 }

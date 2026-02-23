@@ -83,17 +83,5 @@ export class AudioService {
     src.start();
   }
 
-  // Stubs kept so existing references compile without errors
-  playUnitSelect(): void { /* disabled */ }
-  playMovement(_durationMs: number): void { /* disabled */ }
-  playLaserZap(): void { /* disabled */ }
-  playImpactThud(): void { /* disabled */ }
-  playBuild(): void { /* disabled */ }
-  playProduce(): void { /* disabled */ }
-  playEndTurn(): void { /* disabled */ }
   playDiscovery(): void { /* disabled */ }
-  playError(): void { /* disabled */ }
-  playStartGame(): void { /* disabled */ }
-  startMenuAmbient(): void { /* disabled */ }
-  startGameAmbient(): void { /* disabled */ }
 }

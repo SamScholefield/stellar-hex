@@ -10,7 +10,7 @@ import { SelectionService } from '../selection/selection.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { WorldGeneratorService } from '../generation/world-generator.service';
 import { CameraService } from '../camera/camera.service';
-import { hexToPixel, hexDistance, hexesInRange } from '../../shared/hex/hex-math';
+import { hexToPixel, hexDistance, hexesInRange, hexKey, toHexCoord } from '../../shared/hex/hex-math';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 
 export interface NewGameConfig {
@@ -125,7 +125,7 @@ export class GameInitService {
     for (let i = 0; i < players.length; i++) {
       const base = BASE_POSITIONS[i % BASE_POSITIONS.length];
       const pos = this.findSpawnNearStar(base.q, base.r, takenPositions, humanVisibleHexes);
-      takenPositions.add(`${pos.q},${pos.r}`);
+      takenPositions.add(hexKey(pos.q, pos.r));
 
       // Place starting starbase
       const starbaseId = `starbase-${players[i].id}`;
@@ -148,9 +148,9 @@ export class GameInitService {
       units.set(unit.id, unit);
 
       // Reveal starting area (starbase sightRange is larger than scout)
-      const visible = hexesInRange({ q: pos.q, r: pos.r, s: -pos.q - pos.r }, revealRange);
+      const visible = hexesInRange(toHexCoord(pos.q, pos.r), revealRange);
       for (const hex of visible) {
-        players[i].exploredHexes.add(`${hex.q},${hex.r}`);
+        players[i].exploredHexes.add(hexKey(hex.q, hex.r));
       }
 
       // After human spawn, record their visible hexes so AI spawns avoid them
@@ -192,7 +192,7 @@ export class GameInitService {
     takenPositions: Set<string>,
     excludeHexes: Set<string> | null,
   ): { q: number; r: number } {
-    const base: HexCoord = { q: baseQ, r: baseR, s: -baseQ - baseR };
+    const base: HexCoord = toHexCoord(baseQ, baseR);
     const starbaseAllowed = new Set(BUILDING_STATS.starbase.allowedHexTypes);
 
     // Collect all star hexes from nearby systems (stars are at system centers)
@@ -215,7 +215,7 @@ export class GameInitService {
         candidates.sort((a, b) => hexDistance(a, star) - hexDistance(b, star));
 
         for (const hex of candidates) {
-          const key = `${hex.q},${hex.r}`;
+          const key = hexKey(hex.q, hex.r);
           if (takenPositions.has(key)) continue;
           if (excludeHexes?.has(key)) continue;
           const obj = this.worldGenerator.getHexObject(hex.q, hex.r);

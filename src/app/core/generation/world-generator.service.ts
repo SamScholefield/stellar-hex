@@ -1,8 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance, hexToPixel } from '../../shared/hex/hex-math';
+import { hexDistance, hexToPixel, toHexCoord } from '../../shared/hex/hex-math';
 import { Chunk, ChunkCoord } from '../../models/chunk';
-import { AnomalyHexType, HexData, StellarObject } from '../../models/hex-data';
+import { HexData, StellarObject } from '../../models/hex-data';
+import { AnomalyType } from '../../models/game-state';
 import { StarClass, StarSystemAnchor } from '../../models/star-system';
 import { fbmNoise, hash3, hashCoord, seededRNG } from './noise';
 
@@ -66,7 +67,7 @@ export class WorldGeneratorService {
   /** Query the stellar object at a single hex coordinate. */
   getHexObject(q: number, r: number): StellarObject | null {
     const systems = this.getNearbySystems(q, r);
-    return this.generateHex({ q, r, s: -q - r }, systems, this._seed());
+    return this.generateHex(toHexCoord(q, r), systems, this._seed());
   }
 
   /** Generate a chunk at the given coordinate. */
@@ -253,11 +254,11 @@ export class WorldGeneratorService {
     return energy[starClass];
   }
 
-  private generateAnomaly(q: number, r: number, seed: number): AnomalyHexType | undefined {
+  private generateAnomaly(q: number, r: number, seed: number): AnomalyType | undefined {
     const h = hash3(seed + 5000, q, r);
     // ~1.5% chance on empty hexes
     if ((h & 0x3ff) >= 15) return undefined;
-    const ANOMALY_TYPES: AnomalyHexType[] = ['derelict_ship', 'resource_cache', 'alien_signal', 'wormhole', 'ancient_ruins'];
+    const ANOMALY_TYPES: AnomalyType[] = ['derelict_ship', 'resource_cache', 'alien_signal', 'wormhole', 'ancient_ruins'];
     const rng = seededRNG(h);
     return ANOMALY_TYPES[Math.floor(rng.next() * ANOMALY_TYPES.length)];
   }

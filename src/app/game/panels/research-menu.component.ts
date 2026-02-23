@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import { BuildingData, Resources, TechId, TechDefinition, TECH_TREE, canResearch, ResearchItem } from '../../models/game-state';
+import { BuildingData, Resources, TechId, TechDefinition, TECH_TREE, canResearch, ResearchItem, canAfford } from '../../models/game-state';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AudioService } from '../../core/audio/audio.service';
 
@@ -145,11 +145,4 @@ export class ResearchMenuComponent {
     this.audio.playClick();
     this.researchSelected.emit(techId);
   }
-}
-
-function canAfford(resources: Resources, cost: Partial<Resources>): boolean {
-  return (resources.energy >= (cost.energy ?? 0))
-    && (resources.minerals >= (cost.minerals ?? 0))
-    && (resources.alloys >= (cost.alloys ?? 0))
-    && (resources.credits >= (cost.credits ?? 0));
 }

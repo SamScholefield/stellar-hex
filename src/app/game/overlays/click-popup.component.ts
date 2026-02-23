@@ -7,16 +7,14 @@ import { AudioService } from '../../core/audio/audio.service';
 import { EventLogService } from '../../core/state/event-log.service';
 import { AnimationService } from '../renderer/animation.service';
 import { UndoService } from '../../core/state/undo.service';
+import { ActionExecutionService } from '../../core/state/action-execution.service';
 
 import { WaypointService } from '../../core/state/waypoint.service';
 import { VisionService } from '../../core/vision/vision.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance, pixelToHex } from '../../shared/hex/hex-math';
-import { attackWithResult } from '../../core/state/game-reducer';
-import { BUILDING_STATS } from '../../models/game-state';
-import { findPath, getReachableHexes, getUnitCostOverride, pathCost } from '../../core/pathfinding/hex-pathfinder';
-
-const HEX_SIZE = 30;
+import { HEX_SIZE, hexDistance, hexKey, pixelToHex, toHexCoord } from '../../shared/hex/hex-math';
+import { formatName } from '../../shared/pipes/format-name.pipe';
+import { buildBlockedSet, getReachableHexes, getUnitCostOverride } from '../../core/pathfinding/hex-pathfinder';
 
 interface PopupOption {
   kind: 'attack' | 'move' | 'select' | 'cancel_waypoint';
@@ -67,6 +65,7 @@ export class ClickPopupComponent {
   private readonly animation = inject(AnimationService);
   private readonly undo = inject(UndoService);
 
+  private readonly actionExec = inject(ActionExecutionService);
   private readonly waypointSvc = inject(WaypointService);
   private readonly vision = inject(VisionService);
 
@@ -91,9 +90,9 @@ export class ClickPopupComponent {
     const selectedUnit = units.get(selectedUnitId);
     if (!selectedUnit || selectedUnit.ownerId !== currentPlayer.id) return false;
 
-    const hexKey = `${hex.q},${hex.r}`;
+    const hKey = hexKey(hex.q, hex.r);
     const unitIndex = this.gameState.unitsAtHex();
-    const unitsAtHex = unitIndex.get(hexKey) ?? [];
+    const unitsAtHex = unitIndex.get(hKey) ?? [];
 
     const options: PopupOption[] = [];
 
@@ -113,10 +112,10 @@ export class ClickPopupComponent {
       // Enemy present — offer attack option
       const enemy = unitsAtHex.find(u => u.ownerId !== currentPlayer.id)!;
       const visHexes = this.vision.visibleHexes();
-      if (visHexes.has(hexKey) && selectedUnit.weapon != null && !selectedUnit.hasAttacked) {
+      if (visHexes.has(hKey) && selectedUnit.weapon != null && !selectedUnit.hasAttacked) {
         const dist = hexDistance(
-          { q: selectedUnit.q, r: selectedUnit.r, s: -selectedUnit.q - selectedUnit.r },
-          { q: enemy.q, r: enemy.r, s: -enemy.q - enemy.r },
+          toHexCoord(selectedUnit.q, selectedUnit.r),
+          toHexCoord(enemy.q, enemy.r),
         );
         const inRange = dist <= selectedUnit.range;
         options.push({
@@ -131,17 +130,17 @@ export class ClickPopupComponent {
     } else {
       // Check for enemy building at hex
       const buildingIndex = this.gameState.buildingAtHex();
-      const buildingAtHex = buildingIndex.get(hexKey);
+      const buildingAtHex = buildingIndex.get(hKey);
       if (buildingAtHex && buildingAtHex.ownerId !== currentPlayer.id
           && selectedUnit.weapon != null && !selectedUnit.hasAttacked) {
         const visHexes = this.vision.visibleHexes();
-        if (visHexes.has(hexKey)) {
+        if (visHexes.has(hKey)) {
           const dist = hexDistance(
-            { q: selectedUnit.q, r: selectedUnit.r, s: -selectedUnit.q - selectedUnit.r },
-            { q: buildingAtHex.q, r: buildingAtHex.r, s: -buildingAtHex.q - buildingAtHex.r },
+            toHexCoord(selectedUnit.q, selectedUnit.r),
+            toHexCoord(buildingAtHex.q, buildingAtHex.r),
           );
           const inRange = dist <= selectedUnit.range;
-          const buildingLabel = buildingAtHex.type.replace(/_/g, ' ');
+          const buildingLabel = formatName(buildingAtHex.type);
           options.push({
             kind: 'attack',
             label: inRange ? `Attack ${buildingLabel}` : 'Attack Here',
@@ -157,23 +156,15 @@ export class ClickPopupComponent {
 
       if (!isSameHex) {
         // Check if hex is in reachable range
-        const from: HexCoord = { q: selectedUnit.q, r: selectedUnit.r, s: -selectedUnit.q - selectedUnit.r };
+        const from: HexCoord = toHexCoord(selectedUnit.q, selectedUnit.r);
         const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-        const blocked = new Set<string>();
-        for (const u of units.values()) {
-          if (u.id !== selectedUnitId && u.ownerId !== currentPlayer.id) {
-            blocked.add(`${u.q},${u.r}`);
-          }
-        }
-        for (const b of this.gameState.buildings().values()) {
-          if (b.ownerId !== currentPlayer.id) blocked.add(`${b.q},${b.r}`);
-        }
-        const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
+        const blocked = buildBlockedSet(units, this.gameState.buildings(), currentPlayer.id, selectedUnitId);
+        const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
         const override = getUnitCostOverride(selectedUnit.type);
         const reachable = selectedUnit.movementPoints > 0
           ? getReachableHexes(from, selectedUnit.movementPoints, hexLookup, isBlocked, override)
           : new Map<string, number>();
-        const inRange = reachable.has(hexKey);
+        const inRange = reachable.has(hKey);
 
         options.push({
           kind: 'move',
@@ -252,58 +243,10 @@ export class ClickPopupComponent {
   }
 
   private doAttack(attackerId: string, targetId: string): void {
-    const state = this.gameState.getState();
-    const { combat } = attackWithResult(state, attackerId, targetId);
-    if (!combat) return;
-
-    const attacker = state.units.get(attackerId)!;
-    const defender = state.units.get(targetId);
-    const targetBuilding = !defender ? state.buildings.get(targetId) : null;
-    const targetName = defender ? defender.type : (targetBuilding?.type.replace(/_/g, ' ') ?? 'unknown');
-    const targetCoord = defender ?? targetBuilding!;
-
-    this.animation.animateCombat(attackerId, targetId).then(() => {
-      this.undo.dispatch({ type: 'ATTACK', attackerId, targetId });
-
-      const turn = this.gameState.turn();
-      const msg = `${attacker.type} attacked ${targetName}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
-        + (combat.defenderDestroyed ? ` — ${targetName} destroyed!` : '')
-        + (combat.attackerDestroyed ? ` — ${attacker.type} destroyed!` : '');
-      this.eventLog.push({ turn, message: msg, q: targetCoord.q, r: targetCoord.r });
-
-      if (!combat.attackerDestroyed) {
-        this.selection.selectUnit(attackerId);
-      } else {
-        this.selection.deselectAll();
-      }
-    });
+    this.actionExec.executeAttack(attackerId, targetId);
   }
 
   private doMove(unitId: string, target: HexCoord): void {
-    const unit = this.gameState.units().get(unitId);
-    if (!unit) return;
-
-    const from: HexCoord = { q: unit.q, r: unit.r, s: -unit.q - unit.r };
-    const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-    const blocked = new Set<string>();
-    const playerId = this.gameState.currentPlayer()?.id;
-    for (const u of this.gameState.units().values()) {
-      if (u.id !== unitId && u.ownerId !== playerId) {
-        blocked.add(`${u.q},${u.r}`);
-      }
-    }
-    for (const b of this.gameState.buildings().values()) {
-      if (b.ownerId !== playerId) blocked.add(`${b.q},${b.r}`);
-    }
-    const isBlocked = (q: number, r: number) => blocked.has(`${q},${r}`);
-    const override = getUnitCostOverride(unit.type);
-    const path = findPath(from, target, unit.movementPoints, hexLookup, isBlocked, override);
-    if (!path || path.length <= 1) return;
-
-    const cost = pathCost(path, hexLookup, override);
-    this.animation.animateUnitMovement(unitId, path).then(() => {
-      this.undo.dispatch({ type: 'MOVE_UNIT', unitId, path: path!, cost });
-      this.selection.selectUnit(unitId);
-    });
+    this.actionExec.executeMove(unitId, target);
   }
 }

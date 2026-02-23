@@ -2,12 +2,9 @@ import { computed, Injectable, signal } from '@angular/core';
 import { GameState, GameOverState, PlayerState, Resources, UnitData, BuildingData, TechId } from '../../models/game-state';
 import { HexData } from '../../models/hex-data';
 import { computeMiningDroneIncome } from '../economy/economy.service';
+import { hexKey } from '../../shared/hex/hex-math';
 import { GameAction } from './actions';
 import { gameReducer } from './game-reducer';
-
-function hexKey(q: number, r: number): string {
-  return `${q},${r}`;
-}
 
 function createInitialState(): GameState {
   return {

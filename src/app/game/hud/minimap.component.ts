@@ -13,11 +13,10 @@ import { CameraService } from '../../core/camera/camera.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { VisionService } from '../../core/vision/vision.service';
 import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
-import { hexToPixel } from '../../shared/hex/hex-math';
+import { HEX_SIZE, hexToPixel } from '../../shared/hex/hex-math';
 import { StellarObjectType } from '../../models/hex-data';
 
 const SIZE = 200;
-const HEX_SIZE = 30;
 const PADDING = 10;
 
 const MINIMAP_COLORS: Record<StellarObjectType, string> = {

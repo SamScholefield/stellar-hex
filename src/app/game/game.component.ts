@@ -18,7 +18,7 @@ import { AudioService } from '../core/audio/audio.service';
 import { WaypointService } from '../core/state/waypoint.service';
 import { InfluenceService } from '../core/influence/influence.service';
 import { ANOMALY_REWARDS } from '../models/game-state';
-import { hexToPixel } from '../shared/hex/hex-math';
+import { HEX_SIZE, hexToPixel, toHexCoord } from '../shared/hex/hex-math';
 
 const PAN_STEP = 80;
 const ZOOM_STEP = 50;
@@ -98,7 +98,6 @@ export class GameComponent implements OnDestroy {
   readonly ready = computed(() => this.gameState.players().length > 0);
   private lastTurnKey = '';
   private lastDiscoveryId = 0;
-  private static readonly HEX_SIZE = 30;
   private readonly onBeforeUnload = () => {
     if (this.gameState.players().length === 0) return;
     this.saveSvc.autoSave();
@@ -246,7 +245,7 @@ export class GameComponent implements OnDestroy {
         const dir = event.shiftKey ? -1 : 1;
         const unit = this.selection.selectNextUnit(dir as 1 | -1);
         if (unit) {
-          const { x, y } = hexToPixel(unit.q, unit.r, GameComponent.HEX_SIZE);
+          const { x, y } = hexToPixel(unit.q, unit.r, HEX_SIZE);
           this.camera.centerOn(x, y);
         }
         break;
@@ -255,7 +254,7 @@ export class GameComponent implements OnDestroy {
       case 'B': {
         const coord = this.selection.selectedHexCoord();
         if (coord) {
-          const { x, y } = hexToPixel(coord.q, coord.r, GameComponent.HEX_SIZE);
+          const { x, y } = hexToPixel(coord.q, coord.r, HEX_SIZE);
           const screen = this.camera.worldToScreen(x, y);
           const dpr = typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1;
           this.contextMenu()?.open(screen.x / dpr, screen.y / dpr);
@@ -276,9 +275,9 @@ export class GameComponent implements OnDestroy {
         if (homeId) {
           const building = this.gameState.buildings().get(homeId);
           if (building) {
-            const { x, y } = hexToPixel(building.q, building.r, GameComponent.HEX_SIZE);
+            const { x, y } = hexToPixel(building.q, building.r, HEX_SIZE);
             this.camera.centerOn(x, y);
-            this.selection.selectHex({ q: building.q, r: building.r, s: -building.q - building.r });
+            this.selection.selectHex(toHexCoord(building.q, building.r));
           }
         }
         break;
