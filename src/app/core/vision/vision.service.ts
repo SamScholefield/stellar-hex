@@ -1,21 +1,7 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { GameStateService } from '../state/game-state.service';
-import { BUILDING_STATS } from '../../models/game-state';
-
-// Cache hex offsets by sight range to avoid repeated allocations in hexesInRange()
-const rangeOffsetCache = new Map<number, ReadonlyArray<{ dq: number; dr: number }>>();
-function getOffsetsForRange(range: number): ReadonlyArray<{ dq: number; dr: number }> {
-  let offsets = rangeOffsetCache.get(range);
-  if (offsets) return offsets;
-  const result: { dq: number; dr: number }[] = [];
-  for (let q = -range; q <= range; q++) {
-    for (let r = Math.max(-range, -q - range); r <= Math.min(range, -q + range); r++) {
-      result.push({ dq: q, dr: r });
-    }
-  }
-  rangeOffsetCache.set(range, result);
-  return result;
-}
+import { BUILDING_STATS, computeTechBonuses } from '../../models/game-state';
+import { hexOffsetsInRange } from '../../shared/hex/hex-math';
 
 interface VisionSource {
   q: number;
@@ -105,6 +91,9 @@ export class VisionService {
   }
 
   private sourcesForPlayer(playerId: string): VisionSource[] {
+    const player = this.gameState.players().find(p => p.id === playerId);
+    const sightBonus = player ? (computeTechBonuses(player.researchedTechs).sightRange ?? 0) : 0;
+
     const sources: VisionSource[] = [];
     for (const unit of this.gameState.units().values()) {
       if (unit.ownerId === playerId) {
@@ -113,7 +102,7 @@ export class VisionService {
     }
     for (const building of this.gameState.buildings().values()) {
       if (building.ownerId === playerId) {
-        sources.push({ q: building.q, r: building.r, sightRange: BUILDING_STATS[building.type].sightRange });
+        sources.push({ q: building.q, r: building.r, sightRange: BUILDING_STATS[building.type].sightRange + sightBonus });
       }
     }
     return sources;
@@ -122,7 +111,7 @@ export class VisionService {
   private computeVisible(sources: VisionSource[]): Set<string> {
     const visible = new Set<string>();
     for (const source of sources) {
-      const offsets = getOffsetsForRange(source.sightRange);
+      const offsets = hexOffsetsInRange(source.sightRange);
       for (const { dq, dr } of offsets) {
         visible.add(`${source.q + dq},${source.r + dr}`);
       }
