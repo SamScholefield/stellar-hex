@@ -5,7 +5,6 @@ import { GameStateService } from '../../core/state/game-state.service';
 import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { EventLogService } from '../../core/state/event-log.service';
-import { AnimationService } from '../renderer/animation.service';
 import { UndoService } from '../../core/state/undo.service';
 import { ActionExecutionService } from '../../core/state/action-execution.service';
 
@@ -13,7 +12,7 @@ import { WaypointService } from '../../core/state/waypoint.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { HEX_SIZE, hexDistance, hexesInRange, hexKey, hexNeighbors, pixelToHex, toHexCoord } from '../../shared/hex/hex-math';
 import { buildBlockedSet, getReachableHexes, getUnitCostOverride } from '../../core/pathfinding/hex-pathfinder';
-import { BuildingType, BuildingStats, BUILDING_STATS, ANOMALY_REWARDS, canAfford } from '../../models/game-state';
+import { BuildingType, BuildingStats, BUILDING_STATS, ANOMALY_REWARDS, canAfford, costEntries } from '../../models/game-state';
 import { StellarObjectType } from '../../models/hex-data';
 import { VisionService } from '../../core/vision/vision.service';
 import { FormatNamePipe, formatName } from '../../shared/pipes/format-name.pipe';
@@ -114,7 +113,6 @@ export class ContextMenuComponent {
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly audio = inject(AudioService);
   private readonly eventLog = inject(EventLogService);
-  private readonly animation = inject(AnimationService);
   private readonly vision = inject(VisionService);
   private readonly undo = inject(UndoService);
   private readonly actionExec = inject(ActionExecutionService);
@@ -377,11 +375,8 @@ export class ContextMenuComponent {
     });
   }
 
-  costEntries(stats: BuildingStats): { key: string; value: number; current: number }[] {
-    const resources = this.gameState.currentPlayer()?.resources;
-    return Object.entries(stats.cost)
-      .filter(([, v]) => v != null && v > 0)
-      .map(([k, v]) => ({ key: k, value: v!, current: (resources as Record<string, number> | undefined)?.[k] ?? 0 }));
+  costEntries(stats: BuildingStats) {
+    return costEntries(stats.cost, this.gameState.currentPlayer()?.resources);
   }
 
   onBuild(buildingType: BuildingType): void {

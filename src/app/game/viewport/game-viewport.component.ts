@@ -180,7 +180,13 @@ export class GameViewportComponent implements OnDestroy {
       const canvas = this.canvasRef().nativeElement;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        this.renderer.draw(ctx, this.camera, HEX_SIZE, chunks, hoveredHex, selectedHex, units, playerColors, selectedUnitId, reachable, pathPreview, activeAnim, visibleHexes, exploredHexes, currentPlayerId, buildings, combatAnim, anomalies, waypoints, influenceHexes, attackRangeHexes);
+        this.renderer.draw({
+          ctx, camera: this.camera, hexSize: HEX_SIZE, chunks, hoveredHex, selectedHex,
+          units, playerColors, selectedUnitId, reachableHexes: reachable, pathPreview,
+          unitAnimation: activeAnim, visibleHexes, exploredHexes, currentPlayerId,
+          buildings, combatAnimation: combatAnim, anomalies, waypoints,
+          influenceOverlay: influenceHexes, attackRangeOverlay: attackRangeHexes,
+        });
       }
     });
   }

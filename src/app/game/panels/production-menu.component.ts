@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import { BuildingData, Resources, UnitType, UNIT_STATS, UnitStats, canAfford } from '../../models/game-state';
+import { BuildingData, Resources, UnitType, UNIT_STATS, UnitStats, canAfford, costEntries } from '../../models/game-state';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AudioService } from '../../core/audio/audio.service';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
@@ -125,10 +125,8 @@ export class ProductionMenuComponent {
     this.collapsed.update(v => !v);
   }
 
-  costEntries(stats: UnitStats): { key: string; value: number }[] {
-    return Object.entries(stats.cost)
-      .filter(([, v]) => v != null && v > 0)
-      .map(([k, v]) => ({ key: k, value: v! }));
+  costEntries(stats: UnitStats) {
+    return costEntries(stats.cost);
   }
 
   onProduce(unitType: UnitType): void {

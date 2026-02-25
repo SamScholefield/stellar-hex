@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { gameReducer, computeUpkeepForPlayer, shouldEliminate, checkVictory } from './game-reducer';
+import { gameReducer, shouldEliminate, checkVictory } from './game-reducer';
+import { computeUpkeep } from '../economy/economy.service';
 import { GameState, DynamicObject, Resources, UnitData, BuildingData, BUILDING_STATS, UNIT_STATS, Anomaly, ECONOMIC_VICTORY_CREDITS } from '../../models/game-state';
 
 function makeResources(overrides: Partial<Resources> = {}): Resources {
@@ -919,13 +920,13 @@ describe('gameReducer', () => {
   });
 
   describe('pure helpers', () => {
-    it('computeUpkeepForPlayer sums upkeep for player units', () => {
+    it('computeUpkeep sums upkeep for player units', () => {
       const units = new Map<string, UnitData>([
         ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'fighter', q: 0, r: 0 })],
         ['u2', makeUnitData({ id: 'u2', ownerId: 'p1', type: 'cruiser', q: 1, r: 0 })],
         ['u3', makeUnitData({ id: 'u3', ownerId: 'p2', type: 'battleship', q: 5, r: 0 })],
       ]);
-      const upkeep = computeUpkeepForPlayer(units, 'p1');
+      const upkeep = computeUpkeep(units, 'p1');
       // fighter: 2 energy, cruiser: 5 energy + 2 credits
       expect(upkeep.energy).toBe(7);
       expect(upkeep.credits).toBe(2);

@@ -4,11 +4,7 @@ import { CameraService } from '../../core/camera/camera.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
 import { AudioService } from '../../core/audio/audio.service';
-import { EventLogService } from '../../core/state/event-log.service';
-import { AnimationService } from '../renderer/animation.service';
-import { UndoService } from '../../core/state/undo.service';
 import { ActionExecutionService } from '../../core/state/action-execution.service';
-
 import { WaypointService } from '../../core/state/waypoint.service';
 import { VisionService } from '../../core/vision/vision.service';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
@@ -61,10 +57,6 @@ export class ClickPopupComponent {
   private readonly gameState = inject(GameStateService);
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly audio = inject(AudioService);
-  private readonly eventLog = inject(EventLogService);
-  private readonly animation = inject(AnimationService);
-  private readonly undo = inject(UndoService);
-
   private readonly actionExec = inject(ActionExecutionService);
   private readonly waypointSvc = inject(WaypointService);
   private readonly vision = inject(VisionService);

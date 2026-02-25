@@ -107,6 +107,27 @@ export function hexesInRange(center: HexCoord, range: number): HexCoord[] {
   return results;
 }
 
+/** Cached hex offsets (dq, dr) within a given range for cube coordinates. */
+const offsetCache = new Map<number, ReadonlyArray<{ dq: number; dr: number }>>();
+
+export function hexOffsetsInRange(range: number): ReadonlyArray<{ dq: number; dr: number }> {
+  let offsets = offsetCache.get(range);
+  if (offsets) return offsets;
+  const result: { dq: number; dr: number }[] = [];
+  for (let q = -range; q <= range; q++) {
+    for (let r = Math.max(-range, -q - range); r <= Math.min(range, -q + range); r++) {
+      result.push({ dq: q, dr: r });
+    }
+  }
+  offsetCache.set(range, result);
+  return result;
+}
+
+/** Return all hex keys within `range` of (cq, cr). */
+export function hexKeysInRange(cq: number, cr: number, range: number): string[] {
+  return hexOffsetsInRange(range).map(({ dq, dr }) => hexKey(cq + dq, cr + dr));
+}
+
 /** Linear interpolation between two hexes, returning all hexes along the line. */
 export function hexLineDraw(a: HexCoord, b: HexCoord): HexCoord[] {
   const dist = hexDistance(a, b);

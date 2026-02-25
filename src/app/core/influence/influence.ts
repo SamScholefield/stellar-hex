@@ -1,4 +1,5 @@
 import { BuildingData, BUILDING_STATS, UnitData } from '../../models/game-state';
+import { hexKeysInRange } from '../../shared/hex/hex-math';
 
 /**
  * Compute the set of hex keys within the sphere of influence for a player's buildings.
@@ -9,12 +10,8 @@ export function computeInfluenceForPlayer(buildings: Map<string, BuildingData>, 
   for (const building of buildings.values()) {
     if (building.ownerId !== playerId) continue;
     const range = BUILDING_STATS[building.type].sightRange + sightRangeBonus;
-    for (let dq = -range; dq <= range; dq++) {
-      const r1 = Math.max(-range, -dq - range);
-      const r2 = Math.min(range, -dq + range);
-      for (let dr = r1; dr <= r2; dr++) {
-        result.add(`${building.q + dq},${building.r + dr}`);
-      }
+    for (const key of hexKeysInRange(building.q, building.r, range)) {
+      result.add(key);
     }
   }
   return result;

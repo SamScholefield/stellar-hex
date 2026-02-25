@@ -107,32 +107,42 @@ const ASTEROID_DEBRIS: Record<'asteroid' | 'asteroid_field', AsteroidDebrisConfi
   },
 };
 
+export interface RenderState {
+  ctx: CanvasRenderingContext2D;
+  camera: CameraService;
+  hexSize: number;
+  chunks: Chunk[];
+  hoveredHex: HexCoord | null;
+  selectedHex: HexCoord | null;
+  units?: Map<string, UnitData>;
+  playerColors?: Map<string, string>;
+  selectedUnitId?: string | null;
+  reachableHexes?: Map<string, number> | null;
+  pathPreview?: HexCoord[] | null;
+  unitAnimation?: UnitAnimation | null;
+  visibleHexes?: Set<string> | null;
+  exploredHexes?: Set<string> | null;
+  currentPlayerId?: string | null;
+  buildings?: Map<string, BuildingData>;
+  combatAnimation?: CombatAnimation | null;
+  anomalies?: Map<string, Anomaly>;
+  waypoints?: Map<string, Waypoint>;
+  influenceOverlay?: Set<string> | null;
+  attackRangeOverlay?: Set<string> | null;
+}
+
+const STARFIELD_CACHE_MAX = 100;
+
 @Injectable({ providedIn: 'root' })
 export class HexCanvasRendererService {
   private readonly sprites = inject(SpriteAtlasService);
-  draw(
-    ctx: CanvasRenderingContext2D,
-    camera: CameraService,
-    hexSize: number,
-    chunks: Chunk[],
-    hoveredHex: HexCoord | null,
-    selectedHex: HexCoord | null,
-    units?: Map<string, UnitData>,
-    playerColors?: Map<string, string>,
-    selectedUnitId?: string | null,
-    reachableHexes?: Map<string, number> | null,
-    pathPreview?: HexCoord[] | null,
-    unitAnimation?: UnitAnimation | null,
-    visibleHexes?: Set<string> | null,
-    exploredHexes?: Set<string> | null,
-    currentPlayerId?: string | null,
-    buildings?: Map<string, BuildingData>,
-    combatAnimation?: CombatAnimation | null,
-    anomalies?: Map<string, Anomaly>,
-    waypoints?: Map<string, Waypoint>,
-    influenceOverlay?: Set<string> | null,
-    attackRangeOverlay?: Set<string> | null,
-  ): void {
+  private readonly starTileCache = new Map<string, OffscreenCanvas>();
+  draw(state: RenderState): void {
+    const { ctx, camera, hexSize, chunks, hoveredHex, selectedHex,
+      units, playerColors, selectedUnitId, reachableHexes, pathPreview,
+      unitAnimation, visibleHexes, exploredHexes, currentPlayerId,
+      buildings, combatAnimation, anomalies, waypoints,
+      influenceOverlay, attackRangeOverlay } = state;
     const w = camera.canvasWidth();
     const h = camera.canvasHeight();
     const zoom = camera.zoom();
@@ -851,6 +861,33 @@ export class HexCanvasRendererService {
     ctx.stroke();
   }
 
+  private renderStarTile(col: number, row: number): OffscreenCanvas {
+    const key = `${col},${row}`;
+    let tile = this.starTileCache.get(key);
+    if (tile) return tile;
+
+    tile = new OffscreenCanvas(STAR_TILE_SIZE, STAR_TILE_SIZE);
+    const tctx = tile.getContext('2d')!;
+    const rng = seededRNG(hashCoord(STAR_SEED, col, row));
+    for (let i = 0; i < STARS_PER_TILE; i++) {
+      const lx = rng.next() * STAR_TILE_SIZE;
+      const ly = rng.next() * STAR_TILE_SIZE;
+      const brightness = 0.3 + rng.next() * 0.7;
+      const radius = 0.4 + rng.next() * 0.8;
+      const alpha = Math.round(brightness * 255);
+      tctx.fillStyle = `rgba(255,255,255,${(alpha / 255).toFixed(2)})`;
+      const size = radius < 0.9 ? 1 : 2;
+      tctx.fillRect(Math.round(lx), Math.round(ly), size, size);
+    }
+
+    if (this.starTileCache.size >= STARFIELD_CACHE_MAX) {
+      const firstKey = this.starTileCache.keys().next().value!;
+      this.starTileCache.delete(firstKey);
+    }
+    this.starTileCache.set(key, tile);
+    return tile;
+  }
+
   private drawStarfield(
     ctx: CanvasRenderingContext2D,
     w: number,
@@ -859,11 +896,9 @@ export class HexCanvasRendererService {
     panY: number,
     zoom: number,
   ): void {
-    // Parallax offset in screen pixels
     const offsetX = panX * zoom * PARALLAX_FACTOR;
     const offsetY = panY * zoom * PARALLAX_FACTOR;
 
-    // Determine which tiles cover the screen
     const startCol = Math.floor(offsetX / STAR_TILE_SIZE) - 1;
     const endCol = Math.floor((offsetX + w) / STAR_TILE_SIZE) + 1;
     const startRow = Math.floor(offsetY / STAR_TILE_SIZE) - 1;
@@ -871,22 +906,11 @@ export class HexCanvasRendererService {
 
     for (let col = startCol; col <= endCol; col++) {
       for (let row = startRow; row <= endRow; row++) {
-        const rng = seededRNG(hashCoord(STAR_SEED, col, row));
-        for (let i = 0; i < STARS_PER_TILE; i++) {
-          const lx = rng.next() * STAR_TILE_SIZE;
-          const ly = rng.next() * STAR_TILE_SIZE;
-          const brightness = 0.3 + rng.next() * 0.7;
-          const radius = 0.4 + rng.next() * 0.8;
-
-          const sx = col * STAR_TILE_SIZE + lx - offsetX;
-          const sy = row * STAR_TILE_SIZE + ly - offsetY;
-
-          if (sx < -2 || sx > w + 2 || sy < -2 || sy > h + 2) continue;
-
-          const alpha = Math.round(brightness * 255);
-          ctx.fillStyle = `rgba(255,255,255,${(alpha / 255).toFixed(2)})`;
-          ctx.fillRect(Math.round(sx), Math.round(sy), radius < 0.9 ? 1 : 2, radius < 0.9 ? 1 : 2);
-        }
+        const sx = col * STAR_TILE_SIZE - offsetX;
+        const sy = row * STAR_TILE_SIZE - offsetY;
+        if (sx + STAR_TILE_SIZE < 0 || sx > w || sy + STAR_TILE_SIZE < 0 || sy > h) continue;
+        const tile = this.renderStarTile(col, row);
+        ctx.drawImage(tile, Math.round(sx), Math.round(sy));
       }
     }
   }

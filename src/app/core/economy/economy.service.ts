@@ -1,5 +1,5 @@
 import { computed, inject, Injectable } from '@angular/core';
-import { BuildingData, BUILDING_STATS, Resources, UnitData, UNIT_UPKEEP, ZERO_RESOURCES } from '../../models/game-state';
+import { addResources, BuildingData, BUILDING_STATS, PlayerState, Resources, UnitData, UNIT_UPKEEP, ZERO_RESOURCES } from '../../models/game-state';
 import { HexData } from '../../models/hex-data';
 import { GameStateService } from '../state/game-state.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
@@ -71,58 +71,25 @@ export class EconomyService {
   private readonly gameState = inject(GameStateService);
   private readonly chunkManager = inject(ChunkManagerService);
 
-  /** Total projected income per turn including buildings and mining drones. */
-  readonly income = computed<Resources>(() => {
-    const player = this.gameState.currentPlayer();
+  private computeIncomeFor(player: PlayerState | null): Resources {
     if (!player) return ZERO_RESOURCES;
-
     const buildingIncome = computeIncome(this.gameState.buildings(), player.id);
-
     const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
     const miningIncome = computeMiningDroneIncome(this.gameState.units(), player.id, hexLookup);
+    return addResources(buildingIncome, miningIncome);
+  }
 
-    return {
-      energy: buildingIncome.energy + (miningIncome.energy ?? 0),
-      minerals: buildingIncome.minerals + (miningIncome.minerals ?? 0),
-      alloys: buildingIncome.alloys + (miningIncome.alloys ?? 0),
-      credits: buildingIncome.credits + (miningIncome.credits ?? 0),
-    };
-  });
-
-  readonly upkeep = computed<Resources>(() => {
-    const player = this.gameState.currentPlayer();
+  private computeUpkeepFor(player: PlayerState | null): Resources {
     if (!player) return ZERO_RESOURCES;
     return computeUpkeep(this.gameState.units(), player.id);
-  });
+  }
 
-  readonly netIncome = computed<Resources>(() =>
-    computeNetIncome(this.income(), this.upkeep())
-  );
+  readonly income = computed<Resources>(() => this.computeIncomeFor(this.gameState.currentPlayer()));
+  readonly upkeep = computed<Resources>(() => this.computeUpkeepFor(this.gameState.currentPlayer()));
+  readonly netIncome = computed<Resources>(() => computeNetIncome(this.income(), this.upkeep()));
 
   /** Human-pinned signals — never flash during AI turns. */
-  readonly humanIncome = computed<Resources>(() => {
-    const player = this.gameState.humanPlayer();
-    if (!player) return ZERO_RESOURCES;
-
-    const buildingIncome = computeIncome(this.gameState.buildings(), player.id);
-    const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-    const miningIncome = computeMiningDroneIncome(this.gameState.units(), player.id, hexLookup);
-
-    return {
-      energy: buildingIncome.energy + (miningIncome.energy ?? 0),
-      minerals: buildingIncome.minerals + (miningIncome.minerals ?? 0),
-      alloys: buildingIncome.alloys + (miningIncome.alloys ?? 0),
-      credits: buildingIncome.credits + (miningIncome.credits ?? 0),
-    };
-  });
-
-  readonly humanUpkeep = computed<Resources>(() => {
-    const player = this.gameState.humanPlayer();
-    if (!player) return ZERO_RESOURCES;
-    return computeUpkeep(this.gameState.units(), player.id);
-  });
-
-  readonly humanNetIncome = computed<Resources>(() =>
-    computeNetIncome(this.humanIncome(), this.humanUpkeep())
-  );
+  readonly humanIncome = computed<Resources>(() => this.computeIncomeFor(this.gameState.humanPlayer()));
+  readonly humanUpkeep = computed<Resources>(() => this.computeUpkeepFor(this.gameState.humanPlayer()));
+  readonly humanNetIncome = computed<Resources>(() => computeNetIncome(this.humanIncome(), this.humanUpkeep()));
 }

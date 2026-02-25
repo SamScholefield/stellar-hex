@@ -1,6 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { GameStateService } from '../state/game-state.service';
-import { BUILDING_STATS, UNIT_STATS, computeTechBonuses } from '../../models/game-state';
+import { computeTechBonuses } from '../../models/game-state';
+import { hexKeysInRange } from '../../shared/hex/hex-math';
 import { computeInfluenceForPlayer } from './influence';
 
 @Injectable({ providedIn: 'root' })
@@ -29,13 +30,8 @@ export class InfluenceService {
     for (const unit of this.gameState.units().values()) {
       if (unit.ownerId !== human.id) continue;
       if (unit.weapon == null) continue;
-      const range = unit.range;
-      for (let dq = -range; dq <= range; dq++) {
-        const r1 = Math.max(-range, -dq - range);
-        const r2 = Math.min(range, -dq + range);
-        for (let dr = r1; dr <= r2; dr++) {
-          result.add(`${unit.q + dq},${unit.r + dr}`);
-        }
+      for (const key of hexKeysInRange(unit.q, unit.r, unit.range)) {
+        result.add(key);
       }
     }
     return result;

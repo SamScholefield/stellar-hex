@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import { BuildingData, Resources, TechId, TechDefinition, TECH_TREE, canResearch, ResearchItem, canAfford } from '../../models/game-state';
+import { BuildingData, Resources, TechId, TechDefinition, TECH_TREE, canResearch, ResearchItem, canAfford, costEntries } from '../../models/game-state';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AudioService } from '../../core/audio/audio.service';
 
@@ -134,11 +134,8 @@ export class ResearchMenuComponent {
     return parts.join(', ');
   }
 
-  costEntries(def: TechDefinition): { key: string; value: number; current: number }[] {
-    const resources = this.gameState.resources();
-    return Object.entries(def.cost)
-      .filter(([, v]) => v != null && v > 0)
-      .map(([k, v]) => ({ key: k, value: v!, current: (resources as Record<string, number> | null)?.[k] ?? 0 }));
+  costEntries(def: TechDefinition) {
+    return costEntries(def.cost, this.gameState.resources() ?? undefined);
   }
 
   onResearch(techId: TechId): void {

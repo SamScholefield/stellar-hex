@@ -35,6 +35,12 @@ export function subtractResources(a: Resources, b: Partial<Resources>): Resource
   };
 }
 
+export function costEntries(cost: Partial<Resources>, current?: Resources): { key: string; value: number; current: number }[] {
+  return Object.entries(cost)
+    .filter(([, v]) => v != null && v > 0)
+    .map(([k, v]) => ({ key: k, value: v!, current: (current as Record<string, number> | undefined)?.[k] ?? 0 }));
+}
+
 export function clampResources(r: Resources): Resources {
   return {
     energy: Math.max(0, r.energy),

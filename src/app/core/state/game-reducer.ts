@@ -1,4 +1,5 @@
-import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName, UNIT_UPKEEP, PlayerState, UnitData, GameOverState, ECONOMIC_VICTORY_CREDITS, TechId, TECH_TREE, canResearch, computeTechBonuses, ResearchItem, canAfford, subtractResources, addResources, clampResources, ZERO_RESOURCES } from '../../models/game-state';
+import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName, PlayerState, UnitData, GameOverState, ECONOMIC_VICTORY_CREDITS, TechId, TECH_TREE, canResearch, computeTechBonuses, ResearchItem, canAfford, subtractResources, addResources } from '../../models/game-state';
+import { computeIncome, computeUpkeep } from '../economy/economy.service';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexDistance, hexKey, toHexCoord } from '../../shared/hex/hex-math';
@@ -379,25 +380,13 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
   let buildingsChanged = false;
 
   if (currentPlayer && !currentPlayer.eliminated) {
-    const income: Resources = { ...ZERO_RESOURCES };
-    for (const building of state.buildings.values()) {
-      if (building.ownerId !== currentPlayer.id) continue;
-      const stats = BUILDING_STATS[building.type];
-      if (!stats) continue;
-      income.energy += stats.yield.energy ?? 0;
-      income.minerals += stats.yield.minerals ?? 0;
-      income.alloys += stats.yield.alloys ?? 0;
-      income.credits += stats.yield.credits ?? 0;
-    }
-
-    // Add mining drone income from pre-computed yields
-    income.energy += miningYields?.energy ?? 0;
-    income.minerals += miningYields?.minerals ?? 0;
-    income.alloys += miningYields?.alloys ?? 0;
-    income.credits += miningYields?.credits ?? 0;
+    const income = addResources(
+      computeIncome(state.buildings, currentPlayer.id),
+      miningYields ?? {},
+    );
 
     // Compute upkeep
-    const upkeep = computeUpkeepForPlayer(state.units, currentPlayer.id);
+    const upkeep = computeUpkeep(state.units, currentPlayer.id);
 
     // Apply income then subtract upkeep
     const newResources = {
@@ -669,20 +658,6 @@ function collectAnomaly(state: GameState, anomalyId: string, unitId: string): Ga
   const gameOver = checkVictory(players, state.units, state.buildings) ?? state.gameOver;
 
   return { ...state, players, anomalies, gameOver };
-}
-
-export function computeUpkeepForPlayer(units: Map<string, UnitData>, playerId: string): Resources {
-  const upkeep: Resources = { ...ZERO_RESOURCES };
-  for (const unit of units.values()) {
-    if (unit.ownerId !== playerId) continue;
-    const cost = UNIT_UPKEEP[unit.type];
-    if (!cost) continue;
-    upkeep.energy += cost.energy ?? 0;
-    upkeep.minerals += cost.minerals ?? 0;
-    upkeep.alloys += cost.alloys ?? 0;
-    upkeep.credits += cost.credits ?? 0;
-  }
-  return upkeep;
 }
 
 export function shouldEliminate(player: PlayerState, units: Map<string, UnitData>, buildings: Map<string, BuildingData>): boolean {
