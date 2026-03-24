@@ -22,19 +22,36 @@ export class InfluenceService {
     return computeInfluenceForPlayer(this.gameState.buildings(), human.id, sightBonus);
   });
 
-  /** All hex keys within weapon range of the human player's armed units. */
+  /** All hex keys within weapon range of the human player's armed units (merged). */
   readonly humanAttackRangeHexes = computed<Set<string>>(() => {
-    const human = this.gameState.humanPlayer();
-    if (!human) return new Set();
     const result = new Set<string>();
-    for (const unit of this.gameState.units().values()) {
-      if (unit.ownerId !== human.id) continue;
-      if (unit.weapon == null) continue;
-      for (const key of hexKeysInRange(unit.q, unit.r, unit.range)) {
-        result.add(key);
-      }
+    for (const group of this.humanAttackRangeGroups()) {
+      for (const key of group) result.add(key);
     }
     return result;
+  });
+
+  /** Per-unit attack range hex sets for individual border drawing. */
+  readonly humanAttackRangeGroups = computed<Set<string>[]>(() => {
+    const human = this.gameState.humanPlayer();
+    const spectate = this.gameState.spectate();
+    const groups: Set<string>[] = [];
+
+    if (spectate) {
+      // In spectate mode, show all players' attack ranges
+      for (const unit of this.gameState.units().values()) {
+        if (unit.weapon == null) continue;
+        groups.push(new Set(hexKeysInRange(unit.q, unit.r, unit.range)));
+      }
+    } else {
+      if (!human) return groups;
+      for (const unit of this.gameState.units().values()) {
+        if (unit.ownerId !== human.id) continue;
+        if (unit.weapon == null) continue;
+        groups.push(new Set(hexKeysInRange(unit.q, unit.r, unit.range)));
+      }
+    }
+    return groups;
   });
 
   toggleInfluenceOverlay(): void {

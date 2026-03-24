@@ -176,6 +176,7 @@ export class GameViewportComponent implements OnDestroy {
       const waypoints = this.waypointSvc.waypoints();
       const influenceHexes = this.influenceSvc.showInfluenceOverlay() ? this.influenceSvc.humanInfluenceHexes() : null;
       const attackRangeHexes = this.influenceSvc.showAttackRangeOverlay() ? this.influenceSvc.humanAttackRangeHexes() : null;
+      const attackRangeGroups = this.influenceSvc.showAttackRangeOverlay() ? this.influenceSvc.humanAttackRangeGroups() : null;
 
       const canvas = this.canvasRef().nativeElement;
       const ctx = canvas.getContext('2d');
@@ -185,7 +186,7 @@ export class GameViewportComponent implements OnDestroy {
           units, playerColors, selectedUnitId, reachableHexes: reachable, pathPreview,
           unitAnimation: activeAnim, visibleHexes, exploredHexes, currentPlayerId,
           buildings, combatAnimation: combatAnim, anomalies, waypoints,
-          influenceOverlay: influenceHexes, attackRangeOverlay: attackRangeHexes,
+          influenceOverlay: influenceHexes, attackRangeOverlay: attackRangeHexes, attackRangeGroups,
         });
       }
     });

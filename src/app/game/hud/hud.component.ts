@@ -23,6 +23,7 @@ import { InfluenceService } from '../../core/influence/influence.service';
 import { hexKey, hexToPixel } from '../../shared/hex/hex-math';
 import { BuildingData, TechId, TECH_TREE, UnitType } from '../../models/game-state';
 import { formatName } from '../../shared/pipes/format-name.pipe';
+import { PlayerState } from '../../models/game-state';
 
 @Component({
   selector: 'app-hud',
@@ -30,7 +31,22 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
   imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, ResearchMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent, GameOverOverlayComponent],
   template: `
     <div class="hud-top">
-      <app-resource-bar />
+      @if (!spectate()) {
+        <app-resource-bar />
+      } @else {
+        <div class="panel spectate-resources">
+          @for (p of alivePlayers(); track p.id) {
+            <div class="sp-player" [class.eliminated]="p.eliminated">
+              <span class="sp-dot" [style.background]="p.color"></span>
+              <span class="sp-name">{{ p.name }}</span>
+              <span class="sp-res">{{ p.resources.energy }}E</span>
+              <span class="sp-res">{{ p.resources.minerals }}M</span>
+              <span class="sp-res">{{ p.resources.alloys }}A</span>
+              <span class="sp-res">{{ p.resources.credits }}C</span>
+            </div>
+          }
+        </div>
+      }
       <div class="hud-top-center">
         @if (homeBase(); as hb) {
           <button class="btn-toolbar home-btn" (click)="focusHome(hb)">&#8962; Home</button>
@@ -63,6 +79,13 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
           <span class="turn-label">Turn {{ gameState.turn() }}</span>
           <span class="spectate-badge">SPECTATING</span>
         </div>
+        @if (selectedEntityLabel(); as label) {
+          <div class="panel sp-selected">
+            <span class="sp-sel-dot" [style.background]="label.color"></span>
+            <span class="sp-sel-name">{{ label.name }}</span>
+            <span class="sp-sel-owner">{{ label.owner }}</span>
+          </div>
+        }
       </div>
     }
     <div class="hud-right-panels">
@@ -231,6 +254,60 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
       color: var(--text-secondary);
       font-weight: 600;
     }
+    .spectate-resources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.25rem;
+      padding: 0.4rem 1rem;
+      pointer-events: auto;
+    }
+    .sp-player {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.72rem;
+      color: var(--text-primary);
+    }
+    .sp-player.eliminated {
+      opacity: 0.3;
+      text-decoration: line-through;
+    }
+    .sp-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .sp-name {
+      font-weight: 600;
+      margin-right: 0.15rem;
+    }
+    .sp-res {
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+    .sp-selected {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.75rem;
+      margin-top: 0.35rem;
+      font-size: 0.8rem;
+    }
+    .sp-sel-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .sp-sel-name {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .sp-sel-owner {
+      color: var(--text-secondary);
+      font-size: 0.72rem;
+    }
     .spectate-badge {
       font-size: 0.7rem;
       font-weight: 700;
@@ -261,6 +338,27 @@ export class HudComponent {
 
   readonly aiExecuting = this.ai.executing;
   readonly gameOver = this.gameState.gameOver;
+
+  readonly alivePlayers = computed<PlayerState[]>(() => this.gameState.players());
+
+  readonly selectedEntityLabel = computed<{ name: string; owner: string; color: string } | null>(() => {
+    const unit = this.selection.selectedUnitData();
+    if (unit) {
+      const color = this.gameState.playerColors().get(unit.ownerId) ?? '#888';
+      const owner = this.gameState.playerNames().get(unit.ownerId) ?? '';
+      return { name: `${formatName(unit.type)} — ${unit.name}`, owner, color };
+    }
+    const coord = this.selection.selectedHexCoord();
+    if (coord) {
+      const b = this.gameState.buildingAtHex().get(hexKey(coord.q, coord.r));
+      if (b) {
+        const color = this.gameState.playerColors().get(b.ownerId) ?? '#888';
+        const owner = this.gameState.playerNames().get(b.ownerId) ?? '';
+        return { name: formatName(b.type), owner, color };
+      }
+    }
+    return null;
+  });
 
   readonly homeBase = computed<BuildingData | null>(() => {
     const id = this.gameState.homeBaseId();

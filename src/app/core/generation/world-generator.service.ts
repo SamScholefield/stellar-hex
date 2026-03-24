@@ -9,7 +9,7 @@ import { fbmNoise, hash3, hashCoord, seededRNG } from './noise';
 
 export const CHUNK_SIZE = 16;
 const SYSTEM_SPACING = 32;
-const NEBULA_NOISE_THRESHOLD = 0.68;
+const NEBULA_NOISE_THRESHOLD = 0.65;
 const SYSTEM_PROBABILITY = 0.4;
 const STAR_CLASSES: StarClass[] = ['O', 'B', 'A', 'F', 'G', 'K', 'M'];
 const STAR_CLASS_WEIGHTS = [0.02, 0.05, 0.08, 0.15, 0.2, 0.25, 0.25];
@@ -95,7 +95,7 @@ export class WorldGeneratorService {
 
         // Check if this hex falls within a nebula noise region regardless of object type
         const { x: wx, y: wy } = hexToPixel(q, r, 1);
-        const nebulaNoise = fbmNoise(wx * 0.01, wy * 0.01, seed + 1000, 3);
+        const nebulaNoise = fbmNoise(wx * 0.025, wy * 0.025, seed + 1000, 3);
         const inNebula = nebulaNoise > NEBULA_NOISE_THRESHOLD;
 
         hexes.set(key, { q, r, object, ...(anomaly ? { anomaly } : {}), ...(inNebula ? { inNebula } : {}) });
@@ -165,8 +165,8 @@ export class WorldGeneratorService {
     // Noise-based features
     const { x: wx, y: wy } = hexToPixel(hex.q, hex.r, 1);
 
-    // Nebula regions (large-scale noise)
-    const nebulaNoise = fbmNoise(wx * 0.01, wy * 0.01, seed + 1000, 3);
+    // Nebula regions (medium-scale noise — smaller, more frequent patches)
+    const nebulaNoise = fbmNoise(wx * 0.025, wy * 0.025, seed + 1000, 3);
     if (nebulaNoise > NEBULA_NOISE_THRESHOLD) {
       return {
         type: 'nebula',
@@ -177,9 +177,9 @@ export class WorldGeneratorService {
 
     // Asteroid fields (medium-scale noise)
     const asteroidNoise = fbmNoise(wx * 0.04, wy * 0.04, seed + 2000, 3);
-    if (asteroidNoise > 0.72) {
+    if (asteroidNoise > 0.62) {
       const rng = seededRNG(hash3(seed, hex.q, hex.r));
-      if (rng.next() < 0.4) {
+      if (rng.next() < 0.55) {
         return {
           type: 'asteroid_field',
           size: 1,

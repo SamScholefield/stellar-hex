@@ -292,10 +292,18 @@ export function scoreProduction(
     // Count owned units by type
     let scoutCount = 0;
     let combatCount = 0;
+    let miningDroneCount = 0;
+    let colonyShipCount = 0;
+    let colonyCount = 0;
     for (const u of units.values()) {
       if (u.ownerId !== player.id) continue;
       if (u.type === 'scout') scoutCount++;
+      if (u.type === 'mining_drone') miningDroneCount++;
+      if (u.type === 'colony_ship') colonyShipCount++;
       if (u.type === 'fighter' || u.type === 'corvette' || u.type === 'frigate' || u.type === 'cruiser' || u.type === 'battleship') combatCount++;
+    }
+    for (const b of buildings.values()) {
+      if (b.ownerId === player.id && b.type === 'colony') colonyCount++;
     }
 
     let unitType: UnitType;
@@ -322,17 +330,27 @@ export function scoreProduction(
         continue;
       }
     } else if (scoutCount < 2 && canAfford(player.resources, UNIT_STATS.scout.cost)) {
+      // Early exploration: need scouts
       unitType = 'scout';
       score = 60;
-    } else if (combatCount < 2 && canAfford(player.resources, UNIT_STATS.corvette.cost) && canSustainUpkeep('corvette', netEnergyIncome)) {
+    } else if (miningDroneCount < 3 && canAfford(player.resources, UNIT_STATS.mining_drone.cost)) {
+      // Economy: mining drones for resource extraction
+      unitType = 'mining_drone';
+      score = 55;
+    } else if (colonyShipCount < 1 && colonyCount < 2 && canAfford(player.resources, UNIT_STATS.colony_ship.cost)) {
+      // Expansion: colony ship to settle planets
+      unitType = 'colony_ship';
+      score = 52;
+    } else if (combatCount < 3 && canAfford(player.resources, UNIT_STATS.corvette.cost) && canSustainUpkeep('corvette', netEnergyIncome)) {
       unitType = 'corvette';
       score = 50;
-    } else if (combatCount < 2 && canAfford(player.resources, UNIT_STATS.fighter.cost) && canSustainUpkeep('fighter', netEnergyIncome)) {
+    } else if (combatCount < 3 && canAfford(player.resources, UNIT_STATS.fighter.cost) && canSustainUpkeep('fighter', netEnergyIncome)) {
       unitType = 'fighter';
       score = 45;
-    } else if (canAfford(player.resources, UNIT_STATS.scout.cost)) {
-      unitType = 'scout';
-      score = 30;
+    } else if (canAfford(player.resources, UNIT_STATS.frigate.cost) && canSustainUpkeep('frigate', netEnergyIncome)) {
+      // Late game: upgrade to frigates
+      unitType = 'frigate';
+      score = 40;
     } else {
       continue;
     }

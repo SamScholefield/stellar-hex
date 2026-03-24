@@ -129,6 +129,7 @@ export interface RenderState {
   waypoints?: Map<string, Waypoint>;
   influenceOverlay?: Set<string> | null;
   attackRangeOverlay?: Set<string> | null;
+  attackRangeGroups?: Set<string>[] | null;
 }
 
 const STARFIELD_CACHE_MAX = 100;
@@ -142,7 +143,7 @@ export class HexCanvasRendererService {
       units, playerColors, selectedUnitId, reachableHexes, pathPreview,
       unitAnimation, visibleHexes, exploredHexes, currentPlayerId,
       buildings, combatAnimation, anomalies, waypoints,
-      influenceOverlay, attackRangeOverlay } = state;
+      influenceOverlay, attackRangeOverlay, attackRangeGroups } = state;
     const w = camera.canvasWidth();
     const h = camera.canvasHeight();
     const zoom = camera.zoom();
@@ -196,7 +197,16 @@ export class HexCanvasRendererService {
         const [q, r] = key.split(',').map(Number);
         this.drawHexOverlay(ctx, toHexCoord(q, r), hexSize, ATTACK_RANGE_OVERLAY, null);
       }
-      this.drawOverlayBorder(ctx, attackRangeOverlay, hexSize, ATTACK_RANGE_BORDER, 2, hasFog ? visibleHexes! : null, hasFog ? exploredHexes! : null);
+      // Draw per-unit borders if groups are available, otherwise fall back to merged border
+      if (attackRangeGroups && attackRangeGroups.length > 0) {
+        const fogVisible = hasFog ? visibleHexes! : null;
+        const fogExplored = hasFog ? exploredHexes! : null;
+        for (const group of attackRangeGroups) {
+          this.drawOverlayBorder(ctx, group, hexSize, ATTACK_RANGE_BORDER, 2, fogVisible, fogExplored);
+        }
+      } else {
+        this.drawOverlayBorder(ctx, attackRangeOverlay, hexSize, ATTACK_RANGE_BORDER, 2, hasFog ? visibleHexes! : null, hasFog ? exploredHexes! : null);
+      }
     }
 
     // Draw buildings after fog, before units
