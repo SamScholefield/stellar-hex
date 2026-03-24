@@ -17,6 +17,7 @@ export interface NewGameConfig {
   playerName: string;
   aiOpponents: number;
   seed?: number;
+  spectate?: boolean;
 }
 
 const PLAYER_COLORS = ['#5eead4', '#f87171', '#fbbf24', '#a78bfa', '#34d399', '#fb923c'];
@@ -86,13 +87,14 @@ export class GameInitService {
     const seed = config.seed ?? Date.now();
     this.worldGenerator.setSeed(seed);
 
+    const spectate = config.spectate ?? false;
     const players: PlayerState[] = [
       {
         id: 'p0',
-        name: config.playerName,
+        name: spectate ? 'AI 0' : config.playerName,
         color: PLAYER_COLORS[0],
         resources: makeStartResources(),
-        isAI: false,
+        isAI: spectate,
         exploredHexes: new Set(),
         eliminated: false,
         researchedTechs: new Set(),
@@ -169,6 +171,7 @@ export class GameInitService {
       chunkOverrides: new Map(),
       anomalies: new Map(),
       seed,
+      spectate: spectate || undefined,
     };
 
     this.gameState.setState(state);

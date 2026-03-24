@@ -17,6 +17,7 @@ import { ChunkManagerService } from '../core/chunks/chunk-manager.service';
 import { AudioService } from '../core/audio/audio.service';
 import { WaypointService } from '../core/state/waypoint.service';
 import { InfluenceService } from '../core/influence/influence.service';
+import { Router } from '@angular/router';
 import { ANOMALY_REWARDS } from '../models/game-state';
 import { HEX_SIZE, hexToPixel, toHexCoord } from '../shared/hex/hex-math';
 
@@ -34,7 +35,16 @@ const ZOOM_STEP = 50;
   template: `
     @if (ready()) {
       <app-game-viewport (showClickPopup)="onShowClickPopup($event)" />
-      <app-hud [(helpVisible)]="helpVisible" />
+      <app-hud [(helpVisible)]="helpVisible" [spectate]="spectate()" />
+      @if (spectate()) {
+        <div class="spectate-controls">
+          <button class="btn-spectate" (click)="gameState.togglePause()">
+            {{ paused() ? 'Resume' : 'Pause' }}
+          </button>
+          <button class="btn-spectate abort" (click)="abortSpectate()">Abort</button>
+          <span class="spectate-hint">Space to pause</span>
+        </div>
+      }
       <app-click-popup />
       <app-context-menu />
       <app-help-panel [(visible)]="helpVisible" />
@@ -75,6 +85,47 @@ const ZOOM_STEP = 50;
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    .spectate-controls {
+      position: absolute;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #374151;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      pointer-events: auto;
+      z-index: 10;
+    }
+    .btn-spectate {
+      padding: 0.35rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e0e0e0;
+      background: rgba(94, 234, 212, 0.15);
+      border: 1px solid #5eead4;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-spectate:hover {
+      background: rgba(94, 234, 212, 0.25);
+    }
+    .btn-spectate.abort {
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.1);
+      border-color: #f87171;
+    }
+    .btn-spectate.abort:hover {
+      background: rgba(248, 113, 113, 0.2);
+    }
+    .spectate-hint {
+      font-size: 0.72rem;
+      color: #6b7280;
+    }
   `,
 })
 export class GameComponent implements OnDestroy {
@@ -82,7 +133,7 @@ export class GameComponent implements OnDestroy {
   private readonly selection = inject(SelectionService);
   private readonly vision = inject(VisionService);
   private readonly eventLog = inject(EventLogService);
-  private readonly gameState = inject(GameStateService);
+  protected readonly gameState = inject(GameStateService);
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly ai = inject(AIService);
   private readonly saveSvc = inject(GameSaveService);
@@ -91,13 +142,17 @@ export class GameComponent implements OnDestroy {
   private readonly audio = inject(AudioService);
   private readonly waypointSvc = inject(WaypointService);
   private readonly influenceSvc = inject(InfluenceService);
+  private readonly router = inject(Router);
   private readonly el = inject(ElementRef);
   private readonly clickPopup = viewChild(ClickPopupComponent);
   private readonly contextMenu = viewChild(ContextMenuComponent);
   readonly helpVisible = signal(false);
   readonly ready = computed(() => this.gameState.players().length > 0);
+  readonly spectate = this.gameState.spectate;
+  readonly paused = this.gameState.paused;
   private lastTurnKey = '';
   private lastDiscoveryId = 0;
+  private pendingAI: { playerId: string; turn: number } | null = null;
   private readonly onBeforeUnload = () => {
     if (this.gameState.players().length === 0) return;
     this.saveSvc.autoSave();
@@ -138,7 +193,15 @@ export class GameComponent implements OnDestroy {
           });
         } else {
           this.eventLog.push({ turn, message: `[AI] ${player.name} is thinking...` });
-          untracked(() => this.ai.executeTurn(player.id));
+          // In spectate mode, defer AI execution if paused
+          untracked(() => {
+            if (this.gameState.spectate() && this.gameState.paused()) {
+              this.pendingAI = { playerId: player.id, turn };
+            } else {
+              this.pendingAI = null;
+              this.ai.executeTurn(player.id);
+            }
+          });
         }
       } else {
         this.eventLog.push({ turn, message: `${player.name}'s turn begins` });
@@ -150,6 +213,19 @@ export class GameComponent implements OnDestroy {
           untracked(() => this.waypointSvc.executeAllWaypoints());
         }
       }
+    });
+
+    // Resume pending AI when unpaused in spectate mode
+    effect(() => {
+      const paused = this.gameState.paused();
+      if (paused) return;
+      untracked(() => {
+        if (this.pendingAI) {
+          const { playerId } = this.pendingAI;
+          this.pendingAI = null;
+          this.ai.executeTurn(playerId);
+        }
+      });
     });
 
     // Discovery effect — detect newly explored anomalies
@@ -187,6 +263,12 @@ export class GameComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('beforeunload', this.onBeforeUnload);
+    this.gameState.setPaused(false);
+  }
+
+  abortSpectate(): void {
+    this.gameState.setPaused(true);
+    this.router.navigate(['/menu']);
   }
 
   protected focus(): void {
@@ -215,6 +297,13 @@ export class GameComponent implements OnDestroy {
     // Help panel toggle (works even during AI)
     if (event.key === '?') {
       this.helpVisible.update(v => !v);
+      return;
+    }
+
+    // Space toggles pause in spectate mode
+    if (event.key === ' ' && this.gameState.spectate()) {
+      event.preventDefault();
+      this.gameState.togglePause();
       return;
     }
 

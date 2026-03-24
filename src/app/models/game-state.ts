@@ -361,4 +361,5 @@ export interface GameState {
   anomalies: Map<string, Anomaly>;
   seed: number;
   gameOver?: GameOverState;
+  spectate?: boolean;
 }

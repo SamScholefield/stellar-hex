@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, model } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
 import { ResourceBarComponent } from './resource-bar.component';
 import { TurnControlsComponent } from './turn-controls.component';
 import { HexInfoPanelComponent } from '../panels/hex-info-panel.component';
@@ -42,14 +42,29 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
     </div>
     <div class="hud-unit-panel">
       <app-unit-info-panel />
-      @if (selectedStarbase(); as sb) {
-        <app-production-menu [building]="sb" [homeBaseId]="gameState.homeBaseId()" (produceSelected)="onProduce($event)" (setHomeSelected)="onSetHome(sb)" />
-      }
-      @if (selectedResearchLab(); as rl) {
-        <app-research-menu [building]="rl" (researchSelected)="onResearch($event)" />
+      @if (!spectate()) {
+        @if (selectedStarbase(); as sb) {
+          <app-production-menu [building]="sb" [homeBaseId]="gameState.homeBaseId()" (produceSelected)="onProduce($event)" (setHomeSelected)="onSetHome(sb)" />
+        }
+        @if (selectedResearchLab(); as rl) {
+          <app-research-menu [building]="rl" (researchSelected)="onResearch($event)" />
+        }
       }
     </div>
-    <app-turn-controls class="hud-turn" />
+    @if (!spectate()) {
+      <app-turn-controls class="hud-turn" />
+    } @else {
+      <div class="hud-turn spectate-label">
+        <div class="panel controls">
+          @if (currentPlayer(); as player) {
+            <span class="player-dot" [style.background]="player.color"></span>
+            <span class="player-name">{{ player.name }}</span>
+          }
+          <span class="turn-label">Turn {{ gameState.turn() }}</span>
+          <span class="spectate-badge">SPECTATING</span>
+        </div>
+      </div>
+    }
     <div class="hud-right-panels">
       <app-unit-list-panel />
       <app-building-list-panel />
@@ -62,7 +77,7 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
       <app-minimap />
       <app-hex-info-panel />
     </div>
-    @if (aiExecuting()) {
+    @if (aiExecuting() && !spectate()) {
       <div class="ai-overlay">
         <div class="ai-popup">
           <span class="ai-icon">&#9881;</span>
@@ -192,12 +207,48 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
+    .spectate-label {
+      pointer-events: auto;
+    }
+    .spectate-label .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.4rem 1rem;
+    }
+    .spectate-label .player-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .spectate-label .player-name {
+      font-size: 0.85rem;
+      color: var(--text-primary);
+    }
+    .spectate-label .turn-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .spectate-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #5eead4;
+      letter-spacing: 0.1em;
+      padding: 0.15rem 0.5rem;
+      border: 1px solid rgba(94, 234, 212, 0.3);
+      border-radius: 0.25rem;
+      background: rgba(94, 234, 212, 0.1);
+    }
   `,
 })
 export class HudComponent {
   private readonly selection = inject(SelectionService);
   readonly gameState = inject(GameStateService);
+  readonly spectate = input(false);
   readonly helpVisible = model(false);
+  readonly currentPlayer = this.gameState.currentPlayer;
   private readonly eventLog = inject(EventLogService);
   private readonly ai = inject(AIService);
   private readonly audio = inject(AudioService);
