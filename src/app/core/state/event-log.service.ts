@@ -21,6 +21,10 @@ export class EventLogService {
   private readonly _events = signal<GameEvent[]>([]);
   readonly events = this._events.asReadonly();
 
+  private readonly _pushCount = signal(0);
+  /** Monotonic counter incremented on each push. Use to detect new events regardless of array length. */
+  readonly pushCount = this._pushCount.asReadonly();
+
   private readonly _graduatedEvents = signal<GraduatedEvent[]>([]);
   readonly graduatedEvents = this._graduatedEvents.asReadonly();
 
@@ -29,6 +33,7 @@ export class EventLogService {
       const updated = [...list, event];
       return updated.length > MAX_EVENTS ? updated.slice(-MAX_EVENTS) : updated;
     });
+    this._pushCount.update(n => n + 1);
   }
 
   graduate(event: GameEvent): void {

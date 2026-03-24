@@ -140,6 +140,7 @@ export class EventFeedComponent {
   private readonly _items = signal<FeedItem[]>([]);
   readonly items = this._items.asReadonly();
 
+  private prevPushCount = 0;
   private prevLength = 0;
   private readonly queue: GameEvent[] = [];
   private draining = false;
@@ -147,18 +148,23 @@ export class EventFeedComponent {
   constructor() {
     effect(() => {
       const events = this.eventLog.events();
-      const newCount = events.length - this.prevLength;
+      const pushCount = this.eventLog.pushCount();
+      const newCount = pushCount - this.prevPushCount;
       if (newCount <= 0) {
         if (events.length === 0) {
           this._items.set([]);
           this.queue.length = 0;
+          this.prevPushCount = 0;
         }
         this.prevLength = events.length;
         return;
       }
+      this.prevPushCount = pushCount;
       this.prevLength = events.length;
 
-      const newEvents = events.slice(-newCount);
+      // Grab the last N events (capped by actual array length)
+      const available = Math.min(newCount, events.length);
+      const newEvents = events.slice(-available);
       this.queue.push(...newEvents);
       this.drainQueue();
     });
