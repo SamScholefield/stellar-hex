@@ -9,17 +9,12 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Stage 2: Serve the static files
-FROM node:22-alpine
+# Stage 2: Serve with nginx
+FROM nginx:alpine
 
-WORKDIR /app
+COPY --from=builder /app/dist/stellar-hex/browser /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-RUN npm install -g serve@14
+EXPOSE 80
 
-COPY --from=builder /app/browser ./browser
-
-ENV PORT=3000
-
-EXPOSE 3000
-
-CMD serve browser --listen tcp://0.0.0.0:${PORT} --single
+CMD ["nginx", "-g", "daemon off;"]
