@@ -1,0 +1,69 @@
+<div class="layout">
+  <h1 class="title">Stellar Hex</h1>
+  <p class="subtitle">A hex-based real-time strategy game</p>
+
+  <div class="actions">
+    @if (saveSvc.latestSave(); as latest) {
+      <button class="continue" (click)="continueSave()">Continue</button>
+    }
+    <button class="primary" (click)="openNewGameModal()">New Game</button>
+    <button class="spectate" (click)="startSpectate()">Spectate</button>
+  </div>
+
+  @if (saveSvc.saves().length > 0) {
+    <div class="saves">
+      <h2>Saved Games</h2>
+      <table class="saves-table">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Turn</th>
+            <th>Date</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of saveSvc.saves(); track entry.key) {
+            <tr>
+              <td>{{ entry.playerName }}</td>
+              <td>{{ entry.turn }}</td>
+              <td class="date-cell">
+                {{ entry.savedAt ? (entry.savedAt | date: 'short') : '—' }}
+              </td>
+              <td class="actions-cell">
+                <button class="btn-load" (click)="loadSave(entry)">Load</button>
+                <button class="btn-delete" (click)="deleteSave(entry)">Delete</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (showNewGameModal()) {
+  <div class="backdrop" (click)="closeModal()">
+    <div class="panel-solid modal" (click)="$event.stopPropagation()">
+      <h2>New Game</h2>
+      <label>
+        <span>Player Name</span>
+        <input [(ngModel)]="playerName" placeholder="Commander" />
+      </label>
+      <label>
+        <span>AI Opponents</span>
+        <select [(ngModel)]="aiOpponents">
+          <option [ngValue]="1">1</option>
+          <option [ngValue]="2">2</option>
+          <option [ngValue]="3">3</option>
+          <option [ngValue]="4">4</option>
+          <option [ngValue]="5">5</option>
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button class="cancel" (click)="closeModal()">Cancel</button>
+        <button class="modal-start" (click)="confirmNewGame()">Start</button>
+      </div>
+    </div>
+  </div>
+}
