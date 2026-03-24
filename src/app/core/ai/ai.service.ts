@@ -6,7 +6,7 @@ import { EventLogService } from '../state/event-log.service';
 import { ANOMALY_REWARDS, BuildingData, BUILDING_STATS, PlayerState, UnitData, UNIT_UPKEEP, TECH_TREE } from '../../models/game-state';
 import { formatName } from '../../shared/pipes/format-name.pipe';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance, hexKey, toHexCoord } from '../../shared/hex/hex-math';
+import { hexDistance, hexKey, hexesInRange, toHexCoord } from '../../shared/hex/hex-math';
 import { findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
 import { attackWithResult } from '../state/game-reducer';
 import { scoreExplore, scoreAttack, scoreBuild, scoreProduction, scoreResearch } from './ai-scoring';
@@ -279,6 +279,18 @@ export class AIService {
       if (anomalyTarget) return anomalyTarget;
     }
 
+    // Mining drones: move toward asteroid/asteroid_field hexes with resources
+    if (unit.type === 'mining_drone') {
+      const target = this.findResourceHex(unit, player, state, hexLookup, ['asteroid', 'asteroid_field']);
+      if (target) return target;
+    }
+
+    // Colony ships: move toward planet hexes without buildings
+    if (unit.type === 'colony_ship') {
+      const target = this.findResourceHex(unit, player, state, hexLookup, ['planet']);
+      if (target) return target;
+    }
+
     // Explore
     const exploreResult = scoreExplore(unit, player.exploredHexes, hexLookup);
     return exploreResult?.target ?? null;
@@ -298,6 +310,52 @@ export class AIService {
       if (dist < nearestDist) {
         nearestDist = dist;
         nearest = coord;
+      }
+    }
+
+    return nearest;
+  }
+
+  private findResourceHex(
+    unit: UnitData,
+    player: PlayerState,
+    state: import('../../models/game-state').GameState,
+    hexLookup: (q: number, r: number) => import('../../models/hex-data').HexData | null,
+    targetTypes: string[],
+  ): HexCoord | null {
+    const unitCoord: HexCoord = toHexCoord(unit.q, unit.r);
+    const searchRadius = 12;
+    let nearest: HexCoord | null = null;
+    let nearestDist = Infinity;
+
+    // Build set of hexes already occupied by own buildings or own mining drones
+    const occupiedHexes = new Set<string>();
+    for (const b of state.buildings.values()) {
+      occupiedHexes.add(hexKey(b.q, b.r));
+    }
+    if (unit.type === 'mining_drone') {
+      for (const u of state.units.values()) {
+        if (u.id !== unit.id && u.type === 'mining_drone' && u.ownerId === player.id) {
+          occupiedHexes.add(hexKey(u.q, u.r));
+        }
+      }
+    }
+
+    const candidates = hexesInRange(unitCoord, searchRadius);
+    for (const hex of candidates) {
+      const key = hexKey(hex.q, hex.r);
+      if (!player.exploredHexes.has(key)) continue;
+      if (occupiedHexes.has(key)) continue;
+
+      const hexData = hexLookup(hex.q, hex.r);
+      if (!hexData) continue;
+      const hexType = hexData.object?.type ?? 'empty';
+      if (!targetTypes.includes(hexType)) continue;
+
+      const dist = hexDistance(unitCoord, hex);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = hex;
       }
     }
 
