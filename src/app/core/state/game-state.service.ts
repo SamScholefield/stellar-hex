@@ -36,6 +36,17 @@ export class GameStateService {
   readonly anomalies = computed(() => this._gameState().anomalies);
   readonly homeBaseId = computed(() => this.currentPlayer()?.homeBaseId ?? null);
   readonly gameOver = computed<GameOverState | undefined>(() => this._gameState().gameOver);
+  readonly spectate = computed(() => this._gameState().spectate ?? false);
+  private readonly _paused = signal(false);
+  readonly paused = this._paused.asReadonly();
+
+  togglePause(): void {
+    this._paused.update(v => !v);
+  }
+
+  setPaused(v: boolean): void {
+    this._paused.set(v);
+  }
 
   readonly unitsAtHex = computed<Map<string, UnitData[]>>(() => {
     const index = new Map<string, UnitData[]>();

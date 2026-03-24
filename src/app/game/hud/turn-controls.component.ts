@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { AIService } from '../../core/ai/ai.service';
@@ -22,12 +23,31 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
         @if (undo.canUndo()) {
           <button class="undo-btn" (click)="undoAction()">Undo</button>
         }
-        <button class="btn-primary end-turn" [style.visibility]="aiExecuting() ? 'hidden' : 'visible'" [disabled]="!!gameOver()" (click)="endTurn()">End Turn</button>
+        <button
+          class="btn-primary end-turn"
+          [style.visibility]="aiExecuting() ? 'hidden' : 'visible'"
+          [disabled]="!!gameOver()"
+          (click)="endTurn()"
+        >
+          End Turn
+        </button>
         @if (aiExecuting()) {
           <span class="ai-thinking">AI thinking...</span>
         }
       </div>
+      <button class="exit-btn" (click)="showExitConfirm.set(true)">Menu</button>
     </div>
+    @if (showExitConfirm()) {
+      <div class="backdrop" (click)="showExitConfirm.set(false)">
+        <div class="panel-solid confirm-modal" (click)="$event.stopPropagation()">
+          <p>Are you sure you want to leave?</p>
+          <div class="confirm-actions mt-2">
+            <button class="confirm-cancel" (click)="showExitConfirm.set(false)">Cancel</button>
+            <button class="confirm-exit" (click)="confirmExit()">Exit</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: `
     :host {
@@ -85,8 +105,79 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
       animation: pulse 1.2s ease-in-out infinite;
     }
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+      0%,
+      100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.4;
+      }
+    }
+    .exit-btn {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 1px solid #374151;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition:
+        background 0.15s,
+        color 0.15s;
+    }
+    .exit-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .confirm-modal {
+      padding: 1.5rem 2rem;
+      text-align: center;
+      min-width: 260px;
+    }
+    .confirm-modal p {
+      margin: 0 0 0.25rem;
+      font-size: 1rem;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .confirm-sub {
+      font-size: 0.8rem !important;
+      font-weight: 400 !important;
+      color: var(--text-secondary) !important;
+      margin-bottom: 1.25rem !important;
+    }
+    .confirm-actions {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .confirm-cancel {
+      padding: 0.35rem 1rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 1px solid #4b5563;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .confirm-cancel:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .confirm-exit {
+      padding: 0.35rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.1);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      border-radius: 0.375rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .confirm-exit:hover {
+      background: rgba(248, 113, 113, 0.2);
     }
   `,
 })
@@ -102,6 +193,13 @@ export class TurnControlsComponent {
   readonly currentPlayer = this.gameState.currentPlayer;
   readonly aiExecuting = this.ai.executing;
   readonly gameOver = this.gameState.gameOver;
+  private readonly router = inject(Router);
+  readonly showExitConfirm = signal(false);
+
+  confirmExit(): void {
+    this.audio.playClick();
+    this.router.navigate(['/menu']);
+  }
 
   undoAction(): void {
     this.audio.playClick();

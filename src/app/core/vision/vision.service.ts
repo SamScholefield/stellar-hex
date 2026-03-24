@@ -44,15 +44,23 @@ export class VisionService {
     return player?.exploredHexes ?? new Set();
   });
 
-  /** Vision always from the human player's perspective (for rendering). */
+  /** Vision always from the human player's perspective (for rendering).
+   *  In spectate mode, combines all players' vision for full visibility. */
   readonly humanVisibleHexes = computed<Set<string>>(() => {
+    if (this.gameState.spectate()) {
+      return this.allPlayersVisible();
+    }
     const human = this.gameState.humanPlayer();
     if (!human) return new Set();
     return this.computeVisible(this.sourcesForPlayer(human.id));
   });
 
-  /** Explored hexes for the human player (for rendering). */
+  /** Explored hexes for the human player (for rendering).
+   *  In spectate mode, combines all players' explored hexes. */
   readonly humanExploredHexes = computed<Set<string>>(() => {
+    if (this.gameState.spectate()) {
+      return this.allPlayersExplored();
+    }
     const human = this.gameState.humanPlayer();
     return human?.exploredHexes ?? new Set();
   });
@@ -106,6 +114,24 @@ export class VisionService {
       }
     }
     return sources;
+  }
+
+  private allPlayersVisible(): Set<string> {
+    const allSources: VisionSource[] = [];
+    for (const player of this.gameState.players()) {
+      allSources.push(...this.sourcesForPlayer(player.id));
+    }
+    return this.computeVisible(allSources);
+  }
+
+  private allPlayersExplored(): Set<string> {
+    const combined = new Set<string>();
+    for (const player of this.gameState.players()) {
+      for (const key of player.exploredHexes) {
+        combined.add(key);
+      }
+    }
+    return combined;
   }
 
   private computeVisible(sources: VisionSource[]): Set<string> {

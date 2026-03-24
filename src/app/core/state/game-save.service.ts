@@ -47,6 +47,7 @@ interface SerializedGameState {
   anomalies: [string, Anomaly][];
   seed: number;
   gameOver?: GameOverState;
+  spectate?: boolean;
 }
 
 interface SerializedPlayer {
@@ -88,6 +89,7 @@ export function serialize(
       anomalies: [...state.anomalies.entries()],
       seed: state.seed,
       gameOver: state.gameOver,
+      spectate: state.spectate,
     },
     camera,
     waypoints,
@@ -156,6 +158,7 @@ export function deserialize(json: string): {
     anomalies: new Map(s.anomalies),
     seed: s.seed,
     gameOver: s.gameOver,
+    spectate: s.spectate,
   };
 
   return { state, camera: data.camera, waypoints: data.waypoints ?? [] };
@@ -267,7 +270,7 @@ export class GameSaveService {
         entries.push({
           key,
           turn: data.state.turn,
-          playerName: human?.name ?? 'Unknown',
+          playerName: data.state.spectate ? 'Spectator' : (human?.name ?? 'Unknown'),
           savedAt: data.savedAt ?? null,
         });
       } catch {
