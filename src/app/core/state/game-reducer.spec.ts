@@ -256,7 +256,7 @@ describe('gameReducer', () => {
       ]);
       const state = makeState({ units });
       const hex = { q: 0, r: 0, s: 0 };
-      const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'mining_station', hex, hexType: 'planet' });
+      const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'mining_station', hex, hexType: 'star' });
       expect(next.buildings.size).toBe(0);
     });
 

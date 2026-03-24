@@ -63,9 +63,9 @@ export interface BuildingStats {
 }
 
 export const BUILDING_STATS: Record<BuildingType, BuildingStats> = {
-  mining_station:  { cost: { energy: 20, minerals: 5 },  maxHealth: 15, maxShields: 5,  buildTurns: 1, yield: { minerals: 3 },              allowedHexTypes: ['asteroid', 'asteroid_field'], sightRange: 2 },
+  mining_station:  { cost: { energy: 20, minerals: 5 },  maxHealth: 15, maxShields: 5,  buildTurns: 1, yield: { minerals: 3 },              allowedHexTypes: ['asteroid', 'asteroid_field', 'planet', 'moon'], sightRange: 2 },
   colony:          { cost: { energy: 30, alloys: 10 },    maxHealth: 30, maxShields: 10, buildTurns: 2, yield: { alloys: 2, credits: 2 },    allowedHexTypes: ['planet'],                      sightRange: 5 },
-  solar_collector: { cost: { energy: 10, credits: 15 },   maxHealth: 10, maxShields: 3,  buildTurns: 1, yield: { energy: 4 },                allowedHexTypes: ['empty'],                       sightRange: 2 },
+  solar_collector: { cost: { energy: 10, credits: 15 },   maxHealth: 10, maxShields: 3,  buildTurns: 1, yield: { energy: 4 },                allowedHexTypes: ['empty', 'nebula'],              sightRange: 2 },
   starbase:        { cost: { energy: 40, alloys: 20, credits: 20 }, maxHealth: 50, maxShields: 15, buildTurns: 3, yield: { energy: 2, credits: 1 }, allowedHexTypes: ['empty', 'nebula'],              sightRange: 5 },
   research_lab:    { cost: { energy: 25, alloys: 10 },    maxHealth: 12, maxShields: 5,  buildTurns: 2, yield: { energy: 1, credits: 1 },    allowedHexTypes: ['nebula'],                       sightRange: 4 },
 };
@@ -215,12 +215,12 @@ export interface UnitStats {
 }
 
 export const UNIT_STATS: Record<UnitType, UnitStats> = {
-  scout:        { maxMovementPoints: 4, maxHealth: 8,  attack: 3,  defense: 0,  range: 1, sightRange: 4, cost: { energy: 20, alloys: 5 },                       size: 'small',  weapon: 'laser',   armor: 0, maxShields: 0,  buildTurns: 2 },
-  fighter:      { maxMovementPoints: 3, maxHealth: 15, attack: 7,  defense: 3,  range: 1, sightRange: 2, cost: { energy: 30, alloys: 15 },                      size: 'small',  weapon: 'laser',   armor: 1, maxShields: 2,  buildTurns: 2 },
-  corvette:     { maxMovementPoints: 3, maxHealth: 18, attack: 8,  defense: 5,  range: 1, sightRange: 2, cost: { energy: 35, alloys: 18 },                      size: 'small',  weapon: 'kinetic', armor: 2, maxShields: 3,  buildTurns: 2 },
-  frigate:      { maxMovementPoints: 2, maxHealth: 25, attack: 9,  defense: 8,  range: 2, sightRange: 3, cost: { energy: 45, alloys: 25, credits: 10 },         size: 'medium', weapon: 'missile', armor: 3, maxShields: 5,  buildTurns: 3 },
-  cruiser:      { maxMovementPoints: 2, maxHealth: 30, attack: 12, defense: 12, range: 2, sightRange: 3, cost: { energy: 50, alloys: 30, credits: 20 },         size: 'medium', weapon: 'laser',   armor: 4, maxShields: 8,  buildTurns: 3 },
-  battleship:   { maxMovementPoints: 1, maxHealth: 50, attack: 18, defense: 18, range: 2, sightRange: 3, cost: { energy: 80, alloys: 50, credits: 40 },         size: 'large',  weapon: 'kinetic', armor: 6, maxShields: 12, buildTurns: 4 },
+  scout:        { maxMovementPoints: 4, maxHealth: 8,  attack: 3,  defense: 0,  range: 2, sightRange: 4, cost: { energy: 20, alloys: 5 },                       size: 'small',  weapon: 'laser',   armor: 0, maxShields: 0,  buildTurns: 2 },
+  fighter:      { maxMovementPoints: 3, maxHealth: 15, attack: 7,  defense: 3,  range: 2, sightRange: 2, cost: { energy: 30, alloys: 15 },                      size: 'small',  weapon: 'laser',   armor: 1, maxShields: 2,  buildTurns: 2 },
+  corvette:     { maxMovementPoints: 3, maxHealth: 18, attack: 8,  defense: 5,  range: 2, sightRange: 2, cost: { energy: 35, alloys: 18 },                      size: 'small',  weapon: 'kinetic', armor: 2, maxShields: 3,  buildTurns: 2 },
+  frigate:      { maxMovementPoints: 2, maxHealth: 25, attack: 9,  defense: 8,  range: 3, sightRange: 3, cost: { energy: 45, alloys: 25, credits: 10 },         size: 'medium', weapon: 'missile', armor: 3, maxShields: 5,  buildTurns: 3 },
+  cruiser:      { maxMovementPoints: 2, maxHealth: 30, attack: 12, defense: 12, range: 3, sightRange: 3, cost: { energy: 50, alloys: 30, credits: 20 },         size: 'medium', weapon: 'laser',   armor: 4, maxShields: 8,  buildTurns: 3 },
+  battleship:   { maxMovementPoints: 1, maxHealth: 50, attack: 18, defense: 18, range: 3, sightRange: 3, cost: { energy: 80, alloys: 50, credits: 40 },         size: 'large',  weapon: 'kinetic', armor: 6, maxShields: 12, buildTurns: 4 },
   colony_ship:  { maxMovementPoints: 2, maxHealth: 12, attack: 0,  defense: 0,  range: 0, sightRange: 2, cost: { energy: 40, alloys: 20, credits: 30 },         size: 'medium', weapon: null,      armor: 0, maxShields: 0,  buildTurns: 2 },
   mining_drone: { maxMovementPoints: 2, maxHealth: 6,  attack: 0,  defense: 0,  range: 0, sightRange: 1, cost: { energy: 15, minerals: 10 },                    size: 'small',  weapon: null,      armor: 0, maxShields: 0,  buildTurns: 2 },
 };
