@@ -60,6 +60,7 @@ export interface ContextMenuState {
   },
   template: `
     @if (state(); as s) {
+      @if (s.canCollect || s.canTrade || s.attackOptions.length > 0 || s.canMoveHere || s.canAttackHere || s.buildOptions.length > 0) {
       <div class="dropdown" [style.left.px]="s.screenX" [style.top.px]="s.screenY">
         @if (s.canCollect) {
           <button class="dropdown-item collect" (click)="onCollect()">Collect {{ s.collectAnomalyName }}</button>
@@ -90,8 +91,8 @@ export interface ContextMenuState {
             </span>
           </button>
         }
-        <button class="dropdown-item" (click)="onInspect()">Inspect</button>
       </div>
+      }
     }
   `,
   styles: `
@@ -335,15 +336,6 @@ export class ContextMenuComponent {
 
   close(): void {
     this._state.set(null);
-  }
-
-  onInspect(): void {
-    this.audio.playClick();
-    const s = this._state();
-    if (s) {
-      this.selection.selectHex(s.hex);
-    }
-    this.close();
   }
 
   onAttack(atk: AttackOption): void {
