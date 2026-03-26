@@ -411,7 +411,7 @@ export class HudComponent {
   onSetHome(building: BuildingData): void {
     this.audio.playClick();
     const player = this.gameState.currentPlayer();
-    if (!player) return;
+    if (!player || building.type !== 'starbase') return;
     this.undo.dispatch({ type: 'SET_HOME_BASE', playerId: player.id, buildingId: building.id });
     this.eventLog.push({ turn: this.gameState.turn(), message: 'Home base reassigned' });
   }

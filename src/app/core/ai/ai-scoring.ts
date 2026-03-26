@@ -36,6 +36,7 @@ export interface BuildScoreResult {
   hex: HexCoord;
   hexType: StellarObjectType;
   adjacentHexTypes: StellarObjectType[];
+  nearbyHasPlanet: boolean;
   score: number;
 }
 
@@ -202,6 +203,8 @@ export function scoreBuild(
       const hexData = hexLookup(hex.q, hex.r);
       if (!hexData) continue;
       const hexType = hexData.object?.type ?? 'empty';
+      let nearbyPlanetChecked = false;
+      let nearbyPlanetResult = false;
 
       // Try each building type
       for (const [btStr, stats] of Object.entries(BUILDING_STATS)) {
@@ -231,12 +234,14 @@ export function scoreBuild(
             }
           }
           if (!hasScout) continue;
-          const nearby = hexesInRange(hex, 8);
-          const hasPlanet = nearby.some(h => {
-            const hd = hexLookup(h.q, h.r);
-            return hd?.object?.type === 'planet';
-          });
-          if (!hasPlanet) continue;
+          if (!nearbyPlanetChecked) {
+            nearbyPlanetChecked = true;
+            nearbyPlanetResult = hexesInRange(hex, 8).some(h => {
+              const hd = hexLookup(h.q, h.r);
+              return hd?.object?.type === 'planet';
+            });
+          }
+          if (!nearbyPlanetResult) continue;
         }
 
         // Solar collector requires adjacent star
@@ -256,6 +261,13 @@ export function scoreBuild(
         const score = totalCost > 0 ? (totalYield / totalCost) * 100 : 0;
 
         if (!bestResult || score > bestResult.score) {
+          if (!nearbyPlanetChecked) {
+            nearbyPlanetChecked = true;
+            nearbyPlanetResult = hexesInRange(hex, 8).some(h => {
+              const hd = hexLookup(h.q, h.r);
+              return hd?.object?.type === 'planet';
+            });
+          }
           bestResult = {
             buildingType: bt,
             hex,
@@ -264,6 +276,7 @@ export function scoreBuild(
               const hd = hexLookup(n.q, n.r);
               return (hd?.object?.type ?? 'empty') as StellarObjectType;
             }),
+            nearbyHasPlanet: nearbyPlanetResult,
             score,
           };
         }

@@ -185,6 +185,7 @@ export class AIService {
           hex: buildResult.hex,
           hexType: buildResult.hexType,
           adjacentHexTypes: buildResult.adjacentHexTypes,
+          nearbyHasPlanet: buildResult.nearbyHasPlanet,
         });
 
         const turn = this.gameState.getState().turn;
