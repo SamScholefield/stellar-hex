@@ -8,6 +8,7 @@
     }
     <button class="primary" (click)="openNewGameModal()">New Game</button>
     <button class="spectate" (click)="startSpectate()">Spectate</button>
+    <button class="guide" (click)="openGuide()">Guide</button>
   </div>
 
   @if (saveSvc.saves().length > 0) {

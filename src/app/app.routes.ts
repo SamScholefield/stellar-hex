@@ -13,5 +13,9 @@ export const routes: Routes = [
     canActivate: [gameActivateGuard],
     canDeactivate: [gameGuard],
   },
+  {
+    path: 'guide',
+    loadChildren: () => import('./guide/guide.routes').then((m) => m.guideRoutes),
+  },
   { path: '**', redirectTo: '/menu' },
 ];

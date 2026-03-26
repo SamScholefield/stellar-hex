@@ -12,6 +12,7 @@ import { BuildingListPanelComponent } from '../panels/building-list-panel.compon
 import { MinimapComponent } from './minimap.component';
 import { GameOverOverlayComponent } from '../overlays/game-over-overlay.component';
 
+import { Router } from '@angular/router';
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { EventLogService } from '../../core/state/event-log.service';
@@ -53,6 +54,7 @@ import { PlayerState } from '../../models/game-state';
         }
         <button class="btn-toolbar overlay-btn" [class.active]="influenceActive()" (click)="toggleInfluence()">Influence</button>
         <button class="btn-toolbar overlay-btn" [class.active]="attackRangeActive()" (click)="toggleAttackRange()">Attack Range</button>
+        <button class="btn-toolbar guide-btn" (click)="onGuide()">Guide</button>
         <button class="btn-toolbar help-btn" (click)="onHelp()">?</button>
       </div>
     </div>
@@ -188,6 +190,10 @@ import { PlayerState } from '../../models/game-state';
       background: rgba(59, 130, 246, 0.15);
       color: var(--text-primary);
     }
+    .guide-btn {
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
     .help-btn {
       color: var(--text-secondary);
       font-size: 0.85rem;
@@ -322,6 +328,7 @@ import { PlayerState } from '../../models/game-state';
 })
 export class HudComponent {
   private readonly selection = inject(SelectionService);
+  private readonly router = inject(Router);
   readonly gameState = inject(GameStateService);
   readonly spectate = input(false);
   readonly helpVisible = model(false);
@@ -409,6 +416,11 @@ export class HudComponent {
   toggleAttackRange(): void {
     this.audio.playClick();
     this.influenceSvc.toggleAttackRangeOverlay();
+  }
+
+  onGuide(): void {
+    this.audio.playClick();
+    this.router.navigate(['/guide'], { queryParams: { from: 'game' } });
   }
 
   onHelp(): void {
