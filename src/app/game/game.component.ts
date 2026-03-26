@@ -128,7 +128,6 @@ export class GameComponent implements OnDestroy {
   readonly tradeHubId = signal<string | null>(null);
   readonly tradeUnitId = signal<string | null>(null);
   readonly ready = computed(() => this.gameState.players().length > 0);
-  readonly rendered = computed(() => this.viewport()?.firstDrawComplete() ?? false);
   readonly spectate = this.gameState.spectate;
   readonly paused = this.gameState.paused;
   private lastTurnKey = '';
@@ -153,25 +152,25 @@ export class GameComponent implements OnDestroy {
         loader.innerHTML = '<div style="width:40px;height:40px;border:3px solid #2a4a5a;border-top-color:#5eead4;border-radius:50%;animation:l-spin 0.8s linear infinite"></div><span>Loading...</span>';
         document.body.appendChild(loader);
       }
-      effect(() => {
-        if (this.rendered()) {
-          untracked(() => {
-            // Chain: yield to browser → wait for paint → yield again → fade out
-            // This ensures the canvas is actually composited on screen
-            setTimeout(() => {
-              requestAnimationFrame(() => {
-                setTimeout(() => {
-                  const el = document.getElementById('app-loader');
-                  if (el) {
-                    el.style.opacity = '0';
-                    setTimeout(() => el.remove(), 300);
-                  }
-                }, 100);
-              });
-            }, 0);
-          });
+      // Poll for actual canvas content before dismissing loader
+      const pollCanvasReady = () => {
+        const vp = this.viewport();
+        if (!vp || !vp.firstDrawComplete()) {
+          requestAnimationFrame(pollCanvasReady);
+          return;
         }
-      });
+        // Canvas has been drawn — wait 2 more frames for compositor
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const el = document.getElementById('app-loader');
+            if (el) {
+              el.style.opacity = '0';
+              setTimeout(() => el.remove(), 300);
+            }
+          });
+        });
+      };
+      requestAnimationFrame(pollCanvasReady);
     }
     // Log turn start — only when turn/player actually changes
     effect(() => {
@@ -183,8 +182,8 @@ export class GameComponent implements OnDestroy {
       if (key === this.lastTurnKey) return;
       this.lastTurnKey = key;
 
-      // Skip if game is over
-      const gameOver = this.gameState.gameOver();
+      // Skip if game is over (untracked to avoid extra dependency)
+      const gameOver = untracked(() => this.gameState.gameOver());
       if (gameOver) {
         const winnerName = this.gameState.playerNames().get(gameOver.winnerId) ?? 'Unknown';
         const reason = gameOver.reason === 'domination' ? 'Domination' : 'Economic';
@@ -265,9 +264,10 @@ export class GameComponent implements OnDestroy {
             type: 'DISCOVER_ANOMALY',
             anomaly: { id, type: hex.anomaly, q: d.q, r: d.r },
           });
-          const prefix = player?.isAI ? '[AI] ' : '';
-          this.eventLog.push({ turn, message: `${prefix}Discovered ${info.name}`, q: d.q, r: d.r });
-          if (!player?.isAI) this.audio.playDiscovery();
+          if (!player?.isAI) {
+            this.eventLog.push({ turn, message: `Discovered ${info.name}`, q: d.q, r: d.r });
+            this.audio.playDiscovery();
+          }
         }
 
         // Discover trade hubs
@@ -282,9 +282,10 @@ export class GameComponent implements OnDestroy {
             type: 'DISCOVER_TRADE_HUB',
             tradeHub: { id, q: d.q, r: d.r, stock: { ...TRADE_HUB_STARTING_STOCK } },
           });
-          const prefix = player?.isAI ? '[AI] ' : '';
-          this.eventLog.push({ turn, message: `${prefix}Discovered a Trade Hub`, q: d.q, r: d.r });
-          if (!player?.isAI) this.audio.playDiscovery();
+          if (!player?.isAI) {
+            this.eventLog.push({ turn, message: 'Discovered a Trade Hub', q: d.q, r: d.r });
+            this.audio.playDiscovery();
+          }
         }
       });
     });

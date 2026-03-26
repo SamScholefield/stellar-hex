@@ -3,6 +3,7 @@ import { ResourceBarComponent } from './resource-bar.component';
 import { TurnControlsComponent } from './turn-controls.component';
 import { HexInfoPanelComponent } from '../panels/hex-info-panel.component';
 import { UnitInfoPanelComponent } from '../panels/unit-info-panel.component';
+import { BuildingInfoPanelComponent } from '../panels/building-info-panel.component';
 import { EventLogComponent } from '../log/event-log.component';
 import { EventFeedComponent } from '../log/event-feed.component';
 import { ProductionMenuComponent } from '../panels/production-menu.component';
@@ -28,7 +29,7 @@ import { PlayerState } from '../../models/game-state';
 @Component({
   selector: 'app-hud',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, ResearchMenuComponent, FleetPanelComponent, MinimapComponent, GameOverOverlayComponent],
+  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, BuildingInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, ResearchMenuComponent, FleetPanelComponent, MinimapComponent, GameOverOverlayComponent],
   template: `
     <header class="hud-header">
       @if (!spectate()) {
@@ -90,6 +91,7 @@ import { PlayerState } from '../../models/game-state';
     </div>
     <div class="hud-bottom-center">
       <app-unit-info-panel />
+      <app-building-info-panel />
     </div>
     <div class="hud-right-panels">
       <app-fleet-panel />
@@ -121,29 +123,28 @@ import { PlayerState } from '../../models/game-state';
       pointer-events: none;
       display: grid;
       grid-template-rows: auto 1fr auto;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 0.5rem;
     }
     .hud-header {
       grid-row: 1;
       grid-column: 1 / -1;
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      gap: 1rem;
       padding: 0.5rem 1rem;
       background: var(--panel-bg, rgba(10, 10, 26, 0.85));
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       pointer-events: auto;
     }
     .hud-toolbar {
-      flex: 1;
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 0.75rem;
     }
     .hud-turn-section {
-      margin-left: auto;
+      justify-self: end;
     }
     .hud-left-panels {
       grid-row: 2;

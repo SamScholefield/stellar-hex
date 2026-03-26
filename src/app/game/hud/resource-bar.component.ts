@@ -47,28 +47,29 @@ import { EconomyService } from '../../core/economy/economy.service';
     }
     .bar {
       display: flex;
-      gap: 1.25rem;
+      gap: 1.5rem;
     }
     .res {
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: 0.15rem;
       font-variant-numeric: tabular-nums;
     }
     .res-header {
       display: flex;
       align-items: center;
-      gap: 0.2rem;
+      gap: 0.3rem;
     }
     .icon {
-      width: 12px;
-      height: 12px;
+      width: 16px;
+      height: 16px;
     }
     .label {
-      font-size: 0.6rem;
-      font-weight: 500;
+      font-size: 0.75rem;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
     }
     .label.energy { color: var(--res-energy); }
     .label.minerals { color: var(--res-minerals); }
@@ -77,15 +78,15 @@ import { EconomyService } from '../../core/economy/economy.service';
     .res-values {
       display: flex;
       align-items: baseline;
-      gap: 0.25rem;
+      gap: 0.3rem;
     }
     .val {
-      font-size: 0.85rem;
+      font-size: 1.1rem;
       color: var(--text-primary);
-      font-weight: 600;
+      font-weight: 700;
     }
     .breakdown {
-      font-size: 0.6rem;
+      font-size: 0.7rem;
     }
     .inc {
       color: var(--accent-teal);

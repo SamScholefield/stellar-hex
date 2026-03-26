@@ -300,8 +300,6 @@ type SubPanel = 'units' | 'building' | 'tradeHub' | 'anomaly' | null;
       max-height: 40vh;
       overflow-y: auto;
       padding: 0.6rem 0.75rem;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(94, 234, 212, 0.2) transparent;
     }
     .sub-title {
       font-size: 0.8rem;

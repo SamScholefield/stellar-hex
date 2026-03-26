@@ -191,7 +191,15 @@ export class GameViewportComponent implements OnDestroy {
           buildings, combatAnimation: combatAnim, anomalies, tradeHubs, waypoints,
           influenceOverlay: influenceHexes, attackRangeOverlay: attackRangeHexes, attackRangeGroups,
         });
-        if (!this.firstDrawComplete() && this.spriteAtlas.ready() && chunks.length > 0) this.firstDrawComplete.set(true);
+        if (!this.firstDrawComplete() && this.spriteAtlas.ready()) {
+          // Sample center pixel to confirm real content was drawn
+          const cx = Math.floor(canvas.width / 2);
+          const cy = Math.floor(canvas.height / 2);
+          const pixel = ctx.getImageData(cx, cy, 1, 1).data;
+          if (pixel[3] > 0) {
+            this.firstDrawComplete.set(true);
+          }
+        }
       }
     });
   }

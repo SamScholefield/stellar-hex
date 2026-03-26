@@ -7,9 +7,9 @@ import { BuildingData, BUILDING_STATS, Resources, UnitData, ZERO_RESOURCES } fro
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 import { hexToPixel } from '../../shared/hex/hex-math';
 
-type ActiveList = 'military' | 'industrial' | 'buildings' | null;
+type ActiveList = 'military' | 'scouts' | 'industrial' | 'buildings' | null;
 
-const INDUSTRIAL_TYPES = new Set(['scout', 'colony_ship', 'mining_drone']);
+const INDUSTRIAL_TYPES = new Set(['colony_ship', 'mining_drone']);
 
 interface UnitGroup {
   type: string;
@@ -46,6 +46,23 @@ interface BuildingEntry {
                 <span class="mp" [class.active]="unit.movementPoints > 0">{{ unit.movementPoints }}MP</span>
               </button>
             }
+          }
+        </div>
+      }
+
+      @if (activeList() === 'scouts' && scoutCount() > 0) {
+        <div class="panel expand-list">
+          @for (unit of scoutUnits(); track unit.id) {
+            <button
+              class="item-row"
+              [class.selected]="unit.id === selectedUnitId()"
+              [class.has-mp]="unit.movementPoints > 0"
+              (click)="selectUnit(unit)"
+            >
+              <span class="item-name">{{ unit.name }}</span>
+              <span class="hp">{{ unit.health }}/{{ unit.maxHealth }}</span>
+              <span class="mp" [class.active]="unit.movementPoints > 0">{{ unit.movementPoints }}MP</span>
+            </button>
           }
         </div>
       }
@@ -103,6 +120,9 @@ interface BuildingEntry {
       <div class="panel summary">
         <button class="badge" [class.active]="activeList() === 'military'" (click)="toggle('military')">
           Military<span class="count">{{ militaryCount() }}</span>
+        </button>
+        <button class="badge" [class.active]="activeList() === 'scouts'" (click)="toggle('scouts')">
+          Scouts<span class="count">{{ scoutCount() }}</span>
         </button>
         <button class="badge" [class.active]="activeList() === 'industrial'" (click)="toggle('industrial')">
           Industrial<span class="count">{{ industrialCount() }}</span>
@@ -162,8 +182,6 @@ interface BuildingEntry {
       max-height: 40vh;
       overflow-y: auto;
       padding: 0.3rem;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(94, 234, 212, 0.2) transparent;
     }
     .group-header {
       font-size: 0.65rem;
@@ -265,9 +283,11 @@ export class FleetPanelComponent {
     return [...groups.entries()].map(([type, units]) => ({ type, units }));
   }
 
-  readonly militaryGroups = computed(() => this.groupUnits(t => !INDUSTRIAL_TYPES.has(t)));
+  readonly militaryGroups = computed(() => this.groupUnits(t => t !== 'scout' && !INDUSTRIAL_TYPES.has(t)));
+  readonly scoutUnits = computed(() => this.selection.ownedUnits().filter(u => u.type === 'scout'));
   readonly industrialGroups = computed(() => this.groupUnits(t => INDUSTRIAL_TYPES.has(t)));
   readonly militaryCount = computed(() => this.militaryGroups().reduce((n, g) => n + g.units.length, 0));
+  readonly scoutCount = computed(() => this.scoutUnits().length);
   readonly industrialCount = computed(() => this.industrialGroups().reduce((n, g) => n + g.units.length, 0));
 
   readonly buildingEntries = computed<BuildingEntry[]>(() => {

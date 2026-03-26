@@ -213,7 +213,9 @@ export class TurnControlsComponent {
     const turn = this.gameState.turn();
     const completing: { unitType: string; q: number; r: number }[] = [];
     const researchCompleting: { techName: string; q: number; r: number }[] = [];
+    const humanId = this.gameState.humanPlayer()?.id;
     for (const [, b] of this.gameState.buildings()) {
+      if (b.ownerId !== humanId) continue;
       if (b.productionQueue) {
         for (const item of b.productionQueue) {
           if (item.turnsRemaining === 1) {
