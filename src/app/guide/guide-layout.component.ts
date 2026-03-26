@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { GUIDE_CATEGORIES, GuideCategory, searchEntries } from './guide-data';
+import { GUIDE_CATEGORIES, searchEntries } from './guide-data';
 
 @Component({
   selector: 'app-guide-layout',
