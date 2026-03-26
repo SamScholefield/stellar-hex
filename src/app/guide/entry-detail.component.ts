@@ -9,6 +9,7 @@ import { GuideStatTableComponent } from './guide-stat-table.component';
   selector: 'app-guide-entry-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, GuideStatTableComponent],
+  styleUrl: './guide.component.scss',
   template: `
     @if (entry(); as e) {
       <div class="breadcrumb">
@@ -19,13 +20,22 @@ import { GuideStatTableComponent } from './guide-stat-table.component';
         <span class="current">{{ e.title }}</span>
       </div>
 
-      <h2 class="entry-title">{{ e.title }}</h2>
-      <p class="entry-summary">{{ e.summary }}</p>
+      <h2 class="detail-title">{{ e.title }}</h2>
+      <p class="detail-summary">{{ e.summary }}</p>
 
       @if (e.prose) {
         <div class="prose">
           @for (p of e.prose; track $index) {
-            <p>{{ p }}</p>
+            @if (p.startsWith('## ')) {
+              <h3 class="prose-heading">{{ p.slice(3) }}</h3>
+            } @else if (p.startsWith('• ')) {
+              <div class="prose-bullet">
+                <span class="bullet-dot"></span>
+                <span>{{ p.slice(2) }}</span>
+              </div>
+            } @else {
+              <p>{{ p }}</p>
+            }
           }
         </div>
       }
@@ -48,84 +58,6 @@ import { GuideStatTableComponent } from './guide-stat-table.component';
       }
     } @else {
       <p class="not-found">Entry not found.</p>
-    }
-  `,
-  styles: `
-    .breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      font-size: 0.75rem;
-      margin-bottom: 1rem;
-    }
-    .breadcrumb a {
-      color: var(--accent-teal, #5eead4);
-      text-decoration: none;
-    }
-    .breadcrumb a:hover {
-      text-decoration: underline;
-    }
-    .sep {
-      color: var(--text-muted, #6b7280);
-    }
-    .current {
-      color: var(--text-secondary, #9ca3af);
-    }
-    .entry-title {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: var(--text-primary, #e0e0e0);
-      margin: 0 0 0.4rem;
-    }
-    .entry-summary {
-      font-size: 0.9rem;
-      color: var(--accent-teal, #5eead4);
-      margin: 0 0 1.25rem;
-      font-style: italic;
-    }
-    .prose {
-      margin-bottom: 1.25rem;
-    }
-    .prose p {
-      font-size: 0.85rem;
-      color: var(--text-primary, #e0e0e0);
-      line-height: 1.6;
-      margin: 0 0 0.6rem;
-    }
-    .stat-section {
-      padding: 0.75rem 1rem;
-      margin-bottom: 1.25rem;
-    }
-    .related {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.5rem;
-      margin-top: 1.5rem;
-      padding-top: 1rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .related-label {
-      font-size: 0.8rem;
-      color: var(--text-secondary, #9ca3af);
-      font-weight: 600;
-    }
-    .related-link {
-      font-size: 0.8rem;
-      color: var(--accent-teal, #5eead4);
-      text-decoration: none;
-      padding: 0.2rem 0.6rem;
-      border: 1px solid rgba(94, 234, 212, 0.2);
-      border-radius: 1rem;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .related-link:hover {
-      background: rgba(94, 234, 212, 0.08);
-      border-color: rgba(94, 234, 212, 0.4);
-    }
-    .not-found {
-      color: var(--text-secondary, #9ca3af);
-      font-size: 0.9rem;
     }
   `,
 })
