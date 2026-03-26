@@ -6,8 +6,14 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
   </head>
   <body>
+    <div id="app-loader" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;background:#0a0a1a;color:#9ca3af;font-family:sans-serif;font-size:1rem;z-index:9999;transition:opacity 0.3s">
+      <div style="width:40px;height:40px;border:3px solid #2a4a5a;border-top-color:#5eead4;border-radius:50%;animation:l-spin 0.8s linear infinite"></div>
+      <span>Loading...</span>
+    </div>
+    <style>@keyframes l-spin{to{transform:rotate(360deg)}}</style>
     <app-root></app-root>
   </body>
 </html>

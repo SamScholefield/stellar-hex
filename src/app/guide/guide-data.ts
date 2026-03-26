@@ -790,6 +790,34 @@ function buildMechanicEntries(): GuideEntry[] {
         { id: 'economy', category: 'mechanics', label: 'Economy' },
       ],
     },
+    {
+      id: 'trading',
+      category: 'mechanics' as GuideCategory,
+      title: 'Trade Hubs',
+      summary: 'Neutral trading posts where scouts can exchange resources.',
+      prose: [
+        'Trade Hubs are persistent neutral stations scattered across the map between star systems.',
+        '## How to Trade',
+        '• Move a Scout to a discovered Trade Hub hex',
+        '• Right-click and select "Trade" to open the trade modal',
+        '• Pick a resource to sell and a resource to buy',
+        '• Set the amount and confirm the trade',
+        '## Rules',
+        '• Each player can trade at a given hub once per turn',
+        '• Trade Hubs have their own stock — you can only buy what they have',
+        '• When you sell resources, they go into the hub\'s stock',
+        '• Hub stock replenishes each round (all players complete their turns)',
+        '• Any player\'s scout can trade at any hub — they are neutral',
+        '## Exchange Rates',
+        '• Energy/Minerals are cheap to trade: 2:1 for each other, 3:1 for alloys, 4:1 for credits',
+        '• Alloys are mid-tier: 0.5:1 for energy/minerals, 2:1 for credits',
+        '• Credits are the most expensive: 0.33:1 for energy/minerals, 0.5:1 for alloys',
+      ],
+      links: [
+        { id: 'economy', category: 'mechanics', label: 'Economy' },
+        { id: 'scout', category: 'units', label: 'Scout' },
+      ],
+    },
   ];
 }
 

@@ -64,3 +64,29 @@ body {
   color: var(--text-primary);
   font-family: 'DIN Next LT Pro', sans-serif;
 }
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(94, 234, 212, 0.2) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(94, 234, 212, 0.2);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(94, 234, 212, 0.4);
+    }
+
+    &:active {
+      background: rgba(94, 234, 212, 0.55);
+    }
+  }
+}

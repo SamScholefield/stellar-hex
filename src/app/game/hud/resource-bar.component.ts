@@ -6,62 +6,34 @@ import { EconomyService } from '../../core/economy/economy.service';
   selector: 'app-resource-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="panel bar">
+    <div class="bar">
       @if (resources(); as r) {
         <span class="res">
-          <span class="label">Energy</span> {{ r.energy }}
-          <span class="breakdown">
-            <span class="inc">+{{ income().energy }}</span>
-            @if (upkeep().energy > 0) {
-              <span class="upk">-{{ upkeep().energy }}</span>
-            }
-            <span
-              class="net"
-              [class.positive]="net().energy > 0"
-              [class.negative]="net().energy < 0"
-            ></span>
+          <span class="res-header"><img class="icon" src="icons/energy.svg" alt="" /><span class="label energy">Energy</span></span>
+          <span class="res-values">
+            <span class="val">{{ r.energy }}</span>
+            <span class="breakdown"><span class="inc">{{ income().energy }}</span>@if (upkeep().energy > 0) {<span class="upk">{{ upkeep().energy }}</span>}</span>
           </span>
         </span>
         <span class="res">
-          <span class="label">Minerals</span> {{ r.minerals }}
-          <span class="breakdown">
-            <span class="inc">+{{ income().minerals }}</span>
-            @if (upkeep().minerals > 0) {
-              <span class="upk">-{{ upkeep().minerals }}</span>
-            }
-            <span
-              class="net"
-              [class.positive]="net().minerals > 0"
-              [class.negative]="net().minerals < 0"
-            ></span>
+          <span class="res-header"><img class="icon" src="icons/minerals.svg" alt="" /><span class="label minerals">Minerals</span></span>
+          <span class="res-values">
+            <span class="val">{{ r.minerals }}</span>
+            <span class="breakdown"><span class="inc">{{ income().minerals }}</span>@if (upkeep().minerals > 0) {<span class="upk">{{ upkeep().minerals }}</span>}</span>
           </span>
         </span>
         <span class="res">
-          <span class="label">Alloys</span> {{ r.alloys }}
-          <span class="breakdown">
-            <span class="inc">+{{ income().alloys }}</span>
-            @if (upkeep().alloys > 0) {
-              <span class="upk">-{{ upkeep().alloys }}</span>
-            }
-            <span
-              class="net"
-              [class.positive]="net().alloys > 0"
-              [class.negative]="net().alloys < 0"
-            ></span>
+          <span class="res-header"><img class="icon" src="icons/alloys.svg" alt="" /><span class="label alloys">Alloys</span></span>
+          <span class="res-values">
+            <span class="val">{{ r.alloys }}</span>
+            <span class="breakdown"><span class="inc">{{ income().alloys }}</span>@if (upkeep().alloys > 0) {<span class="upk">{{ upkeep().alloys }}</span>}</span>
           </span>
         </span>
         <span class="res">
-          <span class="label">Credits</span> {{ r.credits }}
-          <span class="breakdown">
-            <span class="inc">+{{ income().credits }}</span>
-            @if (upkeep().credits > 0) {
-              <span class="upk">-{{ upkeep().credits }}</span>
-            }
-            <span
-              class="net"
-              [class.positive]="net().credits > 0"
-              [class.negative]="net().credits < 0"
-            ></span>
+          <span class="res-header"><img class="icon" src="icons/credits.svg" alt="" /><span class="label credits">Credits</span></span>
+          <span class="res-values">
+            <span class="val">{{ r.credits }}</span>
+            <span class="breakdown"><span class="inc">{{ income().credits }}</span>@if (upkeep().credits > 0) {<span class="upk">{{ upkeep().credits }}</span>}</span>
           </span>
         </span>
       } @else {
@@ -72,43 +44,56 @@ import { EconomyService } from '../../core/economy/economy.service';
   styles: `
     :host {
       display: flex;
-      pointer-events: auto;
     }
     .bar {
       display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      padding: 0.4rem 1rem;
+      gap: 1.5rem;
     }
     .res {
-      font-size: 0.8rem;
-      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
       font-variant-numeric: tabular-nums;
     }
+    .res-header {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .icon {
+      width: 16px;
+      height: 16px;
+    }
     .label {
-      color: var(--text-secondary);
-      margin-right: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .label.energy { color: var(--res-energy); }
+    .label.minerals { color: var(--res-minerals); }
+    .label.alloys { color: var(--res-alloys); }
+    .label.credits { color: var(--res-credits); }
+    .res-values {
+      display: flex;
+      align-items: baseline;
+      gap: 0.3rem;
+    }
+    .val {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      font-weight: 700;
     }
     .breakdown {
-      font-size: 0.65rem;
-      margin-left: 0.2rem;
+      font-size: 0.7rem;
     }
     .inc {
       color: var(--accent-teal);
     }
     .upk {
       color: var(--accent-red, #f87171);
-      margin-left: 0.15rem;
-    }
-    .net {
-      color: var(--text-muted);
-      margin-left: 0.15rem;
-    }
-    .net.positive {
-      color: var(--accent-teal);
-    }
-    .net.negative {
-      color: var(--accent-red, #f87171);
+      margin-left: 0.1rem;
     }
   `,
 })

@@ -55,7 +55,7 @@ export class CameraService {
 
   zoomAt(screenX: number, screenY: number, delta: number): void {
     const worldBefore = this.screenToWorld(screenX, screenY);
-    const factor = delta > 0 ? 0.9 : 1.1;
+    const factor = delta > 0 ? 0.97 : 1.03;
     this._zoom.update((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * factor)));
     const worldAfter = this.screenToWorld(screenX, screenY);
     this._panX.update((v) => v - (worldAfter.x - worldBefore.x));

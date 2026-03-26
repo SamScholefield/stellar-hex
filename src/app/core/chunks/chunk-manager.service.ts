@@ -3,7 +3,6 @@ import { CameraService } from '../camera/camera.service';
 import { WorldGeneratorService, CHUNK_SIZE } from '../generation/world-generator.service';
 import { Chunk, ChunkCoord } from '../../models/chunk';
 import { HexData } from '../../models/hex-data';
-import { hexToPixel } from '../../shared/hex/hex-math';
 
 const SQRT3 = Math.sqrt(3);
 const VISIBLE_BUFFER = 2;
@@ -53,8 +52,6 @@ export class ChunkManagerService {
   ): ChunkCoord[] {
     const hexSize = 30;
 
-    // Convert all 4 viewport corners to hex (q, r) to handle the skewed grid.
-    // Flat-top inverse: q = (2/3)*x / size, r = ((-1/3)*x + (sqrt3/3)*y) / size
     const corners = [
       { x: left, y: top },
       { x: right, y: top },

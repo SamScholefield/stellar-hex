@@ -46,6 +46,8 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     dynamicObjects: new Map(),
     chunkOverrides: new Map(),
     anomalies: new Map(),
+    tradeHubs: new Map(),
+    tradedThisTurn: new Set(),
     seed: 42,
     ...overrides,
   };
@@ -117,7 +119,7 @@ describe('AIService', () => {
 
     const dispatchSpy = vi.spyOn(gameState, 'dispatch');
     const turn = ai.executeTurn('ai');
-    await vi.advanceTimersByTimeAsync(6000);
+    await vi.advanceTimersByTimeAsync(10000);
     await turn;
 
     const attackCalls = dispatchSpy.mock.calls.filter(c => c[0].type === 'ATTACK');

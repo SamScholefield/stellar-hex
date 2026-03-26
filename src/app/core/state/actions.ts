@@ -1,5 +1,5 @@
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { Anomaly, BuildingType, Resources, TechId, UnitType } from '../../models/game-state';
+import { Anomaly, BuildingType, ResourceKey, Resources, TechId, TradeHub, UnitType } from '../../models/game-state';
 
 export type GameAction =
   | { type: 'END_TURN'; miningYields?: Partial<Resources> }
@@ -10,6 +10,8 @@ export type GameAction =
   | { type: 'QUEUE_RESEARCH'; buildingId: string; techId: TechId }
   | { type: 'DISCOVER_ANOMALY'; anomaly: Anomaly }
   | { type: 'COLLECT_ANOMALY'; anomalyId: string; unitId: string }
+  | { type: 'DISCOVER_TRADE_HUB'; tradeHub: TradeHub }
+  | { type: 'TRADE'; hubId: string; unitId: string; sell: ResourceKey; buy: ResourceKey; sellAmount: number }
   | { type: 'ADVANCE_COMETS' }
   | { type: 'SET_HOME_BASE'; playerId: string; buildingId: string }
   | { type: 'UPDATE_EXPLORED'; playerId: string; hexKeys: string[] };

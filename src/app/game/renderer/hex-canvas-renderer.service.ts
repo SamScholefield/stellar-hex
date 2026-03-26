@@ -126,6 +126,7 @@ export interface RenderState {
   buildings?: Map<string, BuildingData>;
   combatAnimation?: CombatAnimation | null;
   anomalies?: Map<string, Anomaly>;
+  tradeHubs?: Map<string, import('../../models/game-state').TradeHub>;
   waypoints?: Map<string, Waypoint>;
   influenceOverlay?: Set<string> | null;
   attackRangeOverlay?: Set<string> | null;
@@ -229,6 +230,18 @@ export class HexCanvasRendererService {
           if (!visibleHexes!.has(aKey) && !exploredHexes!.has(aKey)) continue;
         }
         this.drawAnomaly(ctx, anomaly, hexSize);
+      }
+    }
+
+    // Draw trade hubs
+    const tradeHubs = state.tradeHubs;
+    if (tradeHubs) {
+      for (const hub of tradeHubs.values()) {
+        if (hasFog) {
+          const hKey = hexKey(hub.q, hub.r);
+          if (!visibleHexes!.has(hKey) && !exploredHexes!.has(hKey)) continue;
+        }
+        this.drawTradeHub(ctx, hub.q, hub.r, hexSize);
       }
     }
 
@@ -777,6 +790,35 @@ export class HexCanvasRendererService {
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.globalAlpha = 1.0;
+    ctx.restore();
+  }
+
+  private drawTradeHub(
+    ctx: CanvasRenderingContext2D,
+    q: number,
+    r: number,
+    hexSize: number,
+  ): void {
+    const { x, y } = hexToPixel(q, r, hexSize);
+    const r1 = hexSize * 0.32;
+    const s = hexSize * 0.22;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(251, 191, 36, 0.6)';
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+    ctx.lineWidth = 1.5;
+
+    // Circle
+    ctx.beginPath();
+    ctx.arc(x, y, r1, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Square overlay (rotated 0°, axis-aligned)
+    ctx.beginPath();
+    ctx.rect(x - s, y - s, s * 2, s * 2);
+    ctx.stroke();
+
     ctx.restore();
   }
 

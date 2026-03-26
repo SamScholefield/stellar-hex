@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -20,6 +20,16 @@ export class MenuComponent {
   protected readonly saveSvc = inject(GameSaveService);
 
   readonly showNewGameModal = signal(false);
+
+  constructor() {
+    afterNextRender(() => {
+      const loader = document.getElementById('app-loader');
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(() => loader.remove(), 300);
+      }
+    });
+  }
   playerName = localStorage.getItem('stellar-hex-player-name') ?? 'Commander';
   aiOpponents = 1;
 

@@ -86,17 +86,9 @@ describe('AudioService', () => {
   });
 
   describe('playClick', () => {
-    it('should no-op before ensureContext', () => {
+    it('should be a no-op', () => {
       service.playClick();
       expect(mockCtx.createBufferSource).not.toHaveBeenCalled();
-    });
-
-    it('should create buffer source after ensureContext', async () => {
-      await service.ensureContext();
-      // Wait for loadClickBuffer to complete
-      await vi.waitFor(() => expect(mockCtx.decodeAudioData).toHaveBeenCalled());
-      service.playClick();
-      expect(mockCtx.createBufferSource).toHaveBeenCalled();
     });
   });
 

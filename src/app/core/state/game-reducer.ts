@@ -1,4 +1,4 @@
-import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName, PlayerState, UnitData, GameOverState, ECONOMIC_VICTORY_CREDITS, TechId, TECH_TREE, canResearch, computeTechBonuses, ResearchItem, canAfford, subtractResources, addResources } from '../../models/game-state';
+import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, UnitType, Resources, ANOMALY_REWARDS, Anomaly, generateUnitName, PlayerState, UnitData, GameOverState, ECONOMIC_VICTORY_CREDITS, TechId, TECH_TREE, canResearch, computeTechBonuses, ResearchItem, canAfford, subtractResources, addResources, TradeHub, ResourceKey, TRADE_RATES, TRADE_HUB_REPLENISH, TRADE_HUB_MAX_STOCK } from '../../models/game-state';
 import { computeIncome, computeUpkeep } from '../economy/economy.service';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
@@ -25,6 +25,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return discoverAnomaly(state, action.anomaly);
     case 'COLLECT_ANOMALY':
       return collectAnomaly(state, action.anomalyId, action.unitId);
+    case 'DISCOVER_TRADE_HUB':
+      return discoverTradeHub(state, action.tradeHub);
+    case 'TRADE':
+      return trade(state, action.hubId, action.unitId, action.sell, action.buy, action.sellAmount);
     case 'ADVANCE_COMETS':
       return advanceComets(state);
     case 'SET_HOME_BASE':
@@ -594,11 +598,27 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     players,
     units,
     buildings,
+    tradedThisTurn: new Set(),
     gameOver: gameOver ?? state.gameOver,
   };
 
   if (nextPlayerIndex === 0) {
     result = advanceComets(result);
+
+    // Replenish trade hub stock each round
+    if (result.tradeHubs.size > 0) {
+      const tradeHubs = new Map(result.tradeHubs);
+      for (const [id, hub] of tradeHubs) {
+        const stock: Resources = {
+          energy: Math.min(hub.stock.energy + TRADE_HUB_REPLENISH.energy, TRADE_HUB_MAX_STOCK.energy),
+          minerals: Math.min(hub.stock.minerals + TRADE_HUB_REPLENISH.minerals, TRADE_HUB_MAX_STOCK.minerals),
+          alloys: Math.min(hub.stock.alloys + TRADE_HUB_REPLENISH.alloys, TRADE_HUB_MAX_STOCK.alloys),
+          credits: Math.min(hub.stock.credits + TRADE_HUB_REPLENISH.credits, TRADE_HUB_MAX_STOCK.credits),
+        };
+        tradeHubs.set(id, { ...hub, stock });
+      }
+      result = { ...result, tradeHubs };
+    }
   }
 
   return result;
@@ -611,6 +631,15 @@ function moveUnit(state: GameState, unitId: string, path: HexCoord[], cost: numb
   const dest = path[path.length - 1];
   const remaining = unit.movementPoints - cost;
   if (remaining < 0) return state;
+
+  // Cannot move to a hex occupied by an enemy unit or building
+  const destKey = hexKey(dest.q, dest.r);
+  for (const u of state.units.values()) {
+    if (u.id !== unitId && u.ownerId !== unit.ownerId && hexKey(u.q, u.r) === destKey) return state;
+  }
+  for (const b of state.buildings.values()) {
+    if (b.ownerId !== unit.ownerId && hexKey(b.q, b.r) === destKey) return state;
+  }
 
   const units = new Map(state.units);
   units.set(unitId, {
@@ -718,6 +747,66 @@ function applyTechBonusToUnit(unit: UnitData, bonus: import('../../models/game-s
     sightRange: newSightRange,
     maxMovementPoints: newMaxMP,
   };
+}
+
+function discoverTradeHub(state: GameState, tradeHub: TradeHub): GameState {
+  if (state.tradeHubs.has(tradeHub.id)) return state;
+  const tradeHubs = new Map(state.tradeHubs);
+  tradeHubs.set(tradeHub.id, tradeHub);
+  return { ...state, tradeHubs };
+}
+
+function trade(state: GameState, hubId: string, unitId: string, sell: ResourceKey, buy: ResourceKey, sellAmount: number): GameState {
+  if (sell === buy) return state;
+  const hub = state.tradeHubs.get(hubId);
+  if (!hub) return state;
+
+  const unit = state.units.get(unitId);
+  if (!unit || unit.type !== 'scout') return state;
+  if (unit.q !== hub.q || unit.r !== hub.r) return state;
+
+  const playerIndex = state.players.findIndex(p => p.id === unit.ownerId);
+  if (playerIndex === -1) return state;
+  const player = state.players[playerIndex];
+
+  // Check once-per-turn limit
+  const tradedKey = `${player.id}:${hubId}`;
+  if (state.tradedThisTurn.has(tradedKey)) return state;
+
+  // Check rate and affordability
+  const rate = TRADE_RATES[sell]?.[buy];
+  if (rate == null || rate <= 0) return state;
+  if (sellAmount <= 0) return state;
+  if (player.resources[sell] < sellAmount) return state;
+
+  const buyAmount = Math.floor(sellAmount / rate);
+  if (buyAmount < 1) return state;
+
+  // Check hub has enough stock of the buy resource
+  if (hub.stock[buy] < buyAmount) return state;
+
+  // Execute trade — player sells to hub, buys from hub
+  const newResources: Resources = { ...player.resources };
+  newResources[sell] -= sellAmount;
+  newResources[buy] += buyAmount;
+
+  const newStock: Resources = { ...hub.stock };
+  newStock[buy] -= buyAmount;
+  newStock[sell] += sellAmount;
+
+  const tradeHubs = new Map(state.tradeHubs);
+  tradeHubs.set(hubId, { ...hub, stock: newStock });
+
+  const players = state.players.map((p, i) =>
+    i === playerIndex ? { ...p, resources: newResources } : p
+  );
+
+  const tradedThisTurn = new Set(state.tradedThisTurn);
+  tradedThisTurn.add(tradedKey);
+
+  const gameOver = checkVictory(players, state.units, state.buildings) ?? state.gameOver;
+
+  return { ...state, players, tradeHubs, tradedThisTurn, gameOver };
 }
 
 function advanceComets(state: GameState): GameState {

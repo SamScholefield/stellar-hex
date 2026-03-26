@@ -2,28 +2,24 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { CameraService } from '../../core/camera/camera.service';
-import { hexToPixel } from '../../shared/hex/hex-math';
+import { hexKey, hexToPixel } from '../../shared/hex/hex-math';
+import { BuildingData, BUILDING_STATS, TECH_TREE, TechId } from '../../models/game-state';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
+import { ProductionQueueComponent } from './production-queue.component';
 
 @Component({
-  selector: 'app-unit-info-panel',
+  selector: 'app-building-info-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormatNamePipe],
+  imports: [FormatNamePipe, ProductionQueueComponent],
   template: `
-    @if (unitData(); as unit) {
-      <div class="hud-display" (click)="centerOnUnit(unit.q, unit.r)">
+    @if (building(); as b) {
+      <div class="hud-display" (click)="centerOn(b.q, b.r)">
         <div class="section identity">
-          <span class="moniker">{{ unit.name }}</span>
-          <span class="type-label">{{ unit.type | formatName }}</span>
-          <div class="tags">
-            @if (isEnemy(unit.ownerId)) {
-              <span class="tag enemy">{{ ownerName(unit.ownerId) }}</span>
-            }
-            @if (unit.veteranTier !== 'standard') {
-              <span class="tag vet">VET {{ unit.veteranTier === 'improved' ? 'I' : 'II' }}</span>
-            }
-            @if (unit.hasAttacked) {
-              <span class="tag fired">FIRED</span>
+          <span class="building-name">{{ b.type | formatName }}</span>
+          <div class="sub-info">
+            <span class="loc">{{ b.q }},{{ b.r }}</span>
+            @if (isEnemy(b.ownerId)) {
+              <span class="tag enemy">{{ ownerName(b.ownerId) }}</span>
             }
           </div>
         </div>
@@ -36,11 +32,11 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
                 <circle class="gauge-fill hp-fill" cx="20" cy="20" r="17"
                   [style.stroke-dasharray]="circ" [style.stroke-dashoffset]="hpOffset()" />
               </svg>
-              <span class="gauge-val">{{ unit.health }}</span>
+              <span class="gauge-val">{{ b.health }}</span>
             </div>
             <span class="gauge-label">HP</span>
           </div>
-          @if (unit.maxShields > 0) {
+          @if (b.maxShields > 0) {
             <div class="gauge">
               <div class="gauge-ring">
                 <svg viewBox="0 0 40 40">
@@ -48,41 +44,43 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
                   <circle class="gauge-fill sh-fill" cx="20" cy="20" r="17"
                     [style.stroke-dasharray]="circ" [style.stroke-dashoffset]="shOffset()" />
                 </svg>
-                <span class="gauge-val">{{ unit.shields }}</span>
+                <span class="gauge-val">{{ b.shields }}</span>
               </div>
               <span class="gauge-label">SH</span>
             </div>
           }
-          <div class="gauge">
-            <div class="gauge-ring">
-              <svg viewBox="0 0 40 40">
-                <circle class="gauge-track" cx="20" cy="20" r="17" />
-                <circle class="gauge-fill mp-fill" cx="20" cy="20" r="17"
-                  [style.stroke-dasharray]="circ" [style.stroke-dashoffset]="mpOffset()" />
-              </svg>
-              <span class="gauge-val">{{ unit.movementPoints > 0 ? unit.movementPoints : 0 }}</span>
-            </div>
-            <span class="gauge-label">MP</span>
-          </div>
-          <div class="gauge">
-            <div class="gauge-ring">
-              <svg viewBox="0 0 40 40">
-                <circle class="gauge-track" cx="20" cy="20" r="17" />
-                <circle class="gauge-fill xp-fill" cx="20" cy="20" r="17"
-                  [style.stroke-dasharray]="circ" [style.stroke-dashoffset]="xpOffset()" />
-              </svg>
-              <span class="gauge-val">{{ unit.xp }}</span>
-            </div>
-            <span class="gauge-label">XP</span>
-          </div>
         </div>
 
-        <div class="section stats">
-          <div class="stat-row"><span class="stat-label">ATK</span><span class="stat-val">{{ unit.attack }}</span></div>
-          <div class="stat-row"><span class="stat-label">ARM</span><span class="stat-val">{{ unit.armor }}</span></div>
-          <div class="stat-row"><span class="stat-label">RNG</span><span class="stat-val">{{ unit.range }}</span></div>
-          <div class="stat-row"><span class="stat-label">LOC</span><span class="stat-val loc">{{ unit.q }},{{ unit.r }}</span></div>
-        </div>
+        @if (yieldEntries().length > 0) {
+          <div class="section yield">
+            <span class="section-title">Yield</span>
+            @for (entry of yieldEntries(); track entry.key) {
+              <div class="yield-row">
+                <span class="yield-label">{{ entry.key }}</span>
+                <span class="yield-val">+{{ entry.value }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        @if (b.productionQueue && b.productionQueue.length > 0) {
+          <div class="section queue-section">
+            <span class="section-title">Production</span>
+            <app-production-queue [items]="b.productionQueue" />
+          </div>
+        }
+
+        @if (b.researchQueue && b.researchQueue.length > 0) {
+          <div class="section queue-section">
+            <span class="section-title">Research</span>
+            @for (item of b.researchQueue; track item.techId) {
+              <div class="queue-row">
+                <span class="queue-name">{{ techName(item.techId) }}</span>
+                <span class="queue-turns">{{ item.turnsRemaining }}T</span>
+              </div>
+            }
+          </div>
+        }
       </div>
     }
   `,
@@ -99,19 +97,23 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
       cursor: pointer;
     }
     .section { display: flex; flex-direction: column; }
-    .identity { gap: 0.15rem; min-width: 70px; }
-    .moniker {
+    .identity { gap: 0.15rem; min-width: 80px; }
+    .building-name {
       font-size: 1rem;
       font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: 0.05em;
+      color: var(--accent-gold, #fbbf24);
+      text-transform: capitalize;
     }
-    .type-label {
-      font-size: 0.65rem;
+    .sub-info {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .loc {
+      font-size: 0.6rem;
       color: var(--text-muted);
-      text-transform: uppercase;
+      font-variant-numeric: tabular-nums;
     }
-    .tags { display: flex; gap: 0.3rem; margin-top: 0.15rem; }
     .tag {
       font-size: 0.55rem;
       font-weight: 700;
@@ -120,8 +122,6 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
       border: 1px solid;
     }
     .tag.enemy { color: var(--accent-red); border-color: rgba(248,113,113,0.3); }
-    .tag.vet { color: var(--accent-gold, #fbbf24); border-color: rgba(251,191,36,0.3); }
-    .tag.fired { color: var(--accent-red); border-color: rgba(248,113,113,0.3); }
     .gauges {
       flex-direction: row;
       gap: 0.75rem;
@@ -155,8 +155,6 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
     }
     .hp-fill { stroke: #22c55e; }
     .sh-fill { stroke: #60a5fa; }
-    .mp-fill { stroke: #f59e0b; }
-    .xp-fill { stroke: #a78bfa; }
     .gauge-val {
       position: absolute;
       inset: 0;
@@ -174,58 +172,89 @@ import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
       color: var(--text-muted);
       letter-spacing: 0.05em;
     }
-    .stats {
-      gap: 0.2rem;
-      min-width: 60px;
+    .section-title {
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.15rem;
     }
-    .stat-row {
+    .yield {
+      gap: 0.1rem;
+      min-width: 70px;
+    }
+    .yield-row {
       display: flex;
       justify-content: space-between;
       gap: 0.5rem;
     }
-    .stat-label {
+    .yield-label {
       font-size: 0.65rem;
-      font-weight: 600;
       color: var(--text-secondary);
+      text-transform: capitalize;
     }
-    .stat-val {
+    .yield-val {
       font-size: 0.65rem;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--accent-teal);
       font-variant-numeric: tabular-nums;
     }
-    .stat-val.loc { color: var(--text-muted); }
+    .queue-section {
+      gap: 0.1rem;
+      min-width: 100px;
+    }
+    .queue-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .queue-name {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+    }
+    .queue-turns {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--accent-amber);
+    }
+    app-production-queue { display: block; }
   `,
 })
-export class UnitInfoPanelComponent {
+export class BuildingInfoPanelComponent {
   private readonly selection = inject(SelectionService);
   private readonly gameState = inject(GameStateService);
   private readonly camera = inject(CameraService);
 
-  readonly unitData = this.selection.selectedUnitData;
-
   private static readonly CIRCUMFERENCE = 2 * Math.PI * 17;
-  readonly circ = `${UnitInfoPanelComponent.CIRCUMFERENCE}`;
+  readonly circ = `${BuildingInfoPanelComponent.CIRCUMFERENCE}`;
+
+  readonly building = computed<BuildingData | null>(() => {
+    if (this.selection.selectedUnitData()) return null;
+    const coord = this.selection.selectedHexCoord();
+    if (!coord) return null;
+    return this.gameState.buildingAtHex().get(hexKey(coord.q, coord.r)) ?? null;
+  });
 
   private offset(current: number, max: number): string {
-    const c = UnitInfoPanelComponent.CIRCUMFERENCE;
+    const c = BuildingInfoPanelComponent.CIRCUMFERENCE;
     return `${c * (1 - (max > 0 ? current / max : 0))}`;
   }
 
-  readonly hpOffset = computed(() => this.offset(this.unitData()?.health ?? 0, this.unitData()?.maxHealth ?? 1));
-  readonly shOffset = computed(() => this.offset(this.unitData()?.shields ?? 0, this.unitData()?.maxShields ?? 1));
-  readonly mpOffset = computed(() => {
-    const u = this.unitData();
-    return this.offset(Math.max(0, u?.movementPoints ?? 0), u?.maxMovementPoints ?? 1);
-  });
-  readonly xpOffset = computed(() => {
-    const u = this.unitData();
-    if (!u) return this.circ;
-    const next = u.veteranTier === 'standard' ? 50 : u.veteranTier === 'improved' ? 150 : 300;
-    return this.offset(Math.min(u.xp, next), next);
+  readonly hpOffset = computed(() => this.offset(this.building()?.health ?? 0, this.building()?.maxHealth ?? 1));
+  readonly shOffset = computed(() => this.offset(this.building()?.shields ?? 0, this.building()?.maxShields ?? 1));
+
+  readonly yieldEntries = computed(() => {
+    const b = this.building();
+    if (!b) return [];
+    const stats = BUILDING_STATS[b.type];
+    if (!stats) return [];
+    return Object.entries(stats.yield)
+      .filter(([, v]) => v != null && v > 0)
+      .map(([k, v]) => ({ key: k, value: v! }));
   });
 
-  centerOnUnit(q: number, r: number): void {
+  centerOn(q: number, r: number): void {
     const { x, y } = hexToPixel(q, r, 30);
     this.camera.centerOn(x, y);
   }
@@ -236,5 +265,9 @@ export class UnitInfoPanelComponent {
 
   ownerName(ownerId: string): string {
     return this.gameState.playerNames().get(ownerId) ?? ownerId;
+  }
+
+  techName(techId: TechId): string {
+    return TECH_TREE[techId]?.name ?? techId;
   }
 }

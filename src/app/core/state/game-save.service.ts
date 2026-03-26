@@ -9,6 +9,7 @@ import {
   DynamicObject,
   HexOverride,
   Anomaly,
+  TradeHub,
   UNIT_STATS,
   BUILDING_STATS,
   TechId,
@@ -45,6 +46,8 @@ interface SerializedGameState {
   dynamicObjects: [string, DynamicObject][];
   chunkOverrides: [string, HexOverride[]][];
   anomalies: [string, Anomaly][];
+  tradeHubs?: [string, TradeHub][];
+  tradedThisTurn?: string[];
   seed: number;
   gameOver?: GameOverState;
   spectate?: boolean;
@@ -87,6 +90,8 @@ export function serialize(
       dynamicObjects: [...state.dynamicObjects.entries()],
       chunkOverrides: [...state.chunkOverrides.entries()],
       anomalies: [...state.anomalies.entries()],
+      tradeHubs: [...state.tradeHubs.entries()],
+      tradedThisTurn: [...state.tradedThisTurn],
       seed: state.seed,
       gameOver: state.gameOver,
       spectate: state.spectate,
@@ -156,6 +161,8 @@ export function deserialize(json: string): {
     dynamicObjects: new Map(s.dynamicObjects),
     chunkOverrides: new Map(s.chunkOverrides),
     anomalies: new Map(s.anomalies),
+    tradeHubs: new Map(s.tradeHubs ?? []),
+    tradedThisTurn: new Set(s.tradedThisTurn ?? []),
     seed: s.seed,
     gameOver: s.gameOver,
     spectate: s.spectate,

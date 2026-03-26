@@ -92,13 +92,14 @@ export class WorldGeneratorService {
 
         const object = this.generateHex(hexCoord, systems, seed);
         const anomaly = object === null ? this.generateAnomaly(q, r, seed) : undefined;
+        const tradeHub = object === null && !anomaly ? this.generateTradeHub(q, r, seed) : false;
 
         // Check if this hex falls within a nebula noise region regardless of object type
         const { x: wx, y: wy } = hexToPixel(q, r, 1);
         const nebulaNoise = fbmNoise(wx * 0.025, wy * 0.025, seed + 1000, 3);
         const inNebula = nebulaNoise > NEBULA_NOISE_THRESHOLD;
 
-        hexes.set(key, { q, r, object, ...(anomaly ? { anomaly } : {}), ...(inNebula ? { inNebula } : {}) });
+        hexes.set(key, { q, r, object, ...(anomaly ? { anomaly } : {}), ...(tradeHub ? { tradeHub } : {}), ...(inNebula ? { inNebula } : {}) });
       }
     }
 
@@ -252,6 +253,21 @@ export class WorldGeneratorService {
       M: 2,
     };
     return energy[starClass];
+  }
+
+  private generateTradeHub(q: number, r: number, seed: number): boolean {
+    const TRADE_HUB_SPACING = 48;
+    const coarseX = Math.floor(q / TRADE_HUB_SPACING);
+    const coarseY = Math.floor(r / TRADE_HUB_SPACING);
+    // One candidate per grid cell
+    const cellSeed = hash3(seed + 7777, coarseX, coarseY);
+    const rng = seededRNG(cellSeed);
+    // ~30% chance per grid cell
+    if (rng.next() > 0.3) return false;
+    // Jitter within the cell
+    const hubQ = coarseX * TRADE_HUB_SPACING + Math.floor(rng.next() * TRADE_HUB_SPACING * 0.6 + TRADE_HUB_SPACING * 0.2);
+    const hubR = coarseY * TRADE_HUB_SPACING + Math.floor(rng.next() * TRADE_HUB_SPACING * 0.6 + TRADE_HUB_SPACING * 0.2);
+    return q === hubQ && r === hubR;
   }
 
   private generateAnomaly(q: number, r: number, seed: number): AnomalyType | undefined {

@@ -108,11 +108,16 @@ export class AIService {
 
               const targetName = target ? target.type : formatName(targetBuilding!.type);
               const targetCoord = target ?? targetBuilding!;
-              const turn = this.gameState.getState().turn;
-              const msg = `[AI] ${unit.type} attacked ${targetName}: dealt ${combat.defenderDamage} dmg, took ${combat.attackerDamage} dmg`
-                + (combat.defenderDestroyed ? ` — ${targetName} destroyed!` : '')
-                + (combat.attackerDestroyed ? ` — ${unit.type} destroyed!` : '');
-              this.eventLog.push({ turn, message: msg, q: targetCoord.q, r: targetCoord.r });
+              const targetOwnerId = target ? target.ownerId : targetBuilding!.ownerId;
+              const humanId = this.gameState.humanPlayer()?.id;
+
+              // Only log attacks against the human player's units/buildings
+              if (humanId && targetOwnerId === humanId) {
+                const turn = this.gameState.getState().turn;
+                const msg = `[AI] ${formatName(unit.type)} attacked your ${formatName(targetName)}: ${combat.defenderDamage} dmg`
+                  + (combat.defenderDestroyed ? ` — destroyed!` : '');
+                this.eventLog.push({ turn, message: msg, q: targetCoord.q, r: targetCoord.r });
+              }
 
               await delay(ACTION_DELAY);
               acted = true;
@@ -188,13 +193,6 @@ export class AIService {
           nearbyHasPlanet: buildResult.nearbyHasPlanet,
         });
 
-        const turn = this.gameState.getState().turn;
-        this.eventLog.push({
-          turn,
-          message: `[AI] Built ${formatName(buildResult.buildingType)}`,
-          q: buildResult.hex.q,
-          r: buildResult.hex.r,
-        });
         await delay(ACTION_DELAY);
       }
     }
@@ -213,11 +211,6 @@ export class AIService {
           unitType: prodResult.unitType,
         });
 
-        const turn = this.gameState.getState().turn;
-        this.eventLog.push({
-          turn,
-          message: `[AI] Queued ${formatName(prodResult.unitType)} production`,
-        });
       }
     }
 
@@ -234,12 +227,6 @@ export class AIService {
           techId: resResult.techId,
         });
 
-        const turn = this.gameState.getState().turn;
-        const techName = TECH_TREE[resResult.techId]?.name ?? resResult.techId;
-        this.eventLog.push({
-          turn,
-          message: `[AI] Began researching ${techName}`,
-        });
       }
     }
 
@@ -373,8 +360,6 @@ export class AIService {
       if (anomaly.q === unit.q && anomaly.r === unit.r) {
         const info = ANOMALY_REWARDS[anomaly.type];
         this.gameState.dispatch({ type: 'COLLECT_ANOMALY', anomalyId: anomaly.id, unitId });
-        const turn = state.turn;
-        this.eventLog.push({ turn, message: `[AI] Scout collected ${info?.name ?? anomaly.type}`, q: anomaly.q, r: anomaly.r });
         break;
       }
     }

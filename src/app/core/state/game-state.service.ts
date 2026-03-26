@@ -16,6 +16,8 @@ function createInitialState(): GameState {
     dynamicObjects: new Map(),
     chunkOverrides: new Map(),
     anomalies: new Map(),
+    tradeHubs: new Map(),
+    tradedThisTurn: new Set(),
     seed: Date.now(),
   };
 }
@@ -34,6 +36,8 @@ export class GameStateService {
   readonly buildings = computed(() => this._gameState().buildings);
   readonly players = computed(() => this._gameState().players);
   readonly anomalies = computed(() => this._gameState().anomalies);
+  readonly tradeHubs = computed(() => this._gameState().tradeHubs);
+  readonly tradedThisTurn = computed(() => this._gameState().tradedThisTurn);
   readonly homeBaseId = computed(() => this.currentPlayer()?.homeBaseId ?? null);
   readonly gameOver = computed<GameOverState | undefined>(() => this._gameState().gameOver);
   readonly spectate = computed(() => this._gameState().spectate ?? false);

@@ -20,6 +20,8 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     dynamicObjects: new Map(),
     chunkOverrides: new Map(),
     anomalies: new Map(),
+    tradeHubs: new Map(),
+    tradedThisTurn: new Set(),
     seed: 12345,
     ...overrides,
   };
@@ -213,6 +215,41 @@ describe('gameReducer', () => {
       ];
       const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 3 });
       expect(next).toBe(state);
+    });
+
+    it('rejects move to hex occupied by enemy unit', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0, movementPoints: 4 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p2', type: 'fighter', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const path = [{ q: 0, r: 0, s: 0 }, { q: 1, r: 0, s: -1 }];
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 1 });
+      expect(next).toBe(state);
+    });
+
+    it('rejects move to hex occupied by enemy building', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0, movementPoints: 4 })],
+      ]);
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p2', type: 'starbase', q: 1, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
+      ]);
+      const state = makeState({ units, buildings });
+      const path = [{ q: 0, r: 0, s: 0 }, { q: 1, r: 0, s: -1 }];
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 1 });
+      expect(next).toBe(state);
+    });
+
+    it('allows move to hex occupied by friendly unit', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0, movementPoints: 4 })],
+        ['u2', makeUnitData({ id: 'u2', ownerId: 'p1', type: 'fighter', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const path = [{ q: 0, r: 0, s: 0 }, { q: 1, r: 0, s: -1 }];
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 1 });
+      expect(next.units.get('u1')!.q).toBe(1);
     });
   });
 

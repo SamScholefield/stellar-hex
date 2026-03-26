@@ -4,6 +4,7 @@ import { HudComponent } from './hud/hud.component';
 import { ClickPopupComponent } from './overlays/click-popup.component';
 import { ContextMenuComponent } from './overlays/context-menu.component';
 import { HelpPanelComponent } from './overlays/help-panel.component';
+import { TradeModalComponent } from './overlays/trade-modal.component';
 import { CameraService } from '../core/camera/camera.service';
 import { SelectionService } from '../core/selection/selection.service';
 import { EventLogService } from '../core/state/event-log.service';
@@ -18,7 +19,7 @@ import { AudioService } from '../core/audio/audio.service';
 import { WaypointService } from '../core/state/waypoint.service';
 import { InfluenceService } from '../core/influence/influence.service';
 import { Router } from '@angular/router';
-import { ANOMALY_REWARDS } from '../models/game-state';
+import { ANOMALY_REWARDS, TRADE_HUB_STARTING_STOCK } from '../models/game-state';
 import { HEX_SIZE, hexToPixel, toHexCoord } from '../shared/hex/hex-math';
 
 const PAN_STEP = 80;
@@ -27,7 +28,7 @@ const ZOOM_STEP = 50;
 @Component({
   selector: 'app-game',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GameViewportComponent, HudComponent, ClickPopupComponent, ContextMenuComponent, HelpPanelComponent],
+  imports: [GameViewportComponent, HudComponent, ClickPopupComponent, ContextMenuComponent, HelpPanelComponent, TradeModalComponent],
   host: {
     '(contextmenu)': 'onContextMenu($event)',
     '(window:keydown)': 'onKeyDown($event)',
@@ -46,13 +47,9 @@ const ZOOM_STEP = 50;
         </div>
       }
       <app-click-popup />
-      <app-context-menu />
+      <app-context-menu (openTrade)="openTradeModal($event.hubId, $event.unitId)" />
       <app-help-panel [(visible)]="helpVisible" />
-    } @else {
-      <div class="loading">
-        <div class="spinner"></div>
-        <span>Loading game...</span>
-      </div>
+      <app-trade-modal [(visible)]="tradeModalVisible" [hubId]="tradeHubId()" [unitId]="tradeUnitId()" />
     }
   `,
   styles: `
@@ -63,27 +60,6 @@ const ZOOM_STEP = 50;
       position: relative;
       outline: none;
       background: #0a0a1a;
-    }
-    .loading {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      gap: 1rem;
-      color: #9ca3af;
-      font-size: 1rem;
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid #2a4a5a;
-      border-top-color: #60a5fa;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
     }
     .spectate-controls {
       position: absolute;
@@ -146,7 +122,11 @@ export class GameComponent implements OnDestroy {
   private readonly el = inject(ElementRef);
   private readonly clickPopup = viewChild(ClickPopupComponent);
   private readonly contextMenu = viewChild(ContextMenuComponent);
+  private readonly viewport = viewChild(GameViewportComponent);
   readonly helpVisible = signal(false);
+  readonly tradeModalVisible = signal(false);
+  readonly tradeHubId = signal<string | null>(null);
+  readonly tradeUnitId = signal<string | null>(null);
   readonly ready = computed(() => this.gameState.players().length > 0);
   readonly spectate = this.gameState.spectate;
   readonly paused = this.gameState.paused;
@@ -161,6 +141,37 @@ export class GameComponent implements OnDestroy {
   constructor() {
     window.addEventListener('beforeunload', this.onBeforeUnload);
     afterNextRender(() => this.el.nativeElement.focus());
+
+    // Show loading overlay until first canvas paint
+    {
+      let loader = document.getElementById('app-loader');
+      if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'app-loader';
+        loader.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;background:#0a0a1a;color:#9ca3af;font-family:sans-serif;font-size:1rem;z-index:9999;transition:opacity 0.3s';
+        loader.innerHTML = '<div style="width:40px;height:40px;border:3px solid #2a4a5a;border-top-color:#5eead4;border-radius:50%;animation:l-spin 0.8s linear infinite"></div><span>Loading...</span>';
+        document.body.appendChild(loader);
+      }
+      // Poll for actual canvas content before dismissing loader
+      const pollCanvasReady = () => {
+        const vp = this.viewport();
+        if (!vp || !vp.firstDrawComplete()) {
+          requestAnimationFrame(pollCanvasReady);
+          return;
+        }
+        // Canvas has been drawn — wait 2 more frames for compositor
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const el = document.getElementById('app-loader');
+            if (el) {
+              el.style.opacity = '0';
+              setTimeout(() => el.remove(), 300);
+            }
+          });
+        });
+      };
+      requestAnimationFrame(pollCanvasReady);
+    }
     // Log turn start — only when turn/player actually changes
     effect(() => {
       const turn = this.gameState.turn();
@@ -171,8 +182,8 @@ export class GameComponent implements OnDestroy {
       if (key === this.lastTurnKey) return;
       this.lastTurnKey = key;
 
-      // Skip if game is over
-      const gameOver = this.gameState.gameOver();
+      // Skip if game is over (untracked to avoid extra dependency)
+      const gameOver = untracked(() => this.gameState.gameOver());
       if (gameOver) {
         const winnerName = this.gameState.playerNames().get(gameOver.winnerId) ?? 'Unknown';
         const reason = gameOver.reason === 'domination' ? 'Domination' : 'Economic';
@@ -253,9 +264,28 @@ export class GameComponent implements OnDestroy {
             type: 'DISCOVER_ANOMALY',
             anomaly: { id, type: hex.anomaly, q: d.q, r: d.r },
           });
-          const prefix = player?.isAI ? '[AI] ' : '';
-          this.eventLog.push({ turn, message: `${prefix}Discovered ${info.name}`, q: d.q, r: d.r });
-          if (!player?.isAI) this.audio.playDiscovery();
+          if (!player?.isAI) {
+            this.eventLog.push({ turn, message: `Discovered ${info.name}`, q: d.q, r: d.r });
+            this.audio.playDiscovery();
+          }
+        }
+
+        // Discover trade hubs
+        for (const d of discoveries) {
+          const hex = this.chunkManager.getHex(d.q, d.r);
+          if (!hex?.tradeHub) continue;
+
+          const id = `trade_hub_${d.q}_${d.r}`;
+          if (this.gameState.tradeHubs().has(id)) continue;
+
+          this.gameState.dispatch({
+            type: 'DISCOVER_TRADE_HUB',
+            tradeHub: { id, q: d.q, r: d.r, stock: { ...TRADE_HUB_STARTING_STOCK } },
+          });
+          if (!player?.isAI) {
+            this.eventLog.push({ turn, message: 'Discovered a Trade Hub', q: d.q, r: d.r });
+            this.audio.playDiscovery();
+          }
         }
       });
     });
@@ -264,6 +294,12 @@ export class GameComponent implements OnDestroy {
   ngOnDestroy(): void {
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     this.gameState.setPaused(false);
+  }
+
+  openTradeModal(hubId: string, unitId: string): void {
+    this.tradeHubId.set(hubId);
+    this.tradeUnitId.set(unitId);
+    this.tradeModalVisible.set(true);
   }
 
   abortSpectate(): void {
