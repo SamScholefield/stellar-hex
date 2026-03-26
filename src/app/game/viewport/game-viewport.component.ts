@@ -305,17 +305,21 @@ export class GameViewportComponent implements OnDestroy {
           return;
         }
 
-        if (unit.movementPoints > 0) {
-          const hKey = hexKey(hex.q, hex.r);
-          const unitsAtHex = this.gameState.unitsAtHex().get(hKey) ?? [];
+        const hKey = hexKey(hex.q, hex.r);
+        const unitsAtHex = this.gameState.unitsAtHex().get(hKey) ?? [];
+        const hasEnemyAtHex = unitsAtHex.some(u => u.ownerId !== unit.ownerId);
+        const buildingAtHex = this.gameState.buildingAtHex().get(hKey);
+        const hasEnemyBuilding = buildingAtHex != null && buildingAtHex.ownerId !== unit.ownerId;
+        const canStillAttack = unit.weapon != null && !unit.hasAttacked && (hasEnemyAtHex || hasEnemyBuilding);
 
-          if (unitsAtHex.length === 0) {
+        if (unit.movementPoints > 0 || canStillAttack) {
+          if (unitsAtHex.length === 0 && !hasEnemyBuilding) {
             // Empty hex — try direct movement
             this.audio.playClick();
             this.actionExec.executeMove(selectedUnitId, hex);
             return;
           } else {
-            // Occupied hex — delegate to click popup
+            // Occupied hex or attackable — delegate to click popup
             this.showClickPopup.emit({ clientX: event.clientX, clientY: event.clientY });
             this.audio.playClick();
             return;

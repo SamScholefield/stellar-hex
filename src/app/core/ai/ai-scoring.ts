@@ -35,6 +35,7 @@ export interface BuildScoreResult {
   buildingType: BuildingType;
   hex: HexCoord;
   hexType: StellarObjectType;
+  adjacentHexTypes: StellarObjectType[];
   score: number;
 }
 
@@ -259,6 +260,10 @@ export function scoreBuild(
             buildingType: bt,
             hex,
             hexType: hexType as StellarObjectType,
+            adjacentHexTypes: hexNeighbors(hex.q, hex.r).map(n => {
+              const hd = hexLookup(n.q, n.r);
+              return (hd?.object?.type ?? 'empty') as StellarObjectType;
+            }),
             score,
           };
         }

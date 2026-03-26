@@ -184,6 +184,7 @@ export class AIService {
           buildingType: buildResult.buildingType,
           hex: buildResult.hex,
           hexType: buildResult.hexType,
+          adjacentHexTypes: buildResult.adjacentHexTypes,
         });
 
         const turn = this.gameState.getState().turn;
