@@ -800,32 +800,24 @@ export class HexCanvasRendererService {
     hexSize: number,
   ): void {
     const { x, y } = hexToPixel(q, r, hexSize);
-    const s = hexSize * 0.3;
+    const r1 = hexSize * 0.32;
+    const s = hexSize * 0.22;
 
     ctx.save();
-    ctx.shadowColor = '#fbbf24';
-    ctx.shadowBlur = 8;
-
-    // Diamond shape
-    ctx.beginPath();
-    ctx.moveTo(x, y - s);
-    ctx.lineTo(x + s, y);
-    ctx.lineTo(x, y + s);
-    ctx.lineTo(x - s, y);
-    ctx.closePath();
-    ctx.fillStyle = '#fbbf24';
-    ctx.globalAlpha = 0.85;
-    ctx.fill();
-    ctx.strokeStyle = '#92400e';
+    ctx.shadowColor = 'rgba(251, 191, 36, 0.6)';
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
     ctx.lineWidth = 1.5;
+
+    // Circle
+    ctx.beginPath();
+    ctx.arc(x, y, r1, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Inner dot
+    // Square overlay (rotated 0°, axis-aligned)
     ctx.beginPath();
-    ctx.arc(x, y, s * 0.25, 0, Math.PI * 2);
-    ctx.fillStyle = '#92400e';
-    ctx.globalAlpha = 1;
-    ctx.fill();
+    ctx.rect(x - s, y - s, s * 2, s * 2);
+    ctx.stroke();
 
     ctx.restore();
   }

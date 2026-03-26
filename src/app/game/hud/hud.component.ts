@@ -7,8 +7,7 @@ import { EventLogComponent } from '../log/event-log.component';
 import { EventFeedComponent } from '../log/event-feed.component';
 import { ProductionMenuComponent } from '../panels/production-menu.component';
 import { ResearchMenuComponent } from '../panels/research-menu.component';
-import { UnitListPanelComponent } from '../panels/unit-list-panel.component';
-import { BuildingListPanelComponent } from '../panels/building-list-panel.component';
+import { FleetPanelComponent } from '../panels/fleet-panel.component';
 import { MinimapComponent } from './minimap.component';
 import { GameOverOverlayComponent } from '../overlays/game-over-overlay.component';
 
@@ -29,7 +28,7 @@ import { PlayerState } from '../../models/game-state';
 @Component({
   selector: 'app-hud',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, ResearchMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent, GameOverOverlayComponent],
+  imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, ResearchMenuComponent, FleetPanelComponent, MinimapComponent, GameOverOverlayComponent],
   template: `
     <header class="hud-header">
       @if (!spectate()) {
@@ -50,12 +49,12 @@ import { PlayerState } from '../../models/game-state';
       }
       <div class="hud-toolbar">
         @if (homeBase(); as hb) {
-          <button class="btn-toolbar home-btn" (click)="focusHome(hb)">&#8962; Home</button>
+          <button class="icon-btn" title="Home" (click)="focusHome(hb)"><svg class="hex-icon" viewBox="0 0 24 24"><polygon points="12,2 22,7 22,17 12,22 2,17 2,7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>
         }
-        <button class="btn-toolbar overlay-btn" [class.active]="influenceActive()" (click)="toggleInfluence()">Influence</button>
-        <button class="btn-toolbar overlay-btn" [class.active]="attackRangeActive()" (click)="toggleAttackRange()">Attack Range</button>
-        <button class="btn-toolbar guide-btn" (click)="onGuide()">Guide</button>
-        <button class="btn-toolbar help-btn" (click)="onHelp()">?</button>
+        <button class="icon-btn influence" [class.active]="influenceActive()" title="Influence" (click)="toggleInfluence()"><span class="material-symbols-outlined">radar</span></button>
+        <button class="icon-btn attack-range" [class.active]="attackRangeActive()" title="Attack Range" (click)="toggleAttackRange()"><span class="material-symbols-outlined">radar</span></button>
+        <button class="icon-btn" title="Guide" (click)="onGuide()"><span class="material-symbols-outlined">help</span></button>
+        <button class="icon-btn" title="Keyboard Shortcuts" (click)="onHelp()"><span class="material-symbols-outlined">keyboard</span></button>
       </div>
       @if (!spectate()) {
         <app-turn-controls class="hud-turn-section" />
@@ -93,8 +92,7 @@ import { PlayerState } from '../../models/game-state';
       <app-unit-info-panel />
     </div>
     <div class="hud-right-panels">
-      <app-unit-list-panel />
-      <app-building-list-panel />
+      <app-fleet-panel />
     </div>
     <div class="hud-bottom-right">
       <app-event-feed />
@@ -138,9 +136,11 @@ import { PlayerState } from '../../models/game-state';
       pointer-events: auto;
     }
     .hud-toolbar {
+      flex: 1;
       display: flex;
+      justify-content: center;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
     }
     .hud-turn-section {
       margin-left: auto;
@@ -189,32 +189,34 @@ import { PlayerState } from '../../models/game-state';
       gap: 4px;
       margin: 0 0.75rem 0.75rem 0;
     }
-.home-btn {
-      color: var(--text-primary);
-      font-size: 0.8rem;
-    }
-    .overlay-btn {
-      color: var(--text-secondary);
-      font-size: 0.75rem;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .overlay-btn.active {
-      border-color: var(--accent-blue);
-      background: rgba(59, 130, 246, 0.15);
-      color: var(--text-primary);
-    }
-    .guide-btn {
-      color: var(--text-secondary);
-      font-size: 0.75rem;
-    }
-    .help-btn {
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      font-weight: 700;
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted, #6b7280);
+      cursor: pointer;
+      padding: 0.3rem;
+      line-height: 1;
+      transition: color 0.15s;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
+    }
+    .icon-btn .material-symbols-outlined {
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .hex-icon {
+      width: 22px;
+      height: 22px;
+    }
+    .icon-btn:hover {
+      color: var(--text-primary, #e0e0e0);
+    }
+    .icon-btn.influence.active {
+      color: var(--accent-green, #34d399);
+    }
+    .icon-btn.attack-range.active {
+      color: var(--accent-red, #f87171);
     }
     .ai-overlay {
       position: absolute;

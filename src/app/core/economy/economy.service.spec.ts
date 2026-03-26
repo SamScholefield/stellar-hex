@@ -7,7 +7,7 @@ function makeUnit(overrides: Partial<UnitData> & { id: string; ownerId: string; 
   const type = overrides.type ?? 'mining_drone';
   const stats = UNIT_STATS[type];
   return {
-    name: overrides.name ?? 'Mining Drone MD001',
+    name: overrides.name ?? 'MD001',
     type,
     movementPoints: stats.maxMovementPoints,
     maxMovementPoints: stats.maxMovementPoints,

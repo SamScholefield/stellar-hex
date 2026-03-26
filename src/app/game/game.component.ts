@@ -50,11 +50,6 @@ const ZOOM_STEP = 50;
       <app-context-menu (openTrade)="openTradeModal($event.hubId, $event.unitId)" />
       <app-help-panel [(visible)]="helpVisible" />
       <app-trade-modal [(visible)]="tradeModalVisible" [hubId]="tradeHubId()" [unitId]="tradeUnitId()" />
-    } @else {
-      <div class="loading">
-        <div class="spinner"></div>
-        <span>Loading game...</span>
-      </div>
     }
   `,
   styles: `
@@ -65,27 +60,6 @@ const ZOOM_STEP = 50;
       position: relative;
       outline: none;
       background: #0a0a1a;
-    }
-    .loading {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      gap: 1rem;
-      color: #9ca3af;
-      font-size: 1rem;
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid #2a4a5a;
-      border-top-color: #60a5fa;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
     }
     .spectate-controls {
       position: absolute;
@@ -148,11 +122,13 @@ export class GameComponent implements OnDestroy {
   private readonly el = inject(ElementRef);
   private readonly clickPopup = viewChild(ClickPopupComponent);
   private readonly contextMenu = viewChild(ContextMenuComponent);
+  private readonly viewport = viewChild(GameViewportComponent);
   readonly helpVisible = signal(false);
   readonly tradeModalVisible = signal(false);
   readonly tradeHubId = signal<string | null>(null);
   readonly tradeUnitId = signal<string | null>(null);
   readonly ready = computed(() => this.gameState.players().length > 0);
+  readonly rendered = computed(() => this.viewport()?.firstDrawComplete() ?? false);
   readonly spectate = this.gameState.spectate;
   readonly paused = this.gameState.paused;
   private lastTurnKey = '';
@@ -166,6 +142,37 @@ export class GameComponent implements OnDestroy {
   constructor() {
     window.addEventListener('beforeunload', this.onBeforeUnload);
     afterNextRender(() => this.el.nativeElement.focus());
+
+    // Show loading overlay until first canvas paint
+    {
+      let loader = document.getElementById('app-loader');
+      if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'app-loader';
+        loader.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;background:#0a0a1a;color:#9ca3af;font-family:sans-serif;font-size:1rem;z-index:9999;transition:opacity 0.3s';
+        loader.innerHTML = '<div style="width:40px;height:40px;border:3px solid #2a4a5a;border-top-color:#5eead4;border-radius:50%;animation:l-spin 0.8s linear infinite"></div><span>Loading...</span>';
+        document.body.appendChild(loader);
+      }
+      effect(() => {
+        if (this.rendered()) {
+          untracked(() => {
+            // Chain: yield to browser → wait for paint → yield again → fade out
+            // This ensures the canvas is actually composited on screen
+            setTimeout(() => {
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  const el = document.getElementById('app-loader');
+                  if (el) {
+                    el.style.opacity = '0';
+                    setTimeout(() => el.remove(), 300);
+                  }
+                }, 100);
+              });
+            }, 0);
+          });
+        }
+      });
+    }
     // Log turn start — only when turn/player actually changes
     effect(() => {
       const turn = this.gameState.turn();

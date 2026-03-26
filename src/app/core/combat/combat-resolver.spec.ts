@@ -6,7 +6,7 @@ function makeUnit(overrides: Partial<UnitData> = {}): UnitData {
   const stats = UNIT_STATS.fighter;
   return {
     id: 'u1',
-    name: 'Fighter FI001',
+    name: 'FI001',
     ownerId: 'p1',
     type: 'fighter',
     q: 0,

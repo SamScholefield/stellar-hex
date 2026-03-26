@@ -76,11 +76,6 @@ export class AudioService {
   }
 
   playClick(): void {
-    if (!this.ctx || !this.sfxGain || !this.clickBuffer) return;
-    const src = this.ctx.createBufferSource();
-    src.buffer = this.clickBuffer;
-    src.connect(this.sfxGain);
-    src.start();
   }
 
   playDiscovery(): void { /* disabled */ }

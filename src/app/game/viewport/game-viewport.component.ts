@@ -8,6 +8,7 @@ import {
   inject,
   OnDestroy,
   output,
+  signal,
   viewChild,
 } from '@angular/core';
 import { CameraService } from '../../core/camera/camera.service';
@@ -76,6 +77,7 @@ export class GameViewportComponent implements OnDestroy {
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
   readonly showClickPopup = output<{ clientX: number; clientY: number }>();
+  readonly firstDrawComplete = signal(false);
 
   private panning = false;
   private spaceHeld = false;
@@ -189,6 +191,7 @@ export class GameViewportComponent implements OnDestroy {
           buildings, combatAnimation: combatAnim, anomalies, tradeHubs, waypoints,
           influenceOverlay: influenceHexes, attackRangeOverlay: attackRangeHexes, attackRangeGroups,
         });
+        if (!this.firstDrawComplete() && this.spriteAtlas.ready() && chunks.length > 0) this.firstDrawComplete.set(true);
       }
     });
   }
@@ -314,17 +317,38 @@ export class GameViewportComponent implements OnDestroy {
         const canStillAttack = unit.weapon != null && !unit.hasAttacked && (hasEnemyAtHex || hasEnemyBuilding);
 
         if (unit.movementPoints > 0 || canStillAttack) {
-          if (unitsAtHex.length === 0 && !hasEnemyBuilding) {
-            // Empty hex — try direct movement
-            this.audio.playClick();
-            this.actionExec.executeMove(selectedUnitId, hex);
-            return;
-          } else {
-            // Occupied hex or attackable — delegate to click popup
-            this.showClickPopup.emit({ clientX: event.clientX, clientY: event.clientY });
-            this.audio.playClick();
-            return;
+          // Check if clicked hex is within reachable movement range or attackable
+          const from = toHexCoord(unit.q, unit.r);
+          const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+          const blocked = buildBlockedSet(this.gameState.units(), this.gameState.buildings(), unit.ownerId, selectedUnitId);
+          const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
+          const override = getUnitCostOverride(unit.type);
+          const reachable = unit.movementPoints > 0
+            ? getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked, override)
+            : new Map<string, number>();
+          const inRange = reachable.has(hKey) || canStillAttack;
+
+          if (inRange) {
+            if (unitsAtHex.length === 0 && !hasEnemyBuilding) {
+              // Empty hex in range — try direct movement
+              this.audio.playClick();
+              this.actionExec.executeMove(selectedUnitId, hex);
+              return;
+            } else {
+              // Occupied hex or attackable — delegate to click popup
+              this.showClickPopup.emit({ clientX: event.clientX, clientY: event.clientY });
+              this.audio.playClick();
+              return;
+            }
           }
+        }
+
+        // Clicked outside movement/attack range — deselect unit only
+        const isSameHex = unit.q === hex.q && unit.r === hex.r;
+        if (!isSameHex) {
+          this.selection.deselectUnits();
+          this.audio.playClick();
+          return;
         }
       }
     }

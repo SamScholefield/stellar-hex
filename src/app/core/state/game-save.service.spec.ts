@@ -32,7 +32,7 @@ function makeTestState(): GameState {
         'scout-p0',
         {
           id: 'scout-p0',
-          name: 'Scout SC001',
+          name: 'SC001',
           ownerId: 'p0',
           type: 'scout' as const,
           q: 1,
@@ -59,7 +59,7 @@ function makeTestState(): GameState {
         'fighter-p1',
         {
           id: 'fighter-p1',
-          name: 'Fighter FI001',
+          name: 'FI001',
           ownerId: 'p1',
           type: 'fighter' as const,
           q: 10,
@@ -266,7 +266,7 @@ describe('serialize / deserialize', () => {
           isAI: false, exploredHexes: ['0,0'],
         }],
         units: [['u1', {
-          id: 'u1', name: 'Scout SC001', ownerId: 'p0', type: 'scout',
+          id: 'u1', name: 'SC001', ownerId: 'p0', type: 'scout',
           q: 0, r: 0, movementPoints: 4, maxMovementPoints: 4,
           health: 8, maxHealth: 8, attack: 3, defense: 0, range: 1, sightRange: 4,
           // Note: no weapon, size, armor, shields, xp, veteranTier
