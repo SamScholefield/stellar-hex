@@ -350,6 +350,10 @@ export class GameComponent implements OnDestroy {
         }
         break;
       }
+      case 'g':
+      case 'G':
+        this.router.navigate(['/guide'], { queryParams: { from: 'game' } });
+        break;
       case 'i':
       case 'I':
         this.influenceSvc.toggleInfluenceOverlay();

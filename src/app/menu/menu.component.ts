@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { GameInitService } from '../core/state/game-init.service';
 import { AudioService } from '../core/audio/audio.service';
 import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
@@ -15,6 +16,7 @@ import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
 export class MenuComponent {
   private readonly gameInit = inject(GameInitService);
   private readonly audio = inject(AudioService);
+  private readonly router = inject(Router);
   protected readonly saveSvc = inject(GameSaveService);
 
   readonly showNewGameModal = signal(false);
@@ -64,4 +66,7 @@ export class MenuComponent {
     this.saveSvc.deleteKey(entry.key);
   }
 
+  openGuide(): void {
+    this.router.navigate(['/guide']);
+  }
 }
