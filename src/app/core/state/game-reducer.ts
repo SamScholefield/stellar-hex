@@ -612,6 +612,15 @@ function moveUnit(state: GameState, unitId: string, path: HexCoord[], cost: numb
   const remaining = unit.movementPoints - cost;
   if (remaining < 0) return state;
 
+  // Cannot move to a hex occupied by an enemy unit or building
+  const destKey = hexKey(dest.q, dest.r);
+  for (const u of state.units.values()) {
+    if (u.id !== unitId && u.ownerId !== unit.ownerId && hexKey(u.q, u.r) === destKey) return state;
+  }
+  for (const b of state.buildings.values()) {
+    if (b.ownerId !== unit.ownerId && hexKey(b.q, b.r) === destKey) return state;
+  }
+
   const units = new Map(state.units);
   units.set(unitId, {
     ...unit,
