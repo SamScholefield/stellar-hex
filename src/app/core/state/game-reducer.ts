@@ -2,7 +2,7 @@ import { GameState, BuildingData, BUILDING_STATS, UNIT_STATS, BuildingType, Unit
 import { computeIncome, computeUpkeep } from '../economy/economy.service';
 import { StellarObjectType } from '../../models/hex-data';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
-import { hexDistance, hexKey, toHexCoord } from '../../shared/hex/hex-math';
+import { hexDistance, hexKey, hexNeighbors, toHexCoord } from '../../shared/hex/hex-math';
 import { resolveCombat, resolveBuildingCombat, CombatResult, CombatOptions, maybePromote } from '../combat/combat-resolver';
 import { computeInfluenceForPlayer, isNearAnyEnemyUnit } from '../influence/influence';
 import { GameAction } from './actions';
@@ -29,6 +29,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return discoverTradeHub(state, action.tradeHub);
     case 'TRADE':
       return trade(state, action.hubId, action.unitId, action.sell, action.buy, action.sellAmount);
+    case 'UNDOCK_UNIT':
+      return undockUnit(state, action.unitId, action.buildingId);
     case 'ADVANCE_COMETS':
       return advanceComets(state);
     case 'SET_HOME_BASE':
@@ -288,6 +290,12 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
     let buildings = state.buildings;
     if (bCombat.destroyed) {
       buildings = new Map(state.buildings);
+      // Destroy all docked units
+      if (targetBuilding.dockedUnits) {
+        for (const dockedId of targetBuilding.dockedUnits) {
+          units.delete(dockedId);
+        }
+      }
       buildings.delete(targetId);
     } else {
       buildings = new Map(state.buildings);
@@ -479,10 +487,18 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
     for (const item of building.productionQueue) {
       const remaining = item.turnsRemaining - 1;
       if (remaining <= 0) {
-        // Spawn unit at building location, applying tech bonuses
+        // Spawn unit at adjacent hex (not on the starbase itself)
         const unitStats = UNIT_STATS[item.unitType];
         const owner = currentPlayer;
         const techBonus = owner ? computeTechBonuses(owner.researchedTechs) : {};
+
+        // Find first empty adjacent hex
+        const neighbors = hexNeighbors(building.q, building.r);
+        const occupiedKeys = new Set<string>();
+        for (const u of units.values()) if (!u.dockedAt) occupiedKeys.add(hexKey(u.q, u.r));
+        for (const b of buildings.values()) occupiedKeys.add(hexKey(b.q, b.r));
+        const spawnHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r))) ?? { q: building.q, r: building.r };
+
         const unitId = `u_${building.q}_${building.r}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         const unitName = generateUnitName(item.unitType, units);
         units.set(unitId, {
@@ -490,8 +506,8 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
           name: unitName,
           ownerId: building.ownerId,
           type: item.unitType,
-          q: building.q,
-          r: building.r,
+          q: spawnHex.q,
+          r: spawnHex.r,
           movementPoints: unitStats.maxMovementPoints + (techBonus.maxMovementPoints ?? 0),
           maxMovementPoints: unitStats.maxMovementPoints + (techBonus.maxMovementPoints ?? 0),
           health: unitStats.maxHealth,
@@ -641,7 +657,35 @@ function moveUnit(state: GameState, unitId: string, path: HexCoord[], cost: numb
     if (b.ownerId !== unit.ownerId && hexKey(b.q, b.r) === destKey) return state;
   }
 
+  // Check for friendly starbase at destination — auto-dock
+  let dockBuilding: BuildingData | null = null;
+  for (const b of state.buildings.values()) {
+    if (b.type === 'starbase' && b.ownerId === unit.ownerId && b.q === dest.q && b.r === dest.r) {
+      dockBuilding = b;
+      break;
+    }
+  }
+
   const units = new Map(state.units);
+  if (dockBuilding) {
+    // Dock: heal to full, mark as docked
+    units.set(unitId, {
+      ...unit,
+      q: dest.q,
+      r: dest.r,
+      movementPoints: 0,
+      health: unit.maxHealth,
+      shields: unit.maxShields,
+      dockedAt: dockBuilding.id,
+    });
+    // Add to building's docked list
+    const buildings = new Map(state.buildings);
+    const docked = dockBuilding.dockedUnits ? [...dockBuilding.dockedUnits] : [];
+    docked.push(unitId);
+    buildings.set(dockBuilding.id, { ...dockBuilding, dockedUnits: docked });
+    return { ...state, units, buildings };
+  }
+
   units.set(unitId, {
     ...unit,
     q: dest.q,
@@ -807,6 +851,41 @@ function trade(state: GameState, hubId: string, unitId: string, sell: ResourceKe
   const gameOver = checkVictory(players, state.units, state.buildings) ?? state.gameOver;
 
   return { ...state, players, tradeHubs, tradedThisTurn, gameOver };
+}
+
+function undockUnit(state: GameState, unitId: string, buildingId: string): GameState {
+  const unit = state.units.get(unitId);
+  if (!unit || unit.dockedAt !== buildingId) return state;
+
+  // Cannot undock in same turn as docking (MP is 0 after dock, refreshed next turn)
+  if (unit.movementPoints <= 0) return state;
+
+  const building = state.buildings.get(buildingId);
+  if (!building) return state;
+
+  // Find adjacent empty hex to undock to
+  const neighbors = hexNeighbors(building.q, building.r);
+  const occupiedKeys = new Set<string>();
+  for (const u of state.units.values()) if (!u.dockedAt) occupiedKeys.add(hexKey(u.q, u.r));
+  for (const b of state.buildings.values()) occupiedKeys.add(hexKey(b.q, b.r));
+  const undockHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r)));
+  if (!undockHex) return state; // No space to undock
+
+  const units = new Map(state.units);
+  units.set(unitId, {
+    ...unit,
+    q: undockHex.q,
+    r: undockHex.r,
+    movementPoints: 0,
+    dockedAt: undefined,
+  });
+
+  // Remove from building's docked list
+  const buildings = new Map(state.buildings);
+  const docked = (building.dockedUnits ?? []).filter(id => id !== unitId);
+  buildings.set(buildingId, { ...building, dockedUnits: docked.length > 0 ? docked : undefined });
+
+  return { ...state, units, buildings };
 }
 
 function advanceComets(state: GameState): GameState {

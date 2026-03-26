@@ -259,6 +259,7 @@ export interface UnitData {
   xp: number;
   veteranTier: VeteranTier;
   hasAttacked: boolean;
+  dockedAt?: string;
 }
 
 const UNIT_TYPE_PREFIX: Record<UnitType, string> = {
@@ -305,6 +306,7 @@ export interface BuildingData {
   maxShields: number;
   productionQueue?: ProductionItem[];
   researchQueue?: ResearchItem[];
+  dockedUnits?: string[];
 }
 
 export interface DynamicObject {

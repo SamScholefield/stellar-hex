@@ -161,7 +161,12 @@ export class GameViewportComponent implements OnDestroy {
       const hoveredHex = this.selection.hoveredHexCoord();
       const selectedHex = this.selection.selectedHexCoord();
       const selectedUnitId = this.selection.selectedUnit();
-      const units = this.gameState.units();
+      // Filter out docked units — they shouldn't render on the map
+      const allUnits = this.gameState.units();
+      const units = new Map<string, import('../../models/game-state').UnitData>();
+      for (const [id, u] of allUnits) {
+        if (!u.dockedAt) units.set(id, u);
+      }
       const playerColors = this.gameState.playerColors();
 
       const reachable = this.reachable();
