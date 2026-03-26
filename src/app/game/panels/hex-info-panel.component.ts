@@ -46,6 +46,14 @@ type SubPanel = 'units' | 'building' | 'tradeHub' | 'anomaly' | null;
               <div class="type unknown">Unknown</div>
             } @else if (data.hex.object; as obj) {
               <div class="type">{{ obj.type | formatName }}</div>
+              @if (data.visibility === 'visible' && obj.resources) {
+                <div class="hex-resources">
+                  @if (obj.resources.energy) { <span class="res energy">{{ obj.resources.energy }}E</span> }
+                  @if (obj.resources.minerals) { <span class="res minerals">{{ obj.resources.minerals }}M</span> }
+                  @if (obj.resources.alloys) { <span class="res alloys">{{ obj.resources.alloys }}A</span> }
+                  @if (obj.resources.credits) { <span class="res credits">{{ obj.resources.credits }}C</span> }
+                </div>
+              }
             } @else {
               <div class="type">Empty Space</div>
             }
@@ -218,6 +226,17 @@ type SubPanel = 'units' | 'building' | 'tradeHub' | 'anomaly' | null;
     .trade-hub-label {
       color: var(--accent-gold, #fbbf24);
     }
+    .hex-resources {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: 0.2rem;
+      font-size: 0.7rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .hex-resources .energy { color: var(--res-energy); }
+    .hex-resources .minerals { color: var(--res-minerals); }
+    .hex-resources .alloys { color: var(--res-alloys); }
+    .hex-resources .credits { color: var(--res-credits); }
     .unknown {
       color: var(--text-muted);
       font-style: italic;

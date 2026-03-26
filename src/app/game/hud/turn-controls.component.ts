@@ -13,7 +13,7 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
   selector: 'app-turn-controls',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="panel controls">
+    <div class="controls">
       @if (currentPlayer(); as player) {
         <span class="player-dot" [style.background]="player.color"></span>
         <span class="player-name">{{ player.name }}</span>
@@ -57,7 +57,6 @@ import { formatName } from '../../shared/pipes/format-name.pipe';
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      padding: 0.4rem 1rem;
     }
     .player-dot {
       width: 10px;
