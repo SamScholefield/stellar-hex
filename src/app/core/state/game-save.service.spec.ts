@@ -112,6 +112,8 @@ function makeTestState(): GameState {
         },
       ],
     ]),
+    tradeHubs: new Map(),
+    tradedThisTurn: new Set(),
     seed: 12345,
   };
 }

@@ -20,6 +20,8 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     dynamicObjects: new Map(),
     chunkOverrides: new Map(),
     anomalies: new Map(),
+    tradeHubs: new Map(),
+    tradedThisTurn: new Set(),
     seed: 12345,
     ...overrides,
   };

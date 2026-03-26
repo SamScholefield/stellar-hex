@@ -31,11 +31,11 @@ import { PlayerState } from '../../models/game-state';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ResourceBarComponent, TurnControlsComponent, HexInfoPanelComponent, UnitInfoPanelComponent, EventLogComponent, EventFeedComponent, ProductionMenuComponent, ResearchMenuComponent, UnitListPanelComponent, BuildingListPanelComponent, MinimapComponent, GameOverOverlayComponent],
   template: `
-    <div class="hud-top">
+    <header class="hud-header">
       @if (!spectate()) {
         <app-resource-bar />
       } @else {
-        <div class="panel spectate-resources">
+        <div class="spectate-resources">
           @for (p of alivePlayers(); track p.id) {
             <div class="sp-player" [class.eliminated]="p.eliminated">
               <span class="sp-dot" [style.background]="p.color"></span>
@@ -48,7 +48,7 @@ import { PlayerState } from '../../models/game-state';
           }
         </div>
       }
-      <div class="hud-top-center">
+      <div class="hud-toolbar">
         @if (homeBase(); as hb) {
           <button class="btn-toolbar home-btn" (click)="focusHome(hb)">&#8962; Home</button>
         }
@@ -57,7 +57,28 @@ import { PlayerState } from '../../models/game-state';
         <button class="btn-toolbar guide-btn" (click)="onGuide()">Guide</button>
         <button class="btn-toolbar help-btn" (click)="onHelp()">?</button>
       </div>
-    </div>
+      @if (!spectate()) {
+        <app-turn-controls class="hud-turn-section" />
+      } @else {
+        <div class="hud-turn-section spectate-label">
+          <div class="spectate-controls-inner">
+            @if (currentPlayer(); as player) {
+              <span class="player-dot" [style.background]="player.color"></span>
+              <span class="player-name">{{ player.name }}</span>
+            }
+            <span class="turn-label">Turn {{ gameState.turn() }}</span>
+            <span class="spectate-badge">SPECTATING</span>
+          </div>
+          @if (selectedEntityLabel(); as label) {
+            <div class="sp-selected">
+              <span class="sp-sel-dot" [style.background]="label.color"></span>
+              <span class="sp-sel-name">{{ label.name }}</span>
+              <span class="sp-sel-owner">{{ label.owner }}</span>
+            </div>
+          }
+        </div>
+      }
+    </header>
     <div class="hud-left-panels">
       @if (!spectate()) {
         @if (selectedStarbase(); as sb) {
@@ -71,27 +92,6 @@ import { PlayerState } from '../../models/game-state';
     <div class="hud-bottom-center">
       <app-unit-info-panel />
     </div>
-    @if (!spectate()) {
-      <app-turn-controls class="hud-turn" />
-    } @else {
-      <div class="hud-turn spectate-label">
-        <div class="panel controls">
-          @if (currentPlayer(); as player) {
-            <span class="player-dot" [style.background]="player.color"></span>
-            <span class="player-name">{{ player.name }}</span>
-          }
-          <span class="turn-label">Turn {{ gameState.turn() }}</span>
-          <span class="spectate-badge">SPECTATING</span>
-        </div>
-        @if (selectedEntityLabel(); as label) {
-          <div class="panel sp-selected">
-            <span class="sp-sel-dot" [style.background]="label.color"></span>
-            <span class="sp-sel-name">{{ label.name }}</span>
-            <span class="sp-sel-owner">{{ label.owner }}</span>
-          </div>
-        }
-      </div>
-    }
     <div class="hud-right-panels">
       <app-unit-list-panel />
       <app-building-list-panel />
@@ -124,38 +124,40 @@ import { PlayerState } from '../../models/game-state';
       display: grid;
       grid-template-rows: auto 1fr auto;
       grid-template-columns: auto 1fr auto;
-      padding: 0.75rem;
       gap: 0.5rem;
     }
-    .hud-top {
+    .hud-header {
       grid-row: 1;
-      grid-column: 1 / 3;
+      grid-column: 1 / -1;
       display: flex;
-      align-items: stretch;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.5rem 1rem;
+      background: var(--panel-bg, rgba(10, 10, 26, 0.85));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      pointer-events: auto;
     }
-    .hud-top-center {
-      flex: 1;
+    .hud-toolbar {
       display: flex;
-      justify-content: center;
-      align-items: stretch;
+      align-items: center;
       gap: 0.5rem;
+    }
+    .hud-turn-section {
+      margin-left: auto;
     }
     .hud-left-panels {
       grid-row: 2;
       grid-column: 1;
       align-self: start;
       width: 200px;
+      margin-left: 0.75rem;
     }
     .hud-bottom-center {
       grid-row: 3;
       grid-column: 2;
       justify-self: center;
       align-self: end;
-    }
-    .hud-turn {
-      grid-row: 1;
-      grid-column: 3;
-      justify-self: end;
+      margin-bottom: 0.75rem;
     }
     .hud-right-panels {
       grid-row: 2;
@@ -165,6 +167,7 @@ import { PlayerState } from '../../models/game-state';
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
+      margin-right: 0.75rem;
     }
     .hud-bottom-left {
       grid-row: 3;
@@ -173,6 +176,7 @@ import { PlayerState } from '../../models/game-state';
       display: flex;
       gap: 0.5rem;
       align-items: flex-end;
+      margin: 0 0 0.75rem 0.75rem;
     }
     .hud-bottom-right {
       grid-row: 3;
@@ -183,6 +187,7 @@ import { PlayerState } from '../../models/game-state';
       display: flex;
       flex-direction: column;
       gap: 4px;
+      margin: 0 0.75rem 0.75rem 0;
     }
 .home-btn {
       color: var(--text-primary);
@@ -245,13 +250,14 @@ import { PlayerState } from '../../models/game-state';
       to { transform: rotate(360deg); }
     }
     .spectate-label {
-      pointer-events: auto;
-    }
-    .spectate-label .controls {
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      padding: 0.4rem 1rem;
+    }
+    .spectate-controls-inner {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
     }
     .spectate-label .player-dot {
       width: 10px;
@@ -272,8 +278,6 @@ import { PlayerState } from '../../models/game-state';
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem 1.25rem;
-      padding: 0.4rem 1rem;
-      pointer-events: auto;
     }
     .sp-player {
       display: flex;
@@ -304,8 +308,8 @@ import { PlayerState } from '../../models/game-state';
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.3rem 0.75rem;
-      margin-top: 0.35rem;
+      padding-left: 0.75rem;
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
       font-size: 0.8rem;
     }
     .sp-sel-dot {

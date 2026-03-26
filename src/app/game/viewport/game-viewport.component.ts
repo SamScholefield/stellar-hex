@@ -173,6 +173,7 @@ export class GameViewportComponent implements OnDestroy {
       const currentPlayerId = this.gameState.humanPlayer()?.id ?? null;
       const buildings = this.gameState.buildings();
       const anomalies = this.gameState.anomalies();
+      const tradeHubs = this.gameState.tradeHubs();
       const waypoints = this.waypointSvc.waypoints();
       const influenceHexes = this.influenceSvc.showInfluenceOverlay() ? this.influenceSvc.humanInfluenceHexes() : null;
       const attackRangeHexes = this.influenceSvc.showAttackRangeOverlay() ? this.influenceSvc.humanAttackRangeHexes() : null;
@@ -185,7 +186,7 @@ export class GameViewportComponent implements OnDestroy {
           ctx, camera: this.camera, hexSize: HEX_SIZE, chunks, hoveredHex, selectedHex,
           units, playerColors, selectedUnitId, reachableHexes: reachable, pathPreview,
           unitAnimation: activeAnim, visibleHexes, exploredHexes, currentPlayerId,
-          buildings, combatAnimation: combatAnim, anomalies, waypoints,
+          buildings, combatAnimation: combatAnim, anomalies, tradeHubs, waypoints,
           influenceOverlay: influenceHexes, attackRangeOverlay: attackRangeHexes, attackRangeGroups,
         });
       }

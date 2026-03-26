@@ -6,62 +6,46 @@ import { EconomyService } from '../../core/economy/economy.service';
   selector: 'app-resource-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="panel bar">
+    <div class="bar">
       @if (resources(); as r) {
         <span class="res">
-          <span class="label">Energy</span> {{ r.energy }}
+          <img class="icon" src="icons/energy.svg" alt="Energy" />
+          <span class="val">{{ r.energy }}</span>
           <span class="breakdown">
-            <span class="inc">+{{ income().energy }}</span>
+            <span class="inc">{{ income().energy }}</span>
             @if (upkeep().energy > 0) {
-              <span class="upk">-{{ upkeep().energy }}</span>
+              <span class="upk">{{ upkeep().energy }}</span>
             }
-            <span
-              class="net"
-              [class.positive]="net().energy > 0"
-              [class.negative]="net().energy < 0"
-            ></span>
           </span>
         </span>
         <span class="res">
-          <span class="label">Minerals</span> {{ r.minerals }}
+          <img class="icon" src="icons/minerals.svg" alt="Minerals" />
+          <span class="val">{{ r.minerals }}</span>
           <span class="breakdown">
-            <span class="inc">+{{ income().minerals }}</span>
+            <span class="inc">{{ income().minerals }}</span>
             @if (upkeep().minerals > 0) {
-              <span class="upk">-{{ upkeep().minerals }}</span>
+              <span class="upk">{{ upkeep().minerals }}</span>
             }
-            <span
-              class="net"
-              [class.positive]="net().minerals > 0"
-              [class.negative]="net().minerals < 0"
-            ></span>
           </span>
         </span>
         <span class="res">
-          <span class="label">Alloys</span> {{ r.alloys }}
+          <img class="icon" src="icons/alloys.svg" alt="Alloys" />
+          <span class="val">{{ r.alloys }}</span>
           <span class="breakdown">
-            <span class="inc">+{{ income().alloys }}</span>
+            <span class="inc">{{ income().alloys }}</span>
             @if (upkeep().alloys > 0) {
-              <span class="upk">-{{ upkeep().alloys }}</span>
+              <span class="upk">{{ upkeep().alloys }}</span>
             }
-            <span
-              class="net"
-              [class.positive]="net().alloys > 0"
-              [class.negative]="net().alloys < 0"
-            ></span>
           </span>
         </span>
         <span class="res">
-          <span class="label">Credits</span> {{ r.credits }}
+          <img class="icon" src="icons/credits.svg" alt="Credits" />
+          <span class="val">{{ r.credits }}</span>
           <span class="breakdown">
-            <span class="inc">+{{ income().credits }}</span>
+            <span class="inc">{{ income().credits }}</span>
             @if (upkeep().credits > 0) {
-              <span class="upk">-{{ upkeep().credits }}</span>
+              <span class="upk">{{ upkeep().credits }}</span>
             }
-            <span
-              class="net"
-              [class.positive]="net().credits > 0"
-              [class.negative]="net().credits < 0"
-            ></span>
           </span>
         </span>
       } @else {
@@ -72,26 +56,29 @@ import { EconomyService } from '../../core/economy/economy.service';
   styles: `
     :host {
       display: flex;
-      pointer-events: auto;
     }
     .bar {
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      padding: 0.4rem 1rem;
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 0.3rem 1.5rem;
     }
     .res {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
       font-size: 0.8rem;
       color: var(--text-primary);
       font-variant-numeric: tabular-nums;
     }
-    .label {
-      color: var(--text-secondary);
-      margin-right: 0.25rem;
+    .icon {
+      width: 14px;
+      height: 14px;
+    }
+    .val {
+      min-width: 1.5em;
     }
     .breakdown {
       font-size: 0.65rem;
-      margin-left: 0.2rem;
     }
     .inc {
       color: var(--accent-teal);
@@ -99,16 +86,6 @@ import { EconomyService } from '../../core/economy/economy.service';
     .upk {
       color: var(--accent-red, #f87171);
       margin-left: 0.15rem;
-    }
-    .net {
-      color: var(--text-muted);
-      margin-left: 0.15rem;
-    }
-    .net.positive {
-      color: var(--accent-teal);
-    }
-    .net.negative {
-      color: var(--accent-red, #f87171);
     }
   `,
 })

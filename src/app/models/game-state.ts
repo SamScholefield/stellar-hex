@@ -343,6 +343,29 @@ export interface Anomaly {
   r: number;
 }
 
+// ── Trade Hubs ────────────────────────────────────────────────────
+
+export const TRADE_HUB_STARTING_STOCK: Resources = { energy: 50, minerals: 50, alloys: 30, credits: 20 };
+export const TRADE_HUB_REPLENISH: Resources = { energy: 5, minerals: 5, alloys: 3, credits: 2 };
+export const TRADE_HUB_MAX_STOCK: Resources = { energy: 100, minerals: 100, alloys: 60, credits: 40 };
+
+export interface TradeHub {
+  id: string;
+  q: number;
+  r: number;
+  stock: Resources;
+}
+
+export type ResourceKey = keyof Resources;
+
+/** How much of the "sell" resource is needed per 1 unit of the "buy" resource. */
+export const TRADE_RATES: Record<ResourceKey, Partial<Record<ResourceKey, number>>> = {
+  energy:   { minerals: 2, alloys: 3, credits: 4 },
+  minerals: { energy: 2, alloys: 3, credits: 4 },
+  alloys:   { energy: 0.5, minerals: 0.5, credits: 2 },
+  credits:  { energy: 0.33, minerals: 0.33, alloys: 0.5 },
+};
+
 export type VictoryReason = 'domination' | 'economic';
 
 export interface GameOverState {
@@ -359,6 +382,8 @@ export interface GameState {
   dynamicObjects: Map<string, DynamicObject>;
   chunkOverrides: Map<string, HexOverride[]>;
   anomalies: Map<string, Anomaly>;
+  tradeHubs: Map<string, TradeHub>;
+  tradedThisTurn: Set<string>;
   seed: number;
   gameOver?: GameOverState;
   spectate?: boolean;

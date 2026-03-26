@@ -4,6 +4,7 @@ import { HudComponent } from './hud/hud.component';
 import { ClickPopupComponent } from './overlays/click-popup.component';
 import { ContextMenuComponent } from './overlays/context-menu.component';
 import { HelpPanelComponent } from './overlays/help-panel.component';
+import { TradeModalComponent } from './overlays/trade-modal.component';
 import { CameraService } from '../core/camera/camera.service';
 import { SelectionService } from '../core/selection/selection.service';
 import { EventLogService } from '../core/state/event-log.service';
@@ -18,7 +19,7 @@ import { AudioService } from '../core/audio/audio.service';
 import { WaypointService } from '../core/state/waypoint.service';
 import { InfluenceService } from '../core/influence/influence.service';
 import { Router } from '@angular/router';
-import { ANOMALY_REWARDS } from '../models/game-state';
+import { ANOMALY_REWARDS, TRADE_HUB_STARTING_STOCK } from '../models/game-state';
 import { HEX_SIZE, hexToPixel, toHexCoord } from '../shared/hex/hex-math';
 
 const PAN_STEP = 80;
@@ -27,7 +28,7 @@ const ZOOM_STEP = 50;
 @Component({
   selector: 'app-game',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GameViewportComponent, HudComponent, ClickPopupComponent, ContextMenuComponent, HelpPanelComponent],
+  imports: [GameViewportComponent, HudComponent, ClickPopupComponent, ContextMenuComponent, HelpPanelComponent, TradeModalComponent],
   host: {
     '(contextmenu)': 'onContextMenu($event)',
     '(window:keydown)': 'onKeyDown($event)',
@@ -46,8 +47,9 @@ const ZOOM_STEP = 50;
         </div>
       }
       <app-click-popup />
-      <app-context-menu />
+      <app-context-menu (openTrade)="openTradeModal($event.hubId, $event.unitId)" />
       <app-help-panel [(visible)]="helpVisible" />
+      <app-trade-modal [(visible)]="tradeModalVisible" [hubId]="tradeHubId()" [unitId]="tradeUnitId()" />
     } @else {
       <div class="loading">
         <div class="spinner"></div>
@@ -147,6 +149,9 @@ export class GameComponent implements OnDestroy {
   private readonly clickPopup = viewChild(ClickPopupComponent);
   private readonly contextMenu = viewChild(ContextMenuComponent);
   readonly helpVisible = signal(false);
+  readonly tradeModalVisible = signal(false);
+  readonly tradeHubId = signal<string | null>(null);
+  readonly tradeUnitId = signal<string | null>(null);
   readonly ready = computed(() => this.gameState.players().length > 0);
   readonly spectate = this.gameState.spectate;
   readonly paused = this.gameState.paused;
@@ -257,6 +262,23 @@ export class GameComponent implements OnDestroy {
           this.eventLog.push({ turn, message: `${prefix}Discovered ${info.name}`, q: d.q, r: d.r });
           if (!player?.isAI) this.audio.playDiscovery();
         }
+
+        // Discover trade hubs
+        for (const d of discoveries) {
+          const hex = this.chunkManager.getHex(d.q, d.r);
+          if (!hex?.tradeHub) continue;
+
+          const id = `trade_hub_${d.q}_${d.r}`;
+          if (this.gameState.tradeHubs().has(id)) continue;
+
+          this.gameState.dispatch({
+            type: 'DISCOVER_TRADE_HUB',
+            tradeHub: { id, q: d.q, r: d.r, stock: { ...TRADE_HUB_STARTING_STOCK } },
+          });
+          const prefix = player?.isAI ? '[AI] ' : '';
+          this.eventLog.push({ turn, message: `${prefix}Discovered a Trade Hub`, q: d.q, r: d.r });
+          if (!player?.isAI) this.audio.playDiscovery();
+        }
       });
     });
   }
@@ -264,6 +286,12 @@ export class GameComponent implements OnDestroy {
   ngOnDestroy(): void {
     window.removeEventListener('beforeunload', this.onBeforeUnload);
     this.gameState.setPaused(false);
+  }
+
+  openTradeModal(hubId: string, unitId: string): void {
+    this.tradeHubId.set(hubId);
+    this.tradeUnitId.set(unitId);
+    this.tradeModalVisible.set(true);
   }
 
   abortSpectate(): void {

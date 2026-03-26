@@ -170,6 +170,8 @@ export class GameInitService {
       dynamicObjects: new Map(),
       chunkOverrides: new Map(),
       anomalies: new Map(),
+      tradeHubs: new Map(),
+      tradedThisTurn: new Set(),
       seed,
       spectate: spectate || undefined,
     };

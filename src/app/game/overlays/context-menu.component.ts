@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { SelectionService } from '../../core/selection/selection.service';
 import { CameraService } from '../../core/camera/camera.service';
 import { GameStateService } from '../../core/state/game-state.service';
@@ -45,6 +45,9 @@ export interface ContextMenuState {
   canAttackHere: boolean;
   attackHereUnitId: string | null;
   attackHereTargetId: string | null;
+  canTrade: boolean;
+  tradeHubId: string | null;
+  tradeUnitId: string | null;
 }
 
 @Component({
@@ -60,6 +63,9 @@ export interface ContextMenuState {
       <div class="dropdown" [style.left.px]="s.screenX" [style.top.px]="s.screenY">
         @if (s.canCollect) {
           <button class="dropdown-item collect" (click)="onCollect()">Collect {{ s.collectAnomalyName }}</button>
+        }
+        @if (s.canTrade) {
+          <button class="dropdown-item collect" (click)="onTrade()">Trade</button>
         }
         @for (atk of s.attackOptions; track atk.targetId) {
           <button class="dropdown-item attack" (click)="onAttack(atk)">Attack {{ atk.label }}</button>
@@ -120,6 +126,7 @@ export class ContextMenuComponent {
 
   private readonly waypointSvc = inject(WaypointService);
 
+  readonly openTrade = output<{ hubId: string; unitId: string }>();
   private readonly _state = signal<ContextMenuState | null>(null);
   readonly state = this._state.asReadonly();
 
@@ -232,6 +239,25 @@ export class ContextMenuComponent {
       }
     }
 
+    // Trade Hub — show when friendly scout at a discovered trade hub
+    let canTrade = false;
+    let tradeHubId: string | null = null;
+    let tradeUnitId: string | null = null;
+    for (const hub of this.gameState.tradeHubs().values()) {
+      if (hub.q === hex.q && hub.r === hex.r) {
+        const scout = unitsHere?.find(u => u.ownerId === currentPlayer.id && u.type === 'scout');
+        if (scout) {
+          const tradedKey = `${currentPlayer.id}:${hub.id}`;
+          if (!this.gameState.tradedThisTurn().has(tradedKey)) {
+            canTrade = true;
+            tradeHubId = hub.id;
+            tradeUnitId = scout.id;
+          }
+        }
+        break;
+      }
+    }
+
     // Move Here — show when unit selected, has MP, hex is outside reachable range
     let canMoveHere = false;
     let moveHereUnitId: string | null = null;
@@ -301,6 +327,9 @@ export class ContextMenuComponent {
       canAttackHere,
       attackHereUnitId,
       attackHereTargetId,
+      canTrade,
+      tradeHubId,
+      tradeUnitId,
     });
   }
 
@@ -377,6 +406,14 @@ export class ContextMenuComponent {
 
   costEntries(stats: BuildingStats) {
     return costEntries(stats.cost, this.gameState.currentPlayer()?.resources);
+  }
+
+  onTrade(): void {
+    this.audio.playClick();
+    const s = this._state();
+    if (!s || !s.tradeHubId || !s.tradeUnitId) return;
+    this.close();
+    this.openTrade.emit({ hubId: s.tradeHubId, unitId: s.tradeUnitId });
   }
 
   onBuild(buildingType: BuildingType): void {

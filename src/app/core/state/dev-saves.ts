@@ -127,6 +127,8 @@ function buildCombatScenario(): string {
     dynamicObjects: new Map(),
     chunkOverrides: new Map(),
     anomalies: new Map(),
+    tradeHubs: new Map(),
+    tradedThisTurn: new Set(),
     seed: 42,
   };
 
@@ -204,6 +206,8 @@ function buildEconomyScenario(): string {
     dynamicObjects: new Map(),
     chunkOverrides: new Map(),
     anomalies,
+    tradeHubs: new Map(),
+    tradedThisTurn: new Set(),
     seed: 42,
   };
 
