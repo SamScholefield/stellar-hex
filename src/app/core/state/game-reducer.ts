@@ -876,7 +876,7 @@ function undockUnit(state: GameState, unitId: string, buildingId: string): GameS
     ...unit,
     q: undockHex.q,
     r: undockHex.r,
-    movementPoints: 0,
+    movementPoints: unit.movementPoints,
     dockedAt: undefined,
   });
 
