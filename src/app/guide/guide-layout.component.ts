@@ -9,9 +9,7 @@ import { GUIDE_CATEGORIES, GuideCategory, searchEntries } from './guide-data';
   template: `
     <div class="shell">
       <header class="top-bar">
-        <button class="back-btn" (click)="goBack()">
-          &larr; {{ fromGame() ? 'Back to Game' : 'Back to Menu' }}
-        </button>
+        <button class="back-btn" (click)="goBack()">&larr;</button>
         <h1 class="guide-title">Guide</h1>
         <input
           class="search-input"
@@ -27,13 +25,12 @@ import { GUIDE_CATEGORIES, GuideCategory, searchEntries } from './guide-data';
           routerLink="/guide"
           [routerLinkActiveOptions]="{ exact: true }"
           routerLinkActive="active"
-        >Overview</a>
+          >Overview</a
+        >
         @for (cat of categories; track cat.id) {
-          <a
-            class="nav-item"
-            [routerLink]="['/guide', cat.id]"
-            routerLinkActive="active"
-          >{{ cat.title }}</a>
+          <a class="nav-item" [routerLink]="['/guide', cat.id]" routerLinkActive="active">{{
+            cat.title
+          }}</a>
         }
       </nav>
       <main class="content">
@@ -41,7 +38,11 @@ import { GUIDE_CATEGORIES, GuideCategory, searchEntries } from './guide-data';
           <div class="search-results panel-solid">
             <h2>Search Results</h2>
             @for (entry of searchResults(); track entry.id) {
-              <a class="search-item" [routerLink]="['/guide', entry.category, entry.id]" (click)="clearSearch()">
+              <a
+                class="search-item"
+                [routerLink]="['/guide', entry.category, entry.id]"
+                (click)="clearSearch()"
+              >
                 <span class="search-cat">{{ entry.category }}</span>
                 <span class="search-title">{{ entry.title }}</span>
                 <span class="search-summary">{{ entry.summary }}</span>
@@ -66,7 +67,20 @@ import { GUIDE_CATEGORIES, GuideCategory, searchEntries } from './guide-data';
         linear-gradient(180deg, #0d1117 0%, #0a0a14 40%, #06060c 100%);
       background-color: #06060c;
     }
+    :host::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'/%3E%3Cpath d='M28 0L28 66L0 50' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='1'/%3E%3C/svg%3E");
+      background-size: 56px 100px;
+      mask-image: radial-gradient(ellipse at 60% 50%, black 0%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse at 60% 50%, black 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
     .shell {
+      position: relative;
+      z-index: 1;
       display: grid;
       grid-template-columns: 180px 1fr;
       grid-template-rows: auto 1fr;
@@ -88,7 +102,9 @@ import { GUIDE_CATEGORIES, GuideCategory, searchEntries } from './guide-data';
       padding: 0.35rem 0.75rem;
       font-size: 0.8rem;
       cursor: pointer;
-      transition: color 0.15s, border-color 0.15s;
+      transition:
+        color 0.15s,
+        border-color 0.15s;
       white-space: nowrap;
     }
     .back-btn:hover {
@@ -133,7 +149,10 @@ import { GUIDE_CATEGORIES, GuideCategory, searchEntries } from './guide-data';
       color: var(--text-secondary, #9ca3af);
       text-decoration: none;
       border-left: 3px solid transparent;
-      transition: color 0.15s, border-color 0.15s, background 0.15s;
+      transition:
+        color 0.15s,
+        border-color 0.15s,
+        background 0.15s;
     }
     .nav-item:hover {
       color: var(--text-primary, #e0e0e0);
