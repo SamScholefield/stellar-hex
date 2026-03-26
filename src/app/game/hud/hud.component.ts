@@ -58,8 +58,7 @@ import { PlayerState } from '../../models/game-state';
         <button class="btn-toolbar help-btn" (click)="onHelp()">?</button>
       </div>
     </div>
-    <div class="hud-unit-panel">
-      <app-unit-info-panel />
+    <div class="hud-left-panels">
       @if (!spectate()) {
         @if (selectedStarbase(); as sb) {
           <app-production-menu [building]="sb" [homeBaseId]="gameState.homeBaseId()" (produceSelected)="onProduce($event)" (setHomeSelected)="onSetHome(sb)" />
@@ -68,6 +67,9 @@ import { PlayerState } from '../../models/game-state';
           <app-research-menu [building]="rl" (researchSelected)="onResearch($event)" />
         }
       }
+    </div>
+    <div class="hud-bottom-center">
+      <app-unit-info-panel />
     </div>
     @if (!spectate()) {
       <app-turn-controls class="hud-turn" />
@@ -138,11 +140,17 @@ import { PlayerState } from '../../models/game-state';
       align-items: stretch;
       gap: 0.5rem;
     }
-    .hud-unit-panel {
+    .hud-left-panels {
       grid-row: 2;
       grid-column: 1;
       align-self: start;
       width: 200px;
+    }
+    .hud-bottom-center {
+      grid-row: 3;
+      grid-column: 2;
+      justify-self: center;
+      align-self: end;
     }
     .hud-turn {
       grid-row: 1;
@@ -403,7 +411,7 @@ export class HudComponent {
   onSetHome(building: BuildingData): void {
     this.audio.playClick();
     const player = this.gameState.currentPlayer();
-    if (!player) return;
+    if (!player || building.type !== 'starbase') return;
     this.undo.dispatch({ type: 'SET_HOME_BASE', playerId: player.id, buildingId: building.id });
     this.eventLog.push({ turn: this.gameState.turn(), message: 'Home base reassigned' });
   }

@@ -297,6 +297,58 @@ describe('gameReducer', () => {
       const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'mining_station', hex, hexType: 'asteroid' });
       expect(next.buildings.size).toBe(0);
     });
+
+    it('places solar_collector when adjacent star exists', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const hex = { q: 1, r: 0, s: -1 };
+      const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'solar_collector', hex, hexType: 'empty', adjacentHexTypes: ['star', 'empty', 'empty', 'empty', 'empty', 'empty'] });
+      expect(next.buildings.size).toBe(1);
+      expect([...next.buildings.values()][0].type).toBe('solar_collector');
+    });
+
+    it('rejects solar_collector without adjacent star', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const hex = { q: 1, r: 0, s: -1 };
+      const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'solar_collector', hex, hexType: 'empty', adjacentHexTypes: ['empty', 'empty', 'empty', 'empty', 'empty', 'empty'] });
+      expect(next.buildings.size).toBe(0);
+    });
+
+    it('rejects starbase when nearbyHasPlanet is false', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const hex = { q: 1, r: 0, s: -1 };
+      const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'starbase', hex, hexType: 'empty', nearbyHasPlanet: false });
+      expect(next.buildings.size).toBe(0);
+    });
+
+    it('places starbase when nearbyHasPlanet is true', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const hex = { q: 1, r: 0, s: -1 };
+      const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'starbase', hex, hexType: 'empty', nearbyHasPlanet: true });
+      expect(next.buildings.size).toBe(1);
+      expect([...next.buildings.values()][0].type).toBe('starbase');
+    });
+
+    it('rejects solar_collector when adjacentHexTypes not provided', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const hex = { q: 1, r: 0, s: -1 };
+      const next = gameReducer(state, { type: 'BUILD', playerId: 'p1', buildingType: 'solar_collector', hex, hexType: 'empty' });
+      expect(next.buildings.size).toBe(0);
+    });
   });
 
   describe('END_TURN resource collection', () => {

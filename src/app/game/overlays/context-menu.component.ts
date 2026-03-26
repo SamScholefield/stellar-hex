@@ -388,7 +388,15 @@ export class ContextMenuComponent {
     const player = this.gameState.currentPlayer();
     if (!player) return;
 
-    this.undo.dispatch({ type: 'BUILD', playerId: player.id, buildingType, hex: s.hex, hexType: s.hexType });
+    const adjacentHexTypes = hexNeighbors(s.hex.q, s.hex.r).map(n => {
+      const hd = this.chunkManager.getHex(n.q, n.r);
+      return hd?.object?.type ?? 'empty';
+    });
+    const nearbyHasPlanet = hexesInRange(toHexCoord(s.hex.q, s.hex.r), 8).some(h => {
+      const hd = this.chunkManager.getHex(h.q, h.r);
+      return hd?.object?.type === 'planet';
+    });
+    this.undo.dispatch({ type: 'BUILD', playerId: player.id, buildingType, hex: s.hex, hexType: s.hexType, adjacentHexTypes, nearbyHasPlanet });
     const turn = this.gameState.turn();
     this.eventLog.push({ turn, message: `Built ${formatName(buildingType)} at (${s.hex.q}, ${s.hex.r})`, q: s.hex.q, r: s.hex.r });
   }

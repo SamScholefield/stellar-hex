@@ -14,7 +14,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'MOVE_UNIT':
       return moveUnit(state, action.unitId, action.path, action.cost);
     case 'BUILD':
-      return build(state, action.playerId, action.buildingType, action.hex, action.hexType as StellarObjectType);
+      return build(state, action.playerId, action.buildingType, action.hex, action.hexType as StellarObjectType, action.adjacentHexTypes as StellarObjectType[] | undefined, action.nearbyHasPlanet);
     case 'PRODUCE_UNIT':
       return produceUnit(state, action.buildingId, action.unitType);
     case 'QUEUE_RESEARCH':
@@ -36,12 +36,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-function build(state: GameState, playerId: string, buildingType: BuildingType, hex: HexCoord, hexType: StellarObjectType): GameState {
+function build(state: GameState, playerId: string, buildingType: BuildingType, hex: HexCoord, hexType: StellarObjectType, adjacentHexTypes?: StellarObjectType[], nearbyHasPlanet?: boolean): GameState {
   const stats = BUILDING_STATS[buildingType];
   if (!stats) return state;
 
   // Validate hex type
   if (!stats.allowedHexTypes.includes(hexType)) return state;
+
+  // Solar collector requires an adjacent star
+  if (buildingType === 'solar_collector') {
+    if (!adjacentHexTypes || !adjacentHexTypes.includes('star')) return state;
+  }
 
   // Validate no duplicate building at this hex
   for (const b of state.buildings.values()) {
@@ -64,7 +69,7 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
   const player = state.players[playerIndex];
   if (!canAfford(player.resources, stats.cost)) return state;
 
-  // Starbase requires a scout at the hex
+  // Starbase requires a scout at the hex and a planet within range
   if (buildingType === 'starbase') {
     let hasScout = false;
     for (const unit of state.units.values()) {
@@ -74,6 +79,7 @@ function build(state: GameState, playerId: string, buildingType: BuildingType, h
       }
     }
     if (!hasScout) return state;
+    if (nearbyHasPlanet === false) return state;
   }
 
   // Colony special case: consume colony_ship at hex
