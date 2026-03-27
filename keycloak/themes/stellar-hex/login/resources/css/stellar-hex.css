@@ -8,7 +8,8 @@
 }
 
 /* ── Base ── */
-html, body {
+html,
+body {
   overflow: hidden !important;
   height: 100% !important;
   margin: 0 !important;
@@ -37,45 +38,87 @@ body::before {
   z-index: 0;
 }
 
-/* ── Header (title above card) ── */
-#kc-header {
-  z-index: 1;
+/* ── Header (title — top-left, matching /menu position) ── */
+
+#kc-header.login-pf-page-header {
+  padding: 0 !important;
+  margin: 2rem !important;
 }
 
 #kc-header-wrapper {
-  font-size: 3.5rem !important;
+  font-size: 6rem !important;
   font-weight: 700 !important;
   letter-spacing: 0.1em !important;
   text-transform: uppercase !important;
   color: transparent !important;
   background:
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E") 0 0 / 150px 150px repeat,
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")
+      0 0 / 150px 150px repeat,
     linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.3)) !important;
   background-blend-mode: multiply !important;
   background-clip: text !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15)) !important;
-  animation: flicker 4s infinite, noise-drift 3s linear infinite !important;
+  animation:
+    flicker 4s infinite,
+    noise-drift 3s linear infinite !important;
   text-align: center;
-  padding-bottom: 1rem;
+  padding: 0 !important;
+  margin: 0 !important;
+  position: static !important;
+  transform: none !important;
 }
 
 @keyframes noise-drift {
-  0% { background-position: 0 0, 0 0; }
-  100% { background-position: 150px 150px, 0 0; }
+  0% {
+    background-position:
+      0 0,
+      0 0;
+  }
+  100% {
+    background-position:
+      150px 150px,
+      0 0;
+  }
 }
 
 @keyframes flicker {
-  0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15)); }
-  4% { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.08)); opacity: 0.85; }
-  5% { opacity: 1; }
-  7% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.05)); opacity: 0.7; }
-  8% { filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.3)); opacity: 1; }
-  43% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.05)); opacity: 0.6; }
-  44% { filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.35)); opacity: 1; }
-  71% { filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.1)); opacity: 0.75; }
-  72% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2)); opacity: 1; }
+  0%,
+  100% {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15));
+  }
+  4% {
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.08));
+    opacity: 0.85;
+  }
+  5% {
+    opacity: 1;
+  }
+  7% {
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.05));
+    opacity: 0.7;
+  }
+  8% {
+    filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.3));
+    opacity: 1;
+  }
+  43% {
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.05));
+    opacity: 0.6;
+  }
+  44% {
+    filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.35));
+    opacity: 1;
+  }
+  71% {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.1));
+    opacity: 0.75;
+  }
+  72% {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+    opacity: 1;
+  }
 }
 
 /* ── PF5 Login layout — center and style the main card ── */
@@ -83,9 +126,10 @@ body::before {
   background: none !important;
   height: 100vh;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 8rem !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 0 !important;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -161,27 +205,35 @@ span.pf-v5-c-form-control:focus-within {
   box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.2) !important;
 }
 
-/* ── Password input group ── */
+/* ── Password input group — single unified border on the group ── */
 .pf-v5-c-input-group {
   display: flex !important;
   align-items: stretch !important;
-  background: none !important;
-  border: none !important;
+  background: #1f2937 !important;
+  border: 1px solid #374151 !important;
+  border-radius: 0.375rem !important;
   box-shadow: none !important;
+  overflow: hidden;
 }
 
-.pf-v5-c-input-group > * {
-  background: #1f2937 !important;
-  border-color: #374151 !important;
+.pf-v5-c-input-group:focus-within {
+  border-color: #5eead4 !important;
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.2) !important;
+}
+
+/* Strip borders from children inside the group */
+.pf-v5-c-input-group > .pf-v5-c-form-control {
+  border: none !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
-  outline: none !important;
+  background: transparent !important;
 }
 
 .pf-v5-c-button.pf-m-control {
-  background: #1f2937 !important;
-  border: 1px solid #374151 !important;
-  border-left: none !important;
-  border-radius: 0 0.375rem 0.375rem 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-left: 1px solid #374151 !important;
+  border-radius: 0 !important;
   color: #6b7280 !important;
   padding: 0 0.6rem !important;
   box-shadow: none !important;
@@ -192,7 +244,7 @@ span.pf-v5-c-form-control:focus-within {
 
 .pf-v5-c-button.pf-m-control:hover {
   color: #e0e0e0 !important;
-  background: #2a3544 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
 }
 
 .pf-v5-c-button.pf-m-control::after,
@@ -200,13 +252,6 @@ span.pf-v5-c-form-control:focus-within {
 span.pf-v5-c-form-control::after,
 span.pf-v5-c-form-control::before {
   display: none !important;
-}
-
-/* Input within group — flat right edge */
-.pf-v5-c-input-group > .pf-v5-c-form-control:first-child,
-.pf-v5-c-input-group > .pf-v5-c-form-control:first-child > input {
-  border-radius: 0.375rem 0 0 0.375rem !important;
-  border-right: none !important;
 }
 
 /* ── Autofill override ── */
@@ -221,7 +266,7 @@ input:-webkit-autofill:active {
 }
 
 /* ── Submit button — text-stroke ghost style (matches /auth) ── */
-input[type="submit"],
+input[type='submit'],
 .pf-v5-c-button.pf-m-primary {
   background: none !important;
   border: none !important;
@@ -236,10 +281,13 @@ input[type="submit"],
   color: rgba(94, 234, 212, 0.08) !important;
   -webkit-text-stroke: 1px rgba(94, 234, 212, 0.35);
   text-shadow: 0 0 6px rgba(94, 234, 212, 0.15);
-  transition: color 0.3s, -webkit-text-stroke 0.3s, text-shadow 0.3s !important;
+  transition:
+    color 0.3s,
+    -webkit-text-stroke 0.3s,
+    text-shadow 0.3s !important;
 }
 
-input[type="submit"]:hover,
+input[type='submit']:hover,
 .pf-v5-c-button.pf-m-primary:hover {
   background: none !important;
   color: rgba(94, 234, 212, 0.9) !important;
@@ -263,7 +311,7 @@ a:hover {
 /* ── Form footer links (login + register) ── */
 #kc-form-links {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   margin: 0 !important;
   padding: 0 !important;
   font-size: 0.85rem;
@@ -271,7 +319,7 @@ a:hover {
 
 #kc-register-form #kc-form-options {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   margin: 0 !important;
   padding: 0 !important;
   font-size: 0.85rem;

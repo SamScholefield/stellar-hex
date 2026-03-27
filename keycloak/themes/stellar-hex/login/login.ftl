@@ -73,9 +73,6 @@
                           <#if realm.password && realm.registrationAllowed && !registrationDisabled??>
                               <span><a tabindex="4" href="${url.registrationUrl}">${msg("doRegister")}</a></span>
                           </#if>
-                          <#if realm.resetPasswordAllowed>
-                              <span><a tabindex="5" href="${url.loginResetCredentialsUrl}">${msg("doForgotPassword")}</a></span>
-                          </#if>
                       </div>
                 </form>
             </#if>

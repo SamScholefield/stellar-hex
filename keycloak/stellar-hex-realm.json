@@ -9,7 +9,7 @@
   "registrationEmailAsUsername": false,
   "loginWithEmailAllowed": false,
   "duplicateEmailsAllowed": true,
-  "resetPasswordAllowed": true,
+  "resetPasswordAllowed": false,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
   "roles": {
