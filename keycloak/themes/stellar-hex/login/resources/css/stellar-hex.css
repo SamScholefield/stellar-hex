@@ -1,4 +1,4 @@
-/* Stellar Hex — Keycloak Theme (minimal) */
+/* Stellar Hex — Keycloak Theme */
 
 @font-face {
   font-family: 'DIN Next LT Pro';
@@ -7,9 +7,11 @@
   font-style: normal;
 }
 
-/* Base */
-html {
-  overflow-x: hidden;
+/* ── Base ── */
+html, body {
+  overflow: hidden !important;
+  height: 100% !important;
+  margin: 0 !important;
 }
 
 body {
@@ -35,7 +37,11 @@ body::before {
   z-index: 0;
 }
 
-/* Header */
+/* ── Header (title above card) ── */
+#kc-header {
+  z-index: 1;
+}
+
 #kc-header-wrapper {
   font-size: 3.5rem !important;
   font-weight: 700 !important;
@@ -72,49 +78,91 @@ body::before {
   72% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2)); opacity: 1; }
 }
 
-/* Card */
-.card-pf {
-  background: rgba(10, 10, 26, 0.92) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: none !important;
-  color: #e0e0e0 !important;
+/* ── PF5 Login layout — center and style the main card ── */
+.pf-v5-c-login {
+  background: none !important;
+  height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8rem !important;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
-/* Labels */
-label {
+.pf-v5-c-login__container {
+  display: flex;
+  justify-content: center;
+}
+
+.pf-v5-c-login__main {
+  background: rgba(10, 10, 26, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: none !important;
+  color: #e0e0e0 !important;
+  max-width: 420px;
+  width: 100%;
+}
+
+.pf-v5-c-login__main-header {
+  display: none !important;
+}
+
+.pf-v5-c-login__main-body {
+  padding: 2.5rem 2.5rem 2rem !important;
+}
+
+.pf-v5-c-login__main-body .pf-v5-c-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.pf-v5-c-login__main-body .pf-v5-c-form .pf-v5-c-form__group {
+  margin: 0 !important;
+}
+
+.pf-v5-c-login__main-footer {
+  padding: 0 2rem 1.5rem !important;
+}
+
+/* ── Labels ── */
+label,
+.pf-v5-c-form__label-text {
   color: #9ca3af !important;
 }
 
-/* Inputs */
-input[type="text"],
-input[type="password"],
-input[type="email"],
-.pf-v5-c-form-control,
-.pf-v5-c-form-control > input,
-.pf-c-form-control {
+/* ── Inputs — .pf-v5-c-form-control is a <span> wrapper, style it as the visible input ── */
+span.pf-v5-c-form-control {
   background: #1f2937 !important;
   border: 1px solid #374151 !important;
-  color: #e0e0e0 !important;
   border-radius: 0.375rem !important;
+  padding: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.pf-v5-c-form-control > input {
+  background: transparent !important;
+  border: none !important;
+  color: #e0e0e0 !important;
   padding: 0.5rem 0.75rem !important;
   font-family: 'DIN Next LT Pro', sans-serif !important;
   font-size: 0.9rem !important;
   outline: none !important;
   box-shadow: none !important;
+  width: 100%;
 }
 
-input[type="text"]:focus,
-input[type="password"]:focus,
-input[type="email"]:focus,
-.pf-v5-c-form-control:focus-within,
-.pf-c-form-control:focus {
+span.pf-v5-c-form-control:focus-within {
   border-color: #5eead4 !important;
   box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.2) !important;
 }
 
-/* Password input group — nuke all PatternFly wrapper styles */
-.pf-v5-c-input-group,
-.pf-c-input-group {
+/* ── Password input group ── */
+.pf-v5-c-input-group {
   display: flex !important;
   align-items: stretch !important;
   background: none !important;
@@ -122,24 +170,14 @@ input[type="email"]:focus,
   box-shadow: none !important;
 }
 
-.pf-v5-c-form-control,
-.pf-c-form-control {
-  background: #1f2937 !important;
-  border: 1px solid #374151 !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
-.pf-v5-c-input-group > *,
-.pf-c-input-group > * {
+.pf-v5-c-input-group > * {
   background: #1f2937 !important;
   border-color: #374151 !important;
   box-shadow: none !important;
   outline: none !important;
 }
 
-.pf-v5-c-button.pf-m-control,
-.pf-c-button.pf-m-control {
+.pf-v5-c-button.pf-m-control {
   background: #1f2937 !important;
   border: 1px solid #374151 !important;
   border-left: none !important;
@@ -152,32 +190,26 @@ input[type="email"]:focus,
   align-items: center !important;
 }
 
-.pf-v5-c-button.pf-m-control:hover,
-.pf-c-button.pf-m-control:hover {
+.pf-v5-c-button.pf-m-control:hover {
   color: #e0e0e0 !important;
   background: #2a3544 !important;
 }
 
 .pf-v5-c-button.pf-m-control::after,
-.pf-c-button.pf-m-control::after,
 .pf-v5-c-button.pf-m-control::before,
-.pf-c-button.pf-m-control::before,
-.pf-v5-c-form-control::after,
-.pf-c-form-control::after,
-.pf-v5-c-form-control::before,
-.pf-c-form-control::before {
+span.pf-v5-c-form-control::after,
+span.pf-v5-c-form-control::before {
   display: none !important;
 }
 
 /* Input within group — flat right edge */
 .pf-v5-c-input-group > .pf-v5-c-form-control:first-child,
-.pf-v5-c-input-group > .pf-v5-c-form-control:first-child > input,
-.pf-c-input-group > input:first-child {
+.pf-v5-c-input-group > .pf-v5-c-form-control:first-child > input {
   border-radius: 0.375rem 0 0 0.375rem !important;
   border-right: none !important;
 }
 
-/* Autofill override */
+/* ── Autofill override ── */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -188,40 +220,92 @@ input:-webkit-autofill:active {
   transition: background-color 5000s ease-in-out 0s !important;
 }
 
-/* Submit button */
+/* ── Submit button — text-stroke ghost style (matches /auth) ── */
 input[type="submit"],
-.btn-primary {
-  background: linear-gradient(135deg, #5eead4, #818cf8) !important;
+.pf-v5-c-button.pf-m-primary {
+  background: none !important;
   border: none !important;
-  color: #0a0a1a !important;
+  box-shadow: none !important;
   font-weight: 600 !important;
+  font-family: 'DIN Next LT Pro', sans-serif !important;
+  font-size: 1.8rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 0 !important;
+  cursor: pointer;
+  color: rgba(94, 234, 212, 0.08) !important;
+  -webkit-text-stroke: 1px rgba(94, 234, 212, 0.35);
+  text-shadow: 0 0 6px rgba(94, 234, 212, 0.15);
+  transition: color 0.3s, -webkit-text-stroke 0.3s, text-shadow 0.3s !important;
 }
 
-/* Links */
+input[type="submit"]:hover,
+.pf-v5-c-button.pf-m-primary:hover {
+  background: none !important;
+  color: rgba(94, 234, 212, 0.9) !important;
+  -webkit-text-stroke: 1px rgba(94, 234, 212, 0.8);
+  text-shadow:
+    0 0 8px rgba(94, 234, 212, 0.6),
+    0 0 20px rgba(94, 234, 212, 0.3),
+    0 0 40px rgba(94, 234, 212, 0.1) !important;
+}
+
+/* ── Links ── */
 a {
-  color: #5eead4 !important;
+  color: rgba(94, 234, 212, 0.4) !important;
+  transition: color 0.3s;
 }
 
-/* Layout */
-#kc-form,
-#kc-info-wrapper,
-#kc-register-form,
-#kc-content,
-#kc-content-wrapper {
-  max-width: 360px;
-  margin: 0 auto;
-  box-sizing: border-box;
+a:hover {
+  color: rgba(94, 234, 212, 0.9) !important;
 }
 
-.card-pf {
-  max-width: 420px;
-  margin: 0 auto;
-  overflow: hidden;
+/* ── Form footer links (login + register) ── */
+#kc-form-links {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0.85rem;
 }
 
-/* Errors */
-.alert-error {
-  color: #f87171 !important;
+#kc-register-form #kc-form-options {
+  display: flex;
+  justify-content: flex-start;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0.85rem;
+}
+
+/* ── Hide empty info section from template ── */
+#kc-info:empty {
+  display: none !important;
+}
+
+/* ── Register page — hide required field indicators ── */
+.subtitle,
+.required-field-text,
+span.pf-v5-c-form__label-required {
+  display: none !important;
+}
+
+/* ── Register page — center submit button ── */
+#kc-register-form #kc-form-buttons {
+  text-align: center !important;
+}
+
+/* ── Alerts / Errors ── */
+.pf-v5-c-alert {
   background: rgba(248, 113, 113, 0.08) !important;
-  border-color: rgba(248, 113, 113, 0.2) !important;
+  border: 1px solid rgba(248, 113, 113, 0.2) !important;
+  border-radius: 0.375rem !important;
+  margin-bottom: 1rem;
+}
+
+.pf-v5-c-alert.pf-m-danger .pf-v5-c-alert__title {
+  color: #f87171 !important;
+}
+
+.pf-v5-c-alert.pf-m-success .pf-v5-c-alert__title {
+  color: #5eead4 !important;
 }
