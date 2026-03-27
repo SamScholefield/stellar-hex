@@ -30,7 +30,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'TRADE':
       return trade(state, action.hubId, action.unitId, action.sell, action.buy, action.sellAmount);
     case 'UNDOCK_UNIT':
-      return undockUnit(state, action.unitId, action.buildingId);
+      return undockUnit(state, action.unitId, action.buildingId, action.impassableHexes);
     case 'ADVANCE_COMETS':
       return advanceComets(state);
     case 'SET_HOME_BASE':
@@ -853,7 +853,7 @@ function trade(state: GameState, hubId: string, unitId: string, sell: ResourceKe
   return { ...state, players, tradeHubs, tradedThisTurn, gameOver };
 }
 
-function undockUnit(state: GameState, unitId: string, buildingId: string): GameState {
+function undockUnit(state: GameState, unitId: string, buildingId: string, impassableHexes?: Set<string>): GameState {
   const unit = state.units.get(unitId);
   if (!unit || unit.dockedAt !== buildingId) return state;
 
@@ -868,7 +868,7 @@ function undockUnit(state: GameState, unitId: string, buildingId: string): GameS
   const occupiedKeys = new Set<string>();
   for (const u of state.units.values()) if (!u.dockedAt) occupiedKeys.add(hexKey(u.q, u.r));
   for (const b of state.buildings.values()) occupiedKeys.add(hexKey(b.q, b.r));
-  const undockHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r)));
+  const undockHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r)) && !impassableHexes?.has(hexKey(n.q, n.r)));
   if (!undockHex) return state; // No space to undock
 
   const units = new Map(state.units);

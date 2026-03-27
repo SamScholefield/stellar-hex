@@ -306,6 +306,34 @@ export class GameViewportComponent implements OnDestroy {
     if (this.animation.inputLocked() || this.ai.executing()) return;
 
     const hex = this.screenEventToHex(event);
+    const selectedUnitId = this.selection.selectedUnit();
+
+    // If a unit is selected, try direct movement to empty hex in range
+    if (selectedUnitId && !event.shiftKey) {
+      const unit = this.gameState.units().get(selectedUnitId);
+      if (unit && unit.ownerId === this.gameState.currentPlayer()?.id && unit.movementPoints > 0) {
+        const hKey = hexKey(hex.q, hex.r);
+        const unitsAtHex = this.gameState.unitsAtHex().get(hKey) ?? [];
+        const buildingAtHex = this.gameState.buildingAtHex().get(hKey);
+        const hasEnemyBuilding = buildingAtHex != null && buildingAtHex.ownerId !== unit.ownerId;
+
+        if (unitsAtHex.length === 0 && !hasEnemyBuilding) {
+          const from = toHexCoord(unit.q, unit.r);
+          const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+          const blocked = buildBlockedSet(this.gameState.units(), this.gameState.buildings(), unit.ownerId, selectedUnitId);
+          const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
+          const override = getUnitCostOverride(unit.type);
+          const reachable = getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked, override);
+
+          if (reachable.has(hKey)) {
+            this.audio.playClick();
+            this.actionExec.executeMove(selectedUnitId, hex);
+            return;
+          }
+        }
+      }
+    }
+
     this.selection.selectHex(hex, event.shiftKey);
     this.audio.playClick();
   }

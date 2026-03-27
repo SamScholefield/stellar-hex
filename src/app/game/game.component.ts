@@ -31,6 +31,8 @@ const ZOOM_STEP = 50;
   host: {
     '(contextmenu)': 'onContextMenu($event)',
     '(window:keydown)': 'onKeyDown($event)',
+    '(pointermove)': 'onPointerMove($event)',
+    '(pointerdown)': 'onPointerDown($event)',
   },
   template: `
     @if (ready()) {
@@ -311,6 +313,17 @@ export class GameComponent implements OnDestroy {
   protected onContextMenu(event: MouseEvent): void {
     event.preventDefault();
     this.contextMenu()?.open(event.clientX, event.clientY);
+  }
+
+  protected onPointerMove(event: PointerEvent): void {
+    this.contextMenu()?.track(event.clientX, event.clientY);
+  }
+
+  protected onPointerDown(event: PointerEvent): void {
+    // Left-click closes the context menu (if open and not clicking a menu item)
+    if (event.button === 0 && this.contextMenu()?.tracking) {
+      this.contextMenu()?.close();
+    }
   }
 
   protected onKeyDown(event: KeyboardEvent): void {
