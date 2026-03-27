@@ -45,6 +45,10 @@ services:
       DB_USER: stellarhex
       DB_PASS: stellarhex
       KEYCLOAK_ISSUER: http://keycloak:9090/realms/stellar-hex
+      KEYCLOAK_AUTH_URI: http://localhost:9090/realms/stellar-hex/protocol/openid-connect/auth
+      KEYCLOAK_TOKEN_URI: http://keycloak:9090/realms/stellar-hex/protocol/openid-connect/token
+      KEYCLOAK_USERINFO_URI: http://keycloak:9090/realms/stellar-hex/protocol/openid-connect/userinfo
+      KEYCLOAK_JWKS_URI: http://keycloak:9090/realms/stellar-hex/protocol/openid-connect/certs
     ports:
       - "8080:8080"
     depends_on:

@@ -35,9 +35,9 @@ export class AuthService {
     return false;
   }
 
-  /** Redirect to BFF login endpoint (which redirects to Keycloak). */
+  /** Redirect to BFF OAuth2 login (which redirects to Keycloak). */
   login(): void {
-    window.location.href = '/api/auth/login';
+    window.location.href = '/api/oauth2/authorization/keycloak';
   }
 
   /** Redirect to BFF logout endpoint. */

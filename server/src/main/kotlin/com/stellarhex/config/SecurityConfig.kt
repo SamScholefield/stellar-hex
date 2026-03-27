@@ -27,12 +27,14 @@ class SecurityConfig {
                     .anyRequest().authenticated()
             }
             .oauth2Login { oauth ->
-                oauth.successHandler(
-                    SimpleUrlAuthenticationSuccessHandler().apply {
-                        setDefaultTargetUrl("$frontendUrl/menu")
-                        setAlwaysUseDefaultTargetUrl(true)
-                    }
-                )
+                oauth
+                    .loginPage("/oauth2/authorization/keycloak")
+                    .successHandler(
+                        SimpleUrlAuthenticationSuccessHandler().apply {
+                            setDefaultTargetUrl("$frontendUrl/menu")
+                            setAlwaysUseDefaultTargetUrl(true)
+                        }
+                    )
             }
             .logout { logout ->
                 logout
