@@ -108,3 +108,7 @@ $noise-svg: "data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w
       0 0 40px rgba(94, 234, 212, 0.1);
   }
 }
+
+.register {
+  @extend .sign-in;
+}

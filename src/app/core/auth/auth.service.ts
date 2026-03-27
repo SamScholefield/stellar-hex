@@ -35,6 +35,11 @@ export class AuthService {
     window.location.href = '/api/oauth2/authorization/keycloak';
   }
 
+  /** Redirect to BFF OAuth2 flow with Keycloak registration form. */
+  register(): void {
+    window.location.href = '/api/oauth2/authorization/keycloak?action=register';
+  }
+
   /** Redirect to BFF logout endpoint. */
   logout(): void {
     window.location.href = '/api/auth/logout';

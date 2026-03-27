@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.AuthenticationException
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.AuthenticationFailureHandler
@@ -32,7 +33,10 @@ class SecurityConfig {
     private lateinit var keycloakLogoutUrl: String
 
     @Bean
-    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
+    fun securityFilterChain(
+        http: HttpSecurity,
+        clientRegistrationRepository: ClientRegistrationRepository,
+    ): SecurityFilterChain {
         http
             .csrf { it.disable() }
             .authorizeHttpRequests { auth ->
@@ -45,6 +49,11 @@ class SecurityConfig {
                 it.authenticationEntryPoint(Http401EntryPoint())
             }
             .oauth2Login { oauth ->
+                oauth.authorizationEndpoint {
+                    it.authorizationRequestResolver(
+                        KeycloakAuthorizationRequestResolver(clientRegistrationRepository)
+                    )
+                }
                 oauth.failureHandler(AuthenticationFailureHandler { _, response, exception ->
                     log.error("OAuth2 login failed: ${exception.message}", exception)
                     response.sendRedirect("$frontendUrl/auth?error=auth_failed")

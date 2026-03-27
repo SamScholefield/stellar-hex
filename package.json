@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "prestart": "ng-openapi-gen",
     "start": "ng serve",
+    "prebuild": "ng-openapi-gen",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
