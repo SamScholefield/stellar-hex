@@ -10,7 +10,7 @@ import { GameAction } from './actions';
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'END_TURN':
-      return endTurn(state, action.miningYields);
+      return endTurn(state, action.miningYields, action.impassableHexes);
     case 'MOVE_UNIT':
       return moveUnit(state, action.unitId, action.path, action.cost);
     case 'BUILD':
@@ -382,7 +382,7 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   return { newState: { ...state, units, players, gameOver }, combat };
 }
 
-function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState {
+function endTurn(state: GameState, miningYields?: Partial<Resources>, impassableHexes?: Set<string>): GameState {
   // If game is already over, don't process further turns
   if (state.gameOver) return state;
 
@@ -497,7 +497,7 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
         const occupiedKeys = new Set<string>();
         for (const u of units.values()) if (!u.dockedAt) occupiedKeys.add(hexKey(u.q, u.r));
         for (const b of buildings.values()) occupiedKeys.add(hexKey(b.q, b.r));
-        const spawnHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r))) ?? { q: building.q, r: building.r };
+        const spawnHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r)) && !impassableHexes?.has(hexKey(n.q, n.r))) ?? { q: building.q, r: building.r };
 
         const unitId = `u_${building.q}_${building.r}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         const unitName = generateUnitName(item.unitType, units);

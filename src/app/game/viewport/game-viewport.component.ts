@@ -7,7 +7,6 @@ import {
   ElementRef,
   inject,
   OnDestroy,
-  output,
   signal,
   viewChild,
 } from '@angular/core';
@@ -76,7 +75,6 @@ export class GameViewportComponent implements OnDestroy {
   private readonly actionExec = inject(ActionExecutionService);
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('gameCanvas');
 
-  readonly showClickPopup = output<{ clientX: number; clientY: number }>();
   readonly firstDrawComplete = signal(false);
 
   private panning = false;
@@ -216,7 +214,7 @@ export class GameViewportComponent implements OnDestroy {
   }
 
   protected onPointerDown(event: PointerEvent): void {
-    if (event.button !== 0 || this.ai.executing()) return;
+    if (event.button !== 0 || (this.ai.executing() && !this.gameState.spectate())) return;
     this.pointerDown = true;
     this.lastX = event.clientX;
     this.lastY = event.clientY;
@@ -282,7 +280,7 @@ export class GameViewportComponent implements OnDestroy {
 
   protected onWheel(event: WheelEvent): void {
     event.preventDefault();
-    if (this.ai.executing()) return;
+    if (this.ai.executing() && !this.gameState.spectate()) return;
     const rect = this.canvasRef().nativeElement.getBoundingClientRect();
     const screenX = (event.clientX - rect.left) * devicePixelRatio;
     const screenY = (event.clientY - rect.top) * devicePixelRatio;
@@ -290,7 +288,7 @@ export class GameViewportComponent implements OnDestroy {
   }
 
   protected onDblClick(event: MouseEvent): void {
-    if (this.ai.executing()) return;
+    if (this.ai.executing() && !this.gameState.spectate()) return;
     const hex = this.screenEventToHex(event as PointerEvent);
     const { x, y } = hexToPixel(hex.q, hex.r, HEX_SIZE);
     this.camera.centerOn(x, y);
@@ -308,64 +306,6 @@ export class GameViewportComponent implements OnDestroy {
     if (this.animation.inputLocked() || this.ai.executing()) return;
 
     const hex = this.screenEventToHex(event);
-    const selectedUnitId = this.selection.selectedUnit();
-
-    // If a unit is selected and shift is not held, try to move or delegate to popup
-    if (selectedUnitId && !event.shiftKey) {
-      const unit = this.gameState.units().get(selectedUnitId);
-      if (unit && unit.ownerId === this.gameState.currentPlayer()?.id) {
-        // Waypoint target hex — delegate to popup for cancel confirmation
-        const wp = this.waypointSvc.getWaypoint(selectedUnitId);
-        if (wp && wp.target.q === hex.q && wp.target.r === hex.r) {
-          this.showClickPopup.emit({ clientX: event.clientX, clientY: event.clientY });
-          this.audio.playClick();
-          return;
-        }
-
-        const hKey = hexKey(hex.q, hex.r);
-        const unitsAtHex = this.gameState.unitsAtHex().get(hKey) ?? [];
-        const hasEnemyAtHex = unitsAtHex.some(u => u.ownerId !== unit.ownerId);
-        const buildingAtHex = this.gameState.buildingAtHex().get(hKey);
-        const hasEnemyBuilding = buildingAtHex != null && buildingAtHex.ownerId !== unit.ownerId;
-        const canStillAttack = unit.weapon != null && !unit.hasAttacked && (hasEnemyAtHex || hasEnemyBuilding);
-
-        if (unit.movementPoints > 0 || canStillAttack) {
-          // Check if clicked hex is within reachable movement range or attackable
-          const from = toHexCoord(unit.q, unit.r);
-          const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-          const blocked = buildBlockedSet(this.gameState.units(), this.gameState.buildings(), unit.ownerId, selectedUnitId);
-          const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
-          const override = getUnitCostOverride(unit.type);
-          const reachable = unit.movementPoints > 0
-            ? getReachableHexes(from, unit.movementPoints, hexLookup, isBlocked, override)
-            : new Map<string, number>();
-          const inRange = reachable.has(hKey) || canStillAttack;
-
-          if (inRange) {
-            if (unitsAtHex.length === 0 && !hasEnemyBuilding) {
-              // Empty hex in range — try direct movement
-              this.audio.playClick();
-              this.actionExec.executeMove(selectedUnitId, hex);
-              return;
-            } else {
-              // Occupied hex or attackable — delegate to click popup
-              this.showClickPopup.emit({ clientX: event.clientX, clientY: event.clientY });
-              this.audio.playClick();
-              return;
-            }
-          }
-        }
-
-        // Clicked outside movement/attack range — deselect unit only
-        const isSameHex = unit.q === hex.q && unit.r === hex.r;
-        if (!isSameHex) {
-          this.selection.deselectUnits();
-          this.audio.playClick();
-          return;
-        }
-      }
-    }
-
     this.selection.selectHex(hex, event.shiftKey);
     this.audio.playClick();
   }

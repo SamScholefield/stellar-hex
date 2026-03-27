@@ -2,7 +2,7 @@ import { computed, Injectable, signal } from '@angular/core';
 import { GameState, GameOverState, PlayerState, Resources, UnitData, BuildingData, TechId } from '../../models/game-state';
 import { HexData } from '../../models/hex-data';
 import { computeMiningDroneIncome } from '../economy/economy.service';
-import { hexKey } from '../../shared/hex/hex-math';
+import { hexKey, hexNeighbors } from '../../shared/hex/hex-math';
 import { GameAction } from './actions';
 import { gameReducer } from './game-reducer';
 
@@ -111,7 +111,21 @@ export class GameStateService {
     const miningYields = player
       ? computeMiningDroneIncome(state.units, player.id, hexLookup)
       : undefined;
-    this.dispatch({ type: 'END_TURN', miningYields });
+
+    // Pre-compute impassable hexes near buildings with production queues
+    const impassableHexes = new Set<string>();
+    const IMPASSABLE: Set<string> = new Set(['star', 'black_hole']);
+    for (const building of state.buildings.values()) {
+      if (!building.productionQueue?.length) continue;
+      for (const n of hexNeighbors(building.q, building.r)) {
+        const hex = hexLookup(n.q, n.r);
+        if (hex?.object?.type && IMPASSABLE.has(hex.object.type)) {
+          impassableHexes.add(hexKey(n.q, n.r));
+        }
+      }
+    }
+
+    this.dispatch({ type: 'END_TURN', miningYields, impassableHexes });
   }
 
   getState(): GameState {

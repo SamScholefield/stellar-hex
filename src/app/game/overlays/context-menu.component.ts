@@ -42,9 +42,12 @@ export interface ContextMenuState {
   collectUnitId: string | null;
   canMoveHere: boolean;
   moveHereUnitId: string | null;
+  moveHereInRange: boolean;
   canAttackHere: boolean;
   attackHereUnitId: string | null;
   attackHereTargetId: string | null;
+  canCancelMove: boolean;
+  cancelMoveUnitId: string | null;
   canTrade: boolean;
   tradeHubId: string | null;
   tradeUnitId: string | null;
@@ -60,7 +63,7 @@ export interface ContextMenuState {
   },
   template: `
     @if (state(); as s) {
-      @if (s.canCollect || s.canTrade || s.attackOptions.length > 0 || s.canMoveHere || s.canAttackHere || s.buildOptions.length > 0) {
+      @if (s.canCollect || s.canTrade || s.attackOptions.length > 0 || s.canMoveHere || s.canAttackHere || s.canCancelMove || s.buildOptions.length > 0) {
       <div class="dropdown" [style.left.px]="s.screenX" [style.top.px]="s.screenY">
         @if (s.canCollect) {
           <button class="dropdown-item collect" (click)="onCollect()">Collect {{ s.collectAnomalyName }}</button>
@@ -76,6 +79,9 @@ export interface ContextMenuState {
         }
         @if (s.canAttackHere) {
           <button class="dropdown-item attack-here" (click)="onAttackHere()">Attack Here</button>
+        }
+        @if (s.canCancelMove) {
+          <button class="dropdown-item cancel" (click)="onCancelMove()">Cancel Move</button>
         }
         @for (opt of s.buildOptions; track opt.type) {
           <button
@@ -259,54 +265,54 @@ export class ContextMenuComponent {
       }
     }
 
-    // Move Here — show when unit selected, has MP, hex is outside reachable range
+    // Move Here / Attack Here / Cancel Move
     let canMoveHere = false;
     let moveHereUnitId: string | null = null;
-
-    // Attack Here — show when enemy at hex, outside attack range
+    let moveHereInRange = false;
     let canAttackHere = false;
     let attackHereUnitId: string | null = null;
     let attackHereTargetId: string | null = null;
+    let canCancelMove = false;
+    let cancelMoveUnitId: string | null = null;
 
-    if (selectedUnitId && attackOptions.length === 0) {
-      const attacker = units.get(selectedUnitId);
-      if (attacker && attacker.ownerId === currentPlayer.id) {
-        const from: HexCoord = toHexCoord(attacker.q, attacker.r);
-        const isSameHex = attacker.q === hex.q && attacker.r === hex.r;
+    if (selectedUnitId) {
+      const selUnit = units.get(selectedUnitId);
+      if (selUnit && selUnit.ownerId === currentPlayer.id) {
+        const isSameHex = selUnit.q === hex.q && selUnit.r === hex.r;
 
-        if (!isSameHex) {
-          // Check if hex is within reachable range via normal pathfinding
+        // Cancel Move — show when right-clicking with an existing waypoint
+        const wp = this.waypointSvc.getWaypoint(selectedUnitId);
+        if (wp) {
+          canCancelMove = true;
+          cancelMoveUnitId = selectedUnitId;
+        }
+
+        if (!isSameHex && selUnit.movementPoints > 0) {
+          // Compute reachable hexes to determine if in range or waypoint
+          const from: HexCoord = toHexCoord(selUnit.q, selUnit.r);
           const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
           const blocked = buildBlockedSet(units, this.gameState.buildings(), currentPlayer.id, selectedUnitId);
           const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
-          const override = getUnitCostOverride(attacker.type);
-          const reachable = attacker.movementPoints > 0
-            ? getReachableHexes(from, attacker.movementPoints, hexLookup, isBlocked, override)
-            : new Map<string, number>();
+          const override = getUnitCostOverride(selUnit.type);
+          const reachable = getReachableHexes(from, selUnit.movementPoints, hexLookup, isBlocked, override);
           const hexKeyTarget = hexKey(hex.q, hex.r);
+          const inRange = reachable.has(hexKeyTarget);
 
-          if (!reachable.has(hexKeyTarget)) {
-            // Hex is outside reachable range — show Move Here
+          // Check for enemy at target hex
+          const enemyAtTarget = unitIndex.get(hexKeyTarget)?.find(u => u.ownerId !== currentPlayer.id);
+          const enemyBuildingAtTarget = !enemyAtTarget ? buildingIndex.get(hexKeyTarget) : null;
+          const attackTarget = enemyAtTarget ?? (enemyBuildingAtTarget && enemyBuildingAtTarget.ownerId !== currentPlayer.id ? enemyBuildingAtTarget : null);
+
+          if (attackTarget && selUnit.weapon != null && attackOptions.length === 0) {
+            // Enemy at hex but not in direct attack range — Attack Here waypoint
+            canAttackHere = true;
+            attackHereUnitId = selectedUnitId;
+            attackHereTargetId = attackTarget.id;
+          } else if (!attackTarget) {
+            // No enemy — show Move Here (direct move or waypoint)
             canMoveHere = true;
             moveHereUnitId = selectedUnitId;
-
-            // Also check for Attack Here: enemy at hex, outside attack range
-            if (attacker.weapon != null) {
-              const visHexes = this.vision.visibleHexes();
-              if (visHexes.has(hexKeyTarget)) {
-                const enemyAtTarget = unitIndex.get(hexKeyTarget)?.find(u => u.ownerId !== currentPlayer.id);
-                const enemyBuildingAtTarget = !enemyAtTarget ? buildingIndex.get(hexKeyTarget) : null;
-                const attackTarget = enemyAtTarget ?? (enemyBuildingAtTarget && enemyBuildingAtTarget.ownerId !== currentPlayer.id ? enemyBuildingAtTarget : null);
-                if (attackTarget) {
-                  canAttackHere = true;
-                  attackHereUnitId = selectedUnitId;
-                  attackHereTargetId = attackTarget.id;
-                  // Don't show Move Here when Attack Here is available
-                  canMoveHere = false;
-                  moveHereUnitId = null;
-                }
-              }
-            }
+            moveHereInRange = inRange;
           }
         }
       }
@@ -325,9 +331,12 @@ export class ContextMenuComponent {
       collectUnitId,
       canMoveHere,
       moveHereUnitId,
+      moveHereInRange,
       canAttackHere,
       attackHereUnitId,
       attackHereTargetId,
+      canCancelMove,
+      cancelMoveUnitId,
       canTrade,
       tradeHubId,
       tradeUnitId,
@@ -373,10 +382,24 @@ export class ContextMenuComponent {
     if (!s || !s.moveHereUnitId) return;
     this.close();
 
-    this.waypointSvc.setWaypoint(s.moveHereUnitId, s.hex);
-    this.waypointSvc.executeWaypoint(s.moveHereUnitId).then(() => {
-      this.selection.selectUnit(s.moveHereUnitId!);
-    });
+    if (s.moveHereInRange) {
+      // Direct move — hex is within reachable range
+      this.actionExec.executeMove(s.moveHereUnitId, s.hex);
+    } else {
+      // Waypoint — hex is out of range
+      this.waypointSvc.setWaypoint(s.moveHereUnitId, s.hex);
+      this.waypointSvc.executeWaypoint(s.moveHereUnitId).then(() => {
+        this.selection.selectUnit(s.moveHereUnitId!);
+      });
+    }
+  }
+
+  onCancelMove(): void {
+    this.audio.playClick();
+    const s = this._state();
+    if (!s || !s.cancelMoveUnitId) return;
+    this.close();
+    this.waypointSvc.clearWaypoint(s.cancelMoveUnitId);
   }
 
   onAttackHere(): void {

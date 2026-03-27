@@ -16,8 +16,6 @@ const MOVEMENT_COSTS: Partial<Record<StellarObjectType, number>> = {
   star: Infinity,
   black_hole: Infinity,
   nebula: 2,
-  asteroid_field: 1.5,
-  asteroid: 1.5,
 };
 
 function moveCost(hex: HexData | null): number {

@@ -2,7 +2,7 @@ import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { Anomaly, BuildingType, ResourceKey, Resources, TechId, TradeHub, UnitType } from '../../models/game-state';
 
 export type GameAction =
-  | { type: 'END_TURN'; miningYields?: Partial<Resources> }
+  | { type: 'END_TURN'; miningYields?: Partial<Resources>; impassableHexes?: Set<string> }
   | { type: 'MOVE_UNIT'; unitId: string; path: HexCoord[]; cost: number }
   | { type: 'ATTACK'; attackerId: string; targetId: string }
   | { type: 'BUILD'; playerId: string; buildingType: BuildingType; hex: HexCoord; hexType: string; adjacentHexTypes?: string[]; nearbyHasPlanet?: boolean }

@@ -146,19 +146,23 @@ export class MinimapComponent {
       ctx.drawImage(this.terrainCache, 0, 0);
     }
 
-    // Dynamic layer: units
+    // Dynamic layer: units (only show enemies within current vision)
     const units = this.gameState.units();
     const playerColors = this.gameState.playerColors();
+    const humanPlayerId = this.gameState.humanPlayer()?.id;
+    const visible = this.vision.humanVisibleHexes();
     for (const unit of units.values()) {
+      if (unit.ownerId !== humanPlayerId && !visible.has(`${unit.q},${unit.r}`)) continue;
       const { x, y } = hexToPixel(unit.q, unit.r, HEX_SIZE);
       const { mx, my } = worldToMinimap(x, y, b);
       ctx.fillStyle = playerColors.get(unit.ownerId) ?? '#ffffff';
       ctx.fillRect(mx - 1.5, my - 1.5, 3, 3);
     }
 
-    // Dynamic layer: buildings
+    // Dynamic layer: buildings (only show enemies within current vision)
     const buildings = this.gameState.buildings();
     for (const building of buildings.values()) {
+      if (building.ownerId !== humanPlayerId && !visible.has(`${building.q},${building.r}`)) continue;
       const { x, y } = hexToPixel(building.q, building.r, HEX_SIZE);
       const { mx, my } = worldToMinimap(x, y, b);
       ctx.fillStyle = playerColors.get(building.ownerId) ?? '#ffffff';
