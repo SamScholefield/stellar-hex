@@ -16,7 +16,7 @@ services:
       retries: 5
 
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0
+    image: quay.io/keycloak/keycloak:26.0
     command: start-dev --import-realm
     environment:
       KC_DB: postgres
@@ -24,14 +24,14 @@ services:
       KC_DB_USERNAME: ${POSTGRES_USER}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
       KC_HTTP_PORT: 9090
-      KC_HOSTNAME_URL: http://localhost:9090
-      KC_HOSTNAME_ADMIN_URL: http://localhost:9090
-      KC_HOSTNAME_STRICT_BACKCHANNEL: false
+      KC_HOSTNAME: http://localhost:9090
+      KC_HOSTNAME_ADMIN: http://localhost:9090
+      KC_HOSTNAME_STRICT: false
       KC_SPI_THEME_STATIC_MAX_AGE: -1
       KC_SPI_THEME_CACHE_THEMES: false
       KC_SPI_THEME_CACHE_TEMPLATES: false
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     ports:
       - "9090:9090"
     volumes:
@@ -42,11 +42,11 @@ services:
         condition: service_healthy
 
   keycloak-init:
-    image: quay.io/keycloak/keycloak:24.0
+    image: quay.io/keycloak/keycloak:26.0
     entrypoint: /opt/scripts/disable-ssl.sh
     environment:
-      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
-      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     volumes:
       - ./keycloak/disable-ssl.sh:/opt/scripts/disable-ssl.sh:ro
     network_mode: "service:keycloak"

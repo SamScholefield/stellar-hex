@@ -19,7 +19,7 @@ Chunk generation blocks the client main thread for 1-3+ seconds. The primary goa
 
 - **Monorepo**: `/server` alongside `/src` (Angular)
 - **Language**: Kotlin + Spring Boot 3
-- **Auth**: Keycloak (OIDC/OAuth2)
+- **Auth**: Keycloak (OIDC/OAuth2) via BFF session pattern
 - **DB**: PostgreSQL (game saves, user data)
 - **Containerisation**: Docker Compose for all services
 
@@ -29,78 +29,88 @@ Chunk generation blocks the client main thread for 1-3+ seconds. The primary goa
 |-----------|-----------|
 | Frontend | Angular 21 (existing) |
 | BFF/API | Spring Boot 3 + Kotlin |
-| Auth | Keycloak 24+ |
+| Auth | Keycloak 24 (OIDC, BFF session pattern) |
 | Database | PostgreSQL 16 |
 | Build | Gradle (Kotlin DSL) |
 | Containers | Docker Compose |
+| API Spec | OpenAPI 3.0 + ng-openapi-gen |
 | API Format | REST (JSON), WebSocket for future real-time |
 
 ---
 
 ## Phased Implementation
 
-### Phase 1: Infrastructure & Project Setup
+### Phase 1: Infrastructure & Project Setup ✅
 **Goal**: Monorepo structure, Docker Compose, Spring Boot skeleton, DB schema.
 
-- [ ] Create `/server` directory with Spring Boot + Kotlin + Gradle
-- [ ] `build.gradle.kts` with Spring Boot 3, Spring Web, Spring Data JPA, Spring Security, PostgreSQL driver, Jackson Kotlin module
-- [ ] Application config (`application.yml`) with DB, Keycloak, CORS settings
-- [ ] Docker Compose (`docker-compose.yml` at repo root):
+- [x] Create `/server` directory with Spring Boot + Kotlin + Gradle
+- [x] `build.gradle.kts` with Spring Boot 3, Spring Web, Spring Data JPA, Spring Security, PostgreSQL driver, Jackson Kotlin module
+- [x] Application config (`application.yml`) with DB, Keycloak, CORS settings
+- [x] Docker Compose (`docker-compose.yml` at repo root):
   - `postgres` service (volume-mounted data)
-  - `keycloak` service (realm import)
+  - `keycloak` service (realm import, custom theme)
+  - `keycloak-init` sidecar (disables SSL on master realm for dev)
   - `api` service (Spring Boot)
-  - `frontend` service (Angular dev server or Nginx)
-- [ ] PostgreSQL schema migration (Flyway):
+  - `frontend` service (Angular via Nginx, Dockerfile.dev)
+- [x] PostgreSQL schema migration (Flyway):
   - `users` table (keycloak_id, display_name, created_at)
   - `game_saves` table (id, user_id, save_name, state_json, camera_json, waypoints_json, created_at, updated_at)
-  - `chunk_cache` table (seed, cx, cy, hex_data_json, created_at) — optional, for server-side chunk caching
-- [ ] Health check endpoint (`/api/health`)
-- [ ] CORS configuration for Angular dev server
+  - Separate `stellarhex_app` schema (avoids Keycloak table conflicts)
+- [x] Health check endpoint (`/api/health`)
+- [x] CORS configuration for Angular dev server
+- [x] OpenAPI spec (`server/src/main/resources/openapi.yml`)
+- [x] ng-openapi-gen for Angular API service generation
+- [x] Angular proxy config (`proxy.conf.json`) forwarding `/api` to Spring Boot
+- [x] `.env` / `.env.example` for secrets (gitignored)
 
-### Phase 2: Authentication (Keycloak)
-**Goal**: User login/registration, JWT-secured API.
+### Phase 2: Authentication (Keycloak) ✅
+**Goal**: User login/registration via BFF session pattern.
 
-- [ ] Keycloak realm configuration:
-  - Realm: `stellar-hex`
-  - Client: `stellar-hex-app` (public OIDC client for SPA)
-  - Roles: `player` (default)
-- [ ] Export realm config JSON for Docker import
-- [ ] Spring Security config:
-  - OAuth2 Resource Server (JWT validation)
-  - Permit `/api/health`, secure all other `/api/**`
-  - Extract user ID from JWT claims
-- [ ] Angular auth integration:
-  - `AuthService` wrapping `keycloak-js` or `angular-oauth2-oidc`
-  - Auth guard on `/game` route
-  - HTTP interceptor to attach Bearer token
-  - Login/logout buttons on menu
-- [ ] User entity + repository (JPA)
-  - Auto-create user record on first API call (from JWT sub claim)
+- [x] Keycloak realm configuration:
+  - Realm: `stellar-hex` with custom login theme
+  - Client: `stellar-hex-app` (confidential OIDC client)
+  - Username-only registration (email/name admin-only)
+  - Reset password disabled (no email)
+- [x] Export realm config JSON for Docker import
+- [x] Spring Security config (BFF pattern, NOT resource server):
+  - OAuth2 Client with authorization code flow
+  - Session-based auth (server manages sessions, Angular never sees tokens)
+  - `Http401EntryPoint` returns JSON 401 for API calls (no redirect)
+  - `KeycloakAuthorizationRequestResolver` supports `?action=register`
+  - Custom logout handler ends Keycloak session via end_session_endpoint
+  - Permit `/api/health`, `/api/auth/me`; secure all other `/api/**`
+- [x] Angular auth integration:
+  - `AuthService` using generated API services (no keycloak-js dependency)
+  - Login/register redirect to BFF OAuth2 endpoints
+  - `authGuard` on `/menu`, `/game`; `publicGuard` on `/auth`
+  - Styled auth landing page (`/auth`) with Sign In + Register buttons
+- [x] User entity + repository (JPA)
+  - Auto-create user record on first authenticated request
+- [x] Custom Keycloak login theme:
+  - Dark theme matching game aesthetics
+  - Hex SVG background, noise-texture title animation
+  - PF5 layout (parent: keycloak.v2)
+  - Custom FTL overrides: tabindex fixes, layout changes
+  - Password toggle skipped in tab order
 
-### Phase 3: World Generation API (Performance)
+### Phase 3: World Generation API ⚠️ (Mostly Complete)
 **Goal**: Offload chunk generation to the server. Primary performance win.
 
-- [ ] Reimplement in Kotlin:
+- [x] Reimplement in Kotlin:
   - `noise.ts` → `NoiseGenerator.kt` (seededRNG, hash3, hashCoord, fbmNoise)
   - `world-generator.service.ts` → `WorldGeneratorService.kt` (generateHex, getNearbySystems, generateAnomaly, generateTradeHub)
   - `hex-math.ts` → `HexMath.kt` (hexToPixel, hexDistance, hexNeighbors, hexesInRange)
-- [ ] REST endpoint: `GET /api/world/chunks?seed={seed}&coords={cx,cy;cx,cy;...}`
-  - Returns: `{ chunks: [{ cx, cy, hexes: [...] }] }`
-  - Server-side chunk caching (in-memory + optional DB)
-- [ ] Angular `ChunkManagerService` changes:
-  - Replace `this.generator.generate(coord)` with HTTP call
-  - Keep client-side chunk cache (Map)
-  - Batch requests: request all visible missing chunks in one call
-  - `getHex()` — check cache first, fallback to HTTP (or pre-fetch surrounding chunks)
-- [ ] Pre-generation on new game:
-  - `POST /api/world/pregame` — server generates spawn-area chunks upfront
-  - Returns initial chunks + spawn positions
-  - Eliminates the initial load delay entirely
-- [ ] Determinism tests:
-  - Same seed → identical output between TS and Kotlin implementations
-  - Port existing world-generator.spec.ts tests to Kotlin (JUnit 5)
+- [x] REST endpoint: `GET /api/world/chunks?seed={seed}&coords={cx,cy;cx,cy;...}`
+  - Server-side in-memory chunk caching (LRU ~500 entries)
+- [x] Angular `ChunkManagerService` changes:
+  - Fetches chunks from API with local cache
+  - `FORCE_LOCAL` flag for dev toggling
+  - `serverAvailable` flag auto-disables on first failure
+  - Graceful fallback to client-side generation
+- [ ] **Determinism tests**: Cross-validate TS vs Kotlin output for same seed
+- [ ] **Pre-generation endpoint**: `POST /api/world/pregame` for spawn-area chunks
 
-### Phase 4: Game State Persistence (Cloud Saves)
+### Phase 4: Game State Persistence (Cloud Saves) — NOT STARTED
 **Goal**: Save/load games to PostgreSQL instead of localStorage.
 
 - [ ] REST endpoints:
@@ -110,7 +120,6 @@ Chunk generation blocks the client main thread for 1-3+ seconds. The primary goa
   - `DELETE /api/saves/{id}` — delete save
   - `PUT /api/saves/{id}` — update (autosave)
 - [ ] Kotlin DTOs mirroring `SerializedGameState`
-  - `GameStateDto`, `PlayerDto`, `UnitDto`, `BuildingDto`, etc.
   - Store as JSONB in PostgreSQL for flexibility
 - [ ] Angular `GameSaveService` changes:
   - Replace localStorage with HTTP calls
@@ -119,7 +128,7 @@ Chunk generation blocks the client main thread for 1-3+ seconds. The primary goa
   - Load game list from server on menu
 - [ ] Migration path: import existing localStorage saves to server
 
-### Phase 5: Server-Side Game Reducer (Authoritative State)
+### Phase 5: Server-Side Game Reducer (Authoritative State) — NOT STARTED
 **Goal**: Server validates all game actions. Foundation for multiplayer.
 
 - [ ] Reimplement in Kotlin:
@@ -140,7 +149,7 @@ Chunk generation blocks the client main thread for 1-3+ seconds. The primary goa
   - Server enforces turn order
   - Server checks resource sufficiency, unit ownership, range, etc.
 
-### Phase 6: Server-Side AI
+### Phase 6: Server-Side AI — NOT STARTED
 **Goal**: AI turns execute on server, client just receives the result.
 
 - [ ] Reimplement in Kotlin:
@@ -154,21 +163,17 @@ Chunk generation blocks the client main thread for 1-3+ seconds. The primary goa
   - Client receives action list, replays animations locally
   - Remove client-side AI scoring/decision logic (keep for offline mode)
 
-### Phase 7: Containerisation & Deployment
+### Phase 7: Containerisation & Deployment ⚠️ (Mostly Complete)
 **Goal**: Production-ready Docker setup.
 
-- [ ] Multi-stage Dockerfile for Spring Boot (Gradle build → JRE runtime)
-- [ ] Update existing Angular Dockerfile (Nginx)
-- [ ] Docker Compose production profile:
-  - Environment variables for secrets
-  - PostgreSQL volume persistence
-  - Keycloak HTTPS configuration
-  - Nginx reverse proxy (frontend + API on same domain)
-- [ ] CI/CD considerations (GitHub Actions):
-  - Build + test Angular
-  - Build + test Spring Boot
-  - Docker image builds
-  - Integration tests
+- [x] Production Dockerfile: multi-stage Angular + Spring Boot single JAR
+- [x] Dockerfile.dev: Angular-only with Nginx (used by docker-compose)
+- [x] Gradle build pipeline: Angular build → copy to Spring Boot static resources
+- [x] SPA routing via Spring Boot `PathResourceResolver` fallback to index.html
+- [x] Environment variables for secrets (`.env` / `.env.example`)
+- [ ] Docker Compose production profile (`docker-compose.prod.yml`)
+- [ ] Keycloak HTTPS configuration for production
+- [ ] CI/CD (GitHub Actions): build, test, Docker image builds
 
 ---
 
@@ -177,92 +182,86 @@ Chunk generation blocks the client main thread for 1-3+ seconds. The primary goa
 ```
 stellar-hex/
 ├── docker-compose.yml
-├── docker-compose.prod.yml
+├── Dockerfile                    ← Production (Angular + Spring Boot JAR)
+├── Dockerfile.dev                ← Dev frontend (Nginx)
+├── proxy.conf.json               ← Angular dev proxy → Spring Boot
+├── .env.example                  ← Environment variables template
 ├── src/                          ← Angular (existing)
 │   └── app/
-├── server/                       ← Spring Boot (new)
+│       ├── api/                  ← Generated API services (ng-openapi-gen)
+│       ├── auth/                 ← Auth landing page
+│       └── core/auth/            ← AuthService, auth guards
+├── server/                       ← Spring Boot
 │   ├── build.gradle.kts
-│   ├── settings.gradle.kts
-│   ├── Dockerfile
+│   ├── Dockerfile                ← API-only Docker build
 │   └── src/
 │       ├── main/
 │       │   ├── kotlin/com/stellarhex/
 │       │   │   ├── StellarHexApplication.kt
 │       │   │   ├── config/
 │       │   │   │   ├── SecurityConfig.kt
-│       │   │   │   └── CorsConfig.kt
+│       │   │   │   ├── CorsConfig.kt
+│       │   │   │   └── SpaConfig.kt
 │       │   │   ├── auth/
 │       │   │   │   ├── UserEntity.kt
-│       │   │   │   └── UserRepository.kt
+│       │   │   │   ├── UserRepository.kt
+│       │   │   │   └── AuthController.kt
 │       │   │   ├── world/
 │       │   │   │   ├── WorldController.kt
 │       │   │   │   ├── WorldGeneratorService.kt
 │       │   │   │   ├── NoiseGenerator.kt
-│       │   │   │   └── HexMath.kt
-│       │   │   ├── game/
-│       │   │   │   ├── GameController.kt
-│       │   │   │   ├── GameReducer.kt
-│       │   │   │   ├── CombatResolver.kt
-│       │   │   │   ├── EconomyService.kt
-│       │   │   │   └── InfluenceService.kt
-│       │   │   ├── ai/
-│       │   │   │   ├── AiController.kt
-│       │   │   │   ├── AiService.kt
-│       │   │   │   └── AiScoring.kt
-│       │   │   ├── saves/
-│       │   │   │   ├── SaveController.kt
-│       │   │   │   ├── SaveEntity.kt
-│       │   │   │   └── SaveRepository.kt
-│       │   │   └── model/
-│       │   │       ├── GameState.kt
-│       │   │       ├── GameAction.kt
-│       │   │       ├── HexData.kt
-│       │   │       ├── Resources.kt
-│       │   │       ├── UnitData.kt
-│       │   │       ├── BuildingData.kt
-│       │   │       └── Constants.kt
+│       │   │   │   ├── HexMath.kt
+│       │   │   │   └── ChunkCache.kt
+│       │   │   └── saves/
+│       │   │       ├── SaveController.kt
+│       │   │       ├── SaveEntity.kt
+│       │   │       └── SaveRepository.kt
 │       │   └── resources/
 │       │       ├── application.yml
+│       │       ├── application-dev.yml
+│       │       ├── openapi.yml
 │       │       └── db/migration/
-│       │           ├── V1__create_users.sql
-│       │           ├── V2__create_saves.sql
-│       │           └── V3__create_chunk_cache.sql
+│       │           └── V1__create_schema.sql
 │       └── test/
 │           └── kotlin/com/stellarhex/
-│               ├── world/WorldGeneratorTest.kt
-│               ├── game/GameReducerTest.kt
-│               └── game/CombatResolverTest.kt
+│               └── world/
+│                   ├── NoiseGeneratorTest.kt
+│                   └── WorldGeneratorTest.kt
 ├── keycloak/
-│   └── realm-export.json
-├── Dockerfile                    ← Angular (existing)
-├── package.json
-└── angular.json
+│   ├── stellar-hex-realm.json
+│   ├── disable-ssl.sh
+│   └── themes/stellar-hex/
+│       └── login/
+│           ├── theme.properties
+│           ├── login.ftl
+│           ├── register.ftl
+│           ├── messages/messages_en.properties
+│           └── resources/
+│               ├── css/stellar-hex.css
+│               ├── fonts/DINNextLTPro-Regular.ttf
+│               └── img/favicon.svg
+└── docs/
+    └── backend-architecture-plan.md
 ```
 
-## Key TypeScript → Kotlin Mappings
+## Key Design Decisions
 
-| TypeScript Source | Kotlin Target | Notes |
-|-------------------|---------------|-------|
-| `noise.ts` | `NoiseGenerator.kt` | Pure math, direct port |
-| `world-generator.service.ts` | `WorldGeneratorService.kt` | Deterministic, test with same seeds |
-| `hex-math.ts` | `HexMath.kt` | Pure coordinate math |
-| `game-reducer.ts` | `GameReducer.kt` | Pure state machine |
-| `combat-resolver.ts` | `CombatResolver.kt` | Deterministic from seed |
-| `economy.service.ts` | `EconomyService.kt` | Pure income/upkeep calc |
-| `influence.ts` | `InfluenceService.kt` | Pure influence computation |
-| `ai-scoring.ts` | `AiScoring.kt` | Pure scoring functions |
-| `game-state.ts` (types) | `model/*.kt` | Data classes |
-| `game-state.ts` (constants) | `Constants.kt` | UNIT_STATS, BUILDING_STATS, etc. |
-| `actions.ts` | `GameAction.kt` | Sealed class hierarchy |
+| Decision | Planned | Actual | Rationale |
+|----------|---------|--------|-----------|
+| Auth pattern | JWT Resource Server + keycloak-js | BFF session pattern | Frontend never handles tokens; simpler, more secure |
+| API generation | Manual | OpenAPI + ng-openapi-gen | Type-safe, auto-generated Angular services |
+| Keycloak client | Public | Confidential | Required for BFF server-side token exchange |
+| Flyway schema | Default | Separate `stellarhex_app` schema | Avoids conflicts with Keycloak-managed tables |
+| Keycloak SSL | Expected HTTPS | Disabled for dev + init sidecar | IDE port forwarding causes external IP detection |
 
 ## Verification per Phase
 
 | Phase | How to verify |
 |-------|--------------|
-| 1 | `docker-compose up` starts all services, `/api/health` returns 200 |
-| 2 | Login via Keycloak, secured endpoints reject unauthenticated requests |
-| 3 | Chunk gen via API returns identical data to TypeScript for same seed |
+| 1 ✅ | `docker-compose up` starts all services, `/api/health` returns 200 |
+| 2 ✅ | Login/register via Keycloak, `/api/auth/me` returns session info |
+| 3 ⚠️ | Chunks load from API (network tab), fallback works when API is down |
 | 4 | Save/load game from menu, data persists across browser sessions |
 | 5 | Game actions validated server-side, rejected actions show error |
 | 6 | AI turn executes on server, client replays animations |
-| 7 | `docker-compose -f docker-compose.prod.yml up` runs full stack |
+| 7 ⚠️ | `docker build -t stellar-hex . && docker run -p 8080:8080 stellar-hex` serves full app |

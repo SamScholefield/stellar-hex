@@ -38,11 +38,16 @@ body::before {
   z-index: 0;
 }
 
-/* ── Header (title — top-left, matching /menu position) ── */
-
-#kc-header.login-pf-page-header {
+/* ── Header (title — fixed position, no layout shift between pages) ── */
+#kc-header {
+  position: fixed !important;
+  top: 3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
   padding: 0 !important;
-  margin: 2rem !important;
+  margin: 0 !important;
+  text-align: center;
 }
 
 #kc-header-wrapper {
@@ -126,17 +131,17 @@ body::before {
   background: none !important;
   height: 100vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  padding-top: 0 !important;
+  justify-content: center;
   box-sizing: border-box;
   overflow: hidden;
+  padding-top: 10rem !important;
 }
 
 .pf-v5-c-login__container {
   display: flex;
   justify-content: center;
+  width: 100%;
 }
 
 .pf-v5-c-login__main {
@@ -147,6 +152,7 @@ body::before {
   color: #e0e0e0 !important;
   max-width: 420px;
   width: 100%;
+  margin: 0 auto;
 }
 
 .pf-v5-c-login__main-header {

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Wait for Keycloak to be ready, then disable SSL on master realm for dev
-ADMIN_USER="${KEYCLOAK_ADMIN:-admin}"
-ADMIN_PASS="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
+ADMIN_USER="${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}"
+ADMIN_PASS="${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}"
 
 echo "Waiting for Keycloak to start..."
 until /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:9090 --realm master --user "$ADMIN_USER" --password "$ADMIN_PASS" 2>/dev/null; do
