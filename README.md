@@ -49,12 +49,12 @@ docker compose up -d
 - API (Spring Boot): `http://localhost:8080`
 - Keycloak admin: `http://localhost:9090` (admin/admin)
 
-#### Full-Stack Single JAR (Production-like)
+#### Production Build (Single JAR)
 
 Builds Angular into the Spring Boot JAR. One artifact serves everything.
 
 ```bash
-docker build -f Dockerfile.fullstack -t stellar-hex .
+docker build -t stellar-hex .
 docker run -p 8080:8080 stellar-hex
 ```
 
@@ -129,8 +129,8 @@ stellar-hex/
 │       └── world/          # World generation API
 ├── keycloak/               # Keycloak realm config + custom theme
 ├── docker-compose.yml      # Dev infrastructure
-├── Dockerfile              # Angular-only (Nginx)
-├── Dockerfile.fullstack    # Angular + Spring Boot single JAR
+├── Dockerfile              # Production: Angular + Spring Boot single JAR
+├── Dockerfile.dev          # Dev: Angular-only (Nginx)
 ├── proxy.conf.json         # Angular dev server proxy
 └── .env.example            # Environment variables template
 ```
