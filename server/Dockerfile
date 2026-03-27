@@ -2,7 +2,7 @@ FROM gradle:8.12-jdk21 AS build
 WORKDIR /app
 COPY build.gradle.kts settings.gradle.kts ./
 COPY src ./src
-RUN gradle bootJar --no-daemon
+RUN gradle bootJar --no-daemon -x buildAngular -x copyAngular -x npmInstall
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app

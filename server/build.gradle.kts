@@ -52,3 +52,36 @@ kotlin {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+// ── Angular build integration ────────────────────────────────────
+
+val angularDir = rootProject.projectDir.resolve("..")
+val angularDist = angularDir.resolve("dist/stellar-hex/browser")
+val staticDir = layout.buildDirectory.dir("resources/main/static")
+
+tasks.register<Exec>("npmInstall") {
+    workingDir = angularDir
+    commandLine("npm", "ci")
+    inputs.file(angularDir.resolve("package-lock.json"))
+    outputs.dir(angularDir.resolve("node_modules"))
+}
+
+tasks.register<Exec>("buildAngular") {
+    dependsOn("npmInstall")
+    workingDir = angularDir
+    commandLine("npm", "run", "build")
+    inputs.dir(angularDir.resolve("src"))
+    inputs.file(angularDir.resolve("angular.json"))
+    inputs.file(angularDir.resolve("package.json"))
+    outputs.dir(angularDist)
+}
+
+tasks.register<Copy>("copyAngular") {
+    dependsOn("buildAngular")
+    from(angularDist)
+    into(staticDir)
+}
+
+tasks.named("processResources") {
+    dependsOn("copyAngular")
+}
