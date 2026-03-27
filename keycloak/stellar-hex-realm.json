@@ -1,6 +1,7 @@
 {
   "realm": "stellar-hex",
   "enabled": true,
+  "sslRequired": "none",
   "loginTheme": "stellar-hex",
   "displayName": "Stellar Hex",
   "displayNameHtml": "Stellar Hex",

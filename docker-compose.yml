@@ -41,6 +41,18 @@ services:
       postgres:
         condition: service_healthy
 
+  keycloak-init:
+    image: quay.io/keycloak/keycloak:24.0
+    entrypoint: /opt/scripts/disable-ssl.sh
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak/disable-ssl.sh:/opt/scripts/disable-ssl.sh:ro
+    network_mode: "service:keycloak"
+    depends_on:
+      - keycloak
+
   api:
     build:
       context: ./server
