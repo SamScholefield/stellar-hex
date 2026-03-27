@@ -12,7 +12,7 @@ class CorsConfig {
     @Bean
     fun corsFilter(): CorsFilter {
         val config = CorsConfiguration().apply {
-            allowedOrigins = listOf("http://localhost:4200", "http://localhost:80")
+            allowedOrigins = listOf("http://localhost:4200", "http://localhost:80", "http://localhost")
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
             allowCredentials = true

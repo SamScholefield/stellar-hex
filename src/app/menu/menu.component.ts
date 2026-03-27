@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { GameInitService } from '../core/state/game-init.service';
 import { AudioService } from '../core/audio/audio.service';
 import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
+import { AuthService } from '../core/auth/auth.service';
 
 @Component({
   selector: 'app-menu',
@@ -18,10 +19,12 @@ export class MenuComponent {
   private readonly audio = inject(AudioService);
   private readonly router = inject(Router);
   protected readonly saveSvc = inject(GameSaveService);
+  readonly auth = inject(AuthService);
 
   readonly showNewGameModal = signal(false);
 
   constructor() {
+    this.auth.checkSession();
     afterNextRender(() => {
       const loader = document.getElementById('app-loader');
       if (loader) {

@@ -1,0 +1,18 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: stellar-hex-app
+            scope: openid,profile,email
+            authorization-grant-type: authorization_code
+            redirect-uri: "http://localhost:8080/api/login/oauth2/code/{registrationId}"
+
+# Dev overrides: redirect to Angular dev server after login/logout
+stellarhex:
+  frontend-url: http://localhost:4200
+
+logging:
+  level:
+    org.springframework.security: DEBUG

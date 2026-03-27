@@ -1,27 +1,46 @@
 package com.stellarhex.config
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
-import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler
 
 @Configuration
 @EnableWebSecurity
 class SecurityConfig {
 
+    @Value("\${stellarhex.frontend-url:http://localhost:80}")
+    private lateinit var frontendUrl: String
+
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers("/health", "/actuator/health").permitAll()
+                    .requestMatchers("/auth/me").permitAll()
+                    .requestMatchers("/auth/login", "/auth/logout").permitAll()
                     .anyRequest().authenticated()
             }
-            .oauth2ResourceServer { it.jwt {} }
+            .oauth2Login { oauth ->
+                oauth.successHandler(
+                    SimpleUrlAuthenticationSuccessHandler().apply {
+                        setDefaultTargetUrl("$frontendUrl/menu")
+                        setAlwaysUseDefaultTargetUrl(true)
+                    }
+                )
+            }
+            .logout { logout ->
+                logout
+                    .logoutUrl("/auth/logout")
+                    .logoutSuccessUrl("$frontendUrl/menu")
+                    .invalidateHttpSession(true)
+                    .clearAuthentication(true)
+            }
 
         return http.build()
     }
