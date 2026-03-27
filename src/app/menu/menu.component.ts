@@ -29,6 +29,7 @@ export class MenuComponent {
         loader.style.opacity = '0';
         setTimeout(() => loader.remove(), 300);
       }
+      this.saveSvc.refreshSaves();
     });
   }
   playerName = localStorage.getItem('stellar-hex-player-name') ?? 'Commander';
@@ -46,6 +47,7 @@ export class MenuComponent {
     const name = this.playerName || 'Commander';
     localStorage.setItem('stellar-hex-player-name', name);
     await this.audio.ensureContext();
+    this.saveSvc.clearAutosaveId();
     this.gameInit.newGame({
       playerName: name,
       aiOpponents: this.aiOpponents,
@@ -62,23 +64,29 @@ export class MenuComponent {
   }
 
   async continueSave(): Promise<void> {
-    const latest = this.saveSvc.latestSave();
-    if (!latest) return;
     await this.audio.ensureContext();
-    this.saveSvc.loadFromKey(latest.key);
+    await this.saveSvc.loadLatest();
   }
 
   async loadSave(entry: SaveEntry): Promise<void> {
     await this.audio.ensureContext();
-    this.saveSvc.loadFromKey(entry.key);
+    if (entry.id) {
+      await this.saveSvc.loadById(entry.id);
+    } else {
+      this.saveSvc.loadFromKey(entry.key);
+    }
   }
 
   logout(): void {
     this.auth.logout();
   }
 
-  deleteSave(entry: SaveEntry): void {
-    this.saveSvc.deleteKey(entry.key);
+  async deleteSave(entry: SaveEntry): Promise<void> {
+    if (entry.id) {
+      await this.saveSvc.deleteById(entry.id);
+    } else {
+      this.saveSvc.deleteKey(entry.key);
+    }
   }
 
   openGuide(): void {

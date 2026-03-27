@@ -17,13 +17,13 @@ data class SaveEntity(
     @Column(name = "save_name", nullable = false)
     var saveName: String = "Autosave",
 
-    @Column(name = "state_json", columnDefinition = "jsonb", nullable = false)
+    @Column(name = "state_json", columnDefinition = "text", nullable = false)
     var stateJson: String,
 
-    @Column(name = "camera_json", columnDefinition = "jsonb")
+    @Column(name = "camera_json", columnDefinition = "text")
     var cameraJson: String? = null,
 
-    @Column(name = "waypoints_json", columnDefinition = "jsonb")
+    @Column(name = "waypoints_json", columnDefinition = "text")
     var waypointsJson: String? = null,
 
     @Column(nullable = false)

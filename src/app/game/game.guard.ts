@@ -9,7 +9,7 @@ export const gameActivateGuard: CanActivateFn = () => {
 
   const saveSvc = inject(GameSaveService);
   if (saveSvc.hasSave()) {
-    saveSvc.load(false);
+    saveSvc.loadLocal(false);
     return true;
   }
 
