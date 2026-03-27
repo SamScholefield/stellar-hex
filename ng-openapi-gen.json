@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/ng-openapi-gen/ng-openapi-gen-schema.json",
+  "input": "server/src/main/resources/openapi.yml",
+  "output": "src/app/api",
+  "servicePrefix": "",
+  "serviceSuffix": "Service",
+  "modelPrefix": "",
+  "modelSuffix": ""
+}

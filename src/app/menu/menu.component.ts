@@ -19,12 +19,10 @@ export class MenuComponent {
   private readonly audio = inject(AudioService);
   private readonly router = inject(Router);
   protected readonly saveSvc = inject(GameSaveService);
-  readonly auth = inject(AuthService);
-
+  private readonly auth = inject(AuthService);
   readonly showNewGameModal = signal(false);
 
   constructor() {
-    this.auth.checkSession();
     afterNextRender(() => {
       const loader = document.getElementById('app-loader');
       if (loader) {
@@ -73,6 +71,10 @@ export class MenuComponent {
   async loadSave(entry: SaveEntry): Promise<void> {
     await this.audio.ensureContext();
     this.saveSvc.loadFromKey(entry.key);
+  }
+
+  logout(): void {
+    this.auth.logout();
   }
 
   deleteSave(entry: SaveEntry): void {

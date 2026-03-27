@@ -2,15 +2,6 @@
   <h1 class="title">Stellar Hex</h1>
   <p class="subtitle">A hex-based real-time strategy game</p>
 
-  <div class="auth-bar">
-    @if (auth.authenticated()) {
-      <span class="auth-user">{{ auth.user()?.displayName }}</span>
-      <button class="auth-btn" (click)="auth.logout()">Logout</button>
-    } @else {
-      <button class="auth-btn" (click)="auth.login()">Login</button>
-    }
-  </div>
-
   <div class="actions">
     @if (saveSvc.latestSave(); as latest) {
       <button class="continue" (click)="continueSave()">Continue</button>
@@ -18,6 +9,7 @@
     <button class="primary" (click)="openNewGameModal()">New Game</button>
     <button class="spectate" (click)="startSpectate()">Spectate</button>
     <button class="guide" (click)="openGuide()">Guide</button>
+    <button class="logout" (click)="logout()">Logout</button>
   </div>
 
   @if (saveSvc.saves().length > 0) {

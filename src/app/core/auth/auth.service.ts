@@ -1,19 +1,14 @@
-import { Injectable, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
-
-export interface UserInfo {
-  username: string;
-  displayName: string;
-}
+import { Injectable, signal, inject } from '@angular/core';
+import { Api } from '../../api/api';
+import { getSession } from '../../api/fn/auth/get-session';
+import { SessionInfo } from '../../api/models/session-info';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly http = inject(HttpClient);
+  private readonly api = inject(Api);
 
   private readonly _authenticated = signal(false);
-  private readonly _user = signal<UserInfo | null>(null);
+  private readonly _user = signal<SessionInfo | null>(null);
 
   readonly authenticated = this._authenticated.asReadonly();
   readonly user = this._user.asReadonly();
@@ -21,14 +16,14 @@ export class AuthService {
   /** Check if user has an active session with the BFF. Always returns, never throws. */
   async checkSession(): Promise<boolean> {
     try {
-      const user = await firstValueFrom(this.http.get<UserInfo | null>('/api/auth/me'));
-      if (user) {
+      const session = await this.api.invoke(getSession);
+      if (session && session.username) {
         this._authenticated.set(true);
-        this._user.set(user);
+        this._user.set(session);
         return true;
       }
     } catch {
-      // Server unavailable — continue as unauthenticated
+      // Server unavailable or not authenticated
     }
     this._authenticated.set(false);
     this._user.set(null);

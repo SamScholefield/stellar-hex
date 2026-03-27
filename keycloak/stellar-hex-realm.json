@@ -22,7 +22,8 @@
       "clientId": "stellar-hex-app",
       "name": "Stellar Hex",
       "enabled": true,
-      "publicClient": true,
+      "publicClient": false,
+      "secret": "stellar-hex-secret",
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
@@ -42,9 +43,25 @@
       ],
       "protocol": "openid-connect",
       "attributes": {
-        "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "http://localhost:4200/*"
       }
+    }
+  ],
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "email": "testuser@stellarhex.local",
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "testuser",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["player"]
     }
   ]
 }

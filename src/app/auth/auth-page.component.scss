@@ -1,0 +1,110 @@
+// Inline SVG hex grid pattern (flat-top hexagons)
+$hex-svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'/%3E%3Cpath d='M28 0L28 66L0 50' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='1'/%3E%3C/svg%3E";
+$noise-svg: "data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E";
+
+:host {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 70% 60%, rgba(94, 234, 212, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 30%, rgba(129, 140, 248, 0.03) 0%, transparent 50%),
+    linear-gradient(180deg, #0d1117 0%, #0a0a14 40%, #06060c 100%);
+  background-color: #06060c;
+
+  &::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url($hex-svg);
+    background-size: 56px 100px;
+    mask-image: radial-gradient(ellipse at 60% 50%, black 0%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse at 60% 50%, black 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+.layout {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 3rem 4rem;
+  height: 100%;
+}
+
+.title {
+  font-size: 6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0;
+  color: transparent;
+  background:
+    url($noise-svg) 0 0 / 150px 150px repeat,
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.3));
+  background-blend-mode: multiply;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15));
+  animation: flicker 4s infinite, noise-drift 3s linear infinite;
+}
+
+@keyframes noise-drift {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 150px 150px, 0 0; }
+}
+
+@keyframes flicker {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15)); }
+  4% { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.08)); opacity: 0.85; }
+  5% { opacity: 1; }
+  7% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.05)); opacity: 0.7; }
+  8% { filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.3)); opacity: 1; }
+  43% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.05)); opacity: 0.6; }
+  44% { filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.35)); opacity: 1; }
+  71% { filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.1)); opacity: 0.75; }
+  72% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2)); opacity: 1; }
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0 0 3rem;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.sign-in {
+  padding: 0;
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 1.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(94, 234, 212, 0.08);
+  -webkit-text-stroke: 1px rgba(94, 234, 212, 0.35);
+  text-shadow: 0 0 6px rgba(94, 234, 212, 0.15);
+  transition: color 0.3s, -webkit-text-stroke 0.3s, text-shadow 0.3s;
+
+  &:hover {
+    color: rgba(94, 234, 212, 0.9);
+    -webkit-text-stroke: 1px rgba(94, 234, 212, 0.8);
+    text-shadow:
+      0 0 8px rgba(94, 234, 212, 0.6),
+      0 0 20px rgba(94, 234, 212, 0.3),
+      0 0 40px rgba(94, 234, 212, 0.1);
+  }
+}
