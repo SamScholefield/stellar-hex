@@ -7,12 +7,17 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.core.Authentication
 import org.springframework.security.core.AuthenticationException
+import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.AuthenticationFailureHandler
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler
 import org.slf4j.LoggerFactory
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 @Configuration
 @EnableWebSecurity
@@ -22,6 +27,9 @@ class SecurityConfig {
 
     @Value("\${stellarhex.frontend-url:http://localhost:80}")
     private lateinit var frontendUrl: String
+
+    @Value("\${stellarhex.keycloak-logout-url:http://localhost:9090/realms/stellar-hex/protocol/openid-connect/logout}")
+    private lateinit var keycloakLogoutUrl: String
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -34,13 +42,12 @@ class SecurityConfig {
                     .anyRequest().authenticated()
             }
             .exceptionHandling {
-                // Return 401 for unauthenticated API calls instead of redirecting
                 it.authenticationEntryPoint(Http401EntryPoint())
             }
             .oauth2Login { oauth ->
-                oauth.failureHandler(AuthenticationFailureHandler { request, response, exception ->
+                oauth.failureHandler(AuthenticationFailureHandler { _, response, exception ->
                     log.error("OAuth2 login failed: ${exception.message}", exception)
-                    response.sendRedirect("$frontendUrl/menu?error=auth_failed")
+                    response.sendRedirect("$frontendUrl/auth?error=auth_failed")
                 })
                 oauth.successHandler(
                     SimpleUrlAuthenticationSuccessHandler().apply {
@@ -52,16 +59,26 @@ class SecurityConfig {
             .logout { logout ->
                 logout
                     .logoutUrl("/auth/logout")
-                    .logoutSuccessUrl("$frontendUrl/menu")
+                    .logoutSuccessHandler(keycloakLogoutHandler())
                     .invalidateHttpSession(true)
                     .clearAuthentication(true)
             }
 
         return http.build()
     }
+
+    private fun keycloakLogoutHandler() = LogoutSuccessHandler { request, response, authentication ->
+        val redirectUri = URLEncoder.encode("$frontendUrl/auth", StandardCharsets.UTF_8)
+        val idToken = (authentication?.principal as? OidcUser)?.idToken?.tokenValue
+        val logoutUrl = if (idToken != null) {
+            "$keycloakLogoutUrl?id_token_hint=$idToken&post_logout_redirect_uri=$redirectUri"
+        } else {
+            "$keycloakLogoutUrl?post_logout_redirect_uri=$redirectUri"
+        }
+        response.sendRedirect(logoutUrl)
+    }
 }
 
-/** Return 401 JSON instead of redirecting to a login page. */
 class Http401EntryPoint : AuthenticationEntryPoint {
     override fun commence(
         request: HttpServletRequest,
