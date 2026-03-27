@@ -314,6 +314,23 @@ components:
               type: number
             credits:
               type: number
+        orbitAnchor:
+          $ref: '#/components/schemas/HexCoordDto'
+          nullable: true
+        velocity:
+          $ref: '#/components/schemas/HexCoordDto'
+          nullable: true
+
+    HexCoordDto:
+      type: object
+      required: [q, r]
+      properties:
+        q:
+          type: integer
+        r:
+          type: integer
+        s:
+          type: integer
 
   securitySchemes:
     session:

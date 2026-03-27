@@ -4,6 +4,7 @@
 export type { ChunkData } from './models/chunk-data';
 export type { ChunkResponse } from './models/chunk-response';
 export type { HealthResponse } from './models/health-response';
+export type { HexCoordDto } from './models/hex-coord-dto';
 export type { HexData } from './models/hex-data';
 export type { SaveData } from './models/save-data';
 export type { SaveRequest } from './models/save-request';
