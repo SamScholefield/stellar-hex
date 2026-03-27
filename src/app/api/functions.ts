@@ -17,5 +17,7 @@ export type { UpdateSave$Params as UpdateSave$Params } from './fn/saves/update-s
 export { updateSave as updateSave } from './fn/saves/update-save';
 export type { DeleteSave$Params as DeleteSave$Params } from './fn/saves/delete-save';
 export { deleteSave as deleteSave } from './fn/saves/delete-save';
+export type { DispatchAction$Params as DispatchAction$Params } from './fn/game/dispatch-action';
+export { dispatchAction as dispatchAction } from './fn/game/dispatch-action';
 export type { GetChunks$Params as GetChunks$Params } from './fn/world/get-chunks';
 export { getChunks as getChunks } from './fn/world/get-chunks';

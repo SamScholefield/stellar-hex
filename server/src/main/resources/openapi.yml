@@ -139,6 +139,25 @@ paths:
         '204':
           description: Save deleted
 
+  /game/action:
+    post:
+      operationId: dispatchAction
+      summary: Dispatch a game action and return updated state
+      tags: [game]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionRequest'
+      responses:
+        '200':
+          description: Updated game state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+
   /world/chunks:
     get:
       operationId: getChunks
@@ -331,6 +350,25 @@ components:
           type: integer
         s:
           type: integer
+
+    ActionRequest:
+      type: object
+      required: [state, action]
+      properties:
+        state:
+          type: string
+          description: Serialized game state JSON
+        action:
+          type: object
+          description: Game action (polymorphic, discriminated by 'type' field)
+
+    ActionResponse:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          description: Updated serialized game state JSON
 
   securitySchemes:
     session:
