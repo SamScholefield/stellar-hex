@@ -43,6 +43,7 @@ class SecurityConfig {
                 auth
                     .requestMatchers("/health", "/actuator/health").permitAll()
                     .requestMatchers("/auth/me").permitAll()
+                    .requestMatchers("/world/**").permitAll()
                     .anyRequest().authenticated()
             }
             .exceptionHandling {
