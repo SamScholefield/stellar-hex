@@ -27,12 +27,16 @@ services:
       KC_HOSTNAME_URL: http://localhost:9090
       KC_HOSTNAME_ADMIN_URL: http://localhost:9090
       KC_HOSTNAME_STRICT_BACKCHANNEL: false
+      KC_SPI_THEME_STATIC_MAX_AGE: -1
+      KC_SPI_THEME_CACHE_THEMES: false
+      KC_SPI_THEME_CACHE_TEMPLATES: false
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     ports:
       - "9090:9090"
     volumes:
       - ./keycloak:/opt/keycloak/data/import
+      - ./keycloak/themes/stellar-hex:/opt/keycloak/themes/stellar-hex
     depends_on:
       postgres:
         condition: service_healthy

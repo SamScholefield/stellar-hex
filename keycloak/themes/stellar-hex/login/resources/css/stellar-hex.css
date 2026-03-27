@@ -1,0 +1,227 @@
+/* Stellar Hex — Keycloak Theme (minimal) */
+
+@font-face {
+  font-family: 'DIN Next LT Pro';
+  src: url('../fonts/DINNextLTPro-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* Base */
+html {
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'DIN Next LT Pro', sans-serif !important;
+  background:
+    radial-gradient(ellipse at 70% 60%, rgba(94, 234, 212, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 30%, rgba(129, 140, 248, 0.03) 0%, transparent 50%),
+    linear-gradient(180deg, #0d1117 0%, #0a0a14 40%, #06060c 100%) !important;
+  background-color: #06060c !important;
+  background-attachment: fixed !important;
+  color: #e0e0e0 !important;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='rgba(255,255,255,0.04)' stroke-width='1'/%3E%3Cpath d='M28 0L28 66L0 50' fill='none' stroke='rgba(255,255,255,0.02)' stroke-width='1'/%3E%3C/svg%3E");
+  background-size: 56px 100px;
+  mask-image: radial-gradient(ellipse at 60% 50%, black 0%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at 60% 50%, black 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Header */
+#kc-header-wrapper {
+  font-size: 3.5rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  color: transparent !important;
+  background:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E") 0 0 / 150px 150px repeat,
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.3)) !important;
+  background-blend-mode: multiply !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15)) !important;
+  animation: flicker 4s infinite, noise-drift 3s linear infinite !important;
+  text-align: center;
+  padding-bottom: 1rem;
+}
+
+@keyframes noise-drift {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 150px 150px, 0 0; }
+}
+
+@keyframes flicker {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15)); }
+  4% { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.08)); opacity: 0.85; }
+  5% { opacity: 1; }
+  7% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.05)); opacity: 0.7; }
+  8% { filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.3)); opacity: 1; }
+  43% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.05)); opacity: 0.6; }
+  44% { filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.35)); opacity: 1; }
+  71% { filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.1)); opacity: 0.75; }
+  72% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2)); opacity: 1; }
+}
+
+/* Card */
+.card-pf {
+  background: rgba(10, 10, 26, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+  color: #e0e0e0 !important;
+}
+
+/* Labels */
+label {
+  color: #9ca3af !important;
+}
+
+/* Inputs */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+.pf-v5-c-form-control,
+.pf-v5-c-form-control > input,
+.pf-c-form-control {
+  background: #1f2937 !important;
+  border: 1px solid #374151 !important;
+  color: #e0e0e0 !important;
+  border-radius: 0.375rem !important;
+  padding: 0.5rem 0.75rem !important;
+  font-family: 'DIN Next LT Pro', sans-serif !important;
+  font-size: 0.9rem !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+.pf-v5-c-form-control:focus-within,
+.pf-c-form-control:focus {
+  border-color: #5eead4 !important;
+  box-shadow: 0 0 0 1px rgba(94, 234, 212, 0.2) !important;
+}
+
+/* Password input group — nuke all PatternFly wrapper styles */
+.pf-v5-c-input-group,
+.pf-c-input-group {
+  display: flex !important;
+  align-items: stretch !important;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-form-control,
+.pf-c-form-control {
+  background: #1f2937 !important;
+  border: 1px solid #374151 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.pf-v5-c-input-group > *,
+.pf-c-input-group > * {
+  background: #1f2937 !important;
+  border-color: #374151 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.pf-v5-c-button.pf-m-control,
+.pf-c-button.pf-m-control {
+  background: #1f2937 !important;
+  border: 1px solid #374151 !important;
+  border-left: none !important;
+  border-radius: 0 0.375rem 0.375rem 0 !important;
+  color: #6b7280 !important;
+  padding: 0 0.6rem !important;
+  box-shadow: none !important;
+  outline: none !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.pf-v5-c-button.pf-m-control:hover,
+.pf-c-button.pf-m-control:hover {
+  color: #e0e0e0 !important;
+  background: #2a3544 !important;
+}
+
+.pf-v5-c-button.pf-m-control::after,
+.pf-c-button.pf-m-control::after,
+.pf-v5-c-button.pf-m-control::before,
+.pf-c-button.pf-m-control::before,
+.pf-v5-c-form-control::after,
+.pf-c-form-control::after,
+.pf-v5-c-form-control::before,
+.pf-c-form-control::before {
+  display: none !important;
+}
+
+/* Input within group — flat right edge */
+.pf-v5-c-input-group > .pf-v5-c-form-control:first-child,
+.pf-v5-c-input-group > .pf-v5-c-form-control:first-child > input,
+.pf-c-input-group > input:first-child {
+  border-radius: 0.375rem 0 0 0.375rem !important;
+  border-right: none !important;
+}
+
+/* Autofill override */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #1f2937 inset !important;
+  -webkit-text-fill-color: #e0e0e0 !important;
+  caret-color: #e0e0e0 !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Submit button */
+input[type="submit"],
+.btn-primary {
+  background: linear-gradient(135deg, #5eead4, #818cf8) !important;
+  border: none !important;
+  color: #0a0a1a !important;
+  font-weight: 600 !important;
+}
+
+/* Links */
+a {
+  color: #5eead4 !important;
+}
+
+/* Layout */
+#kc-form,
+#kc-info-wrapper,
+#kc-register-form,
+#kc-content,
+#kc-content-wrapper {
+  max-width: 360px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.card-pf {
+  max-width: 420px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* Errors */
+.alert-error {
+  color: #f87171 !important;
+  background: rgba(248, 113, 113, 0.08) !important;
+  border-color: rgba(248, 113, 113, 0.2) !important;
+}

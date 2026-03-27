@@ -1,10 +1,13 @@
 {
   "realm": "stellar-hex",
   "enabled": true,
+  "loginTheme": "stellar-hex",
+  "displayName": "Stellar Hex",
+  "displayNameHtml": "Stellar Hex",
   "registrationAllowed": true,
   "registrationEmailAsUsername": false,
-  "loginWithEmailAllowed": true,
-  "duplicateEmailsAllowed": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": true,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
@@ -47,6 +50,21 @@
       }
     }
   ],
+  "attributes": {
+    "userProfileEnabled": "true"
+  },
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"Username\",\"validations\":{\"length\":{\"min\":3,\"max\":30}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]}},{\"name\":\"email\",\"displayName\":\"Email\",\"validations\":{},\"required\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]}},{\"name\":\"firstName\",\"displayName\":\"First name\",\"validations\":{},\"required\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]}},{\"name\":\"lastName\",\"displayName\":\"Last name\",\"validations\":{},\"required\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]}}]}"
+          ]
+        }
+      }
+    ]
+  },
   "users": [
     {
       "username": "testuser",
