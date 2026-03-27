@@ -12,6 +12,7 @@ export type GameAction =
   | { type: 'COLLECT_ANOMALY'; anomalyId: string; unitId: string }
   | { type: 'DISCOVER_TRADE_HUB'; tradeHub: TradeHub }
   | { type: 'TRADE'; hubId: string; unitId: string; sell: ResourceKey; buy: ResourceKey; sellAmount: number }
+  | { type: 'UNDOCK_UNIT'; unitId: string; buildingId: string }
   | { type: 'ADVANCE_COMETS' }
   | { type: 'SET_HOME_BASE'; playerId: string; buildingId: string }
   | { type: 'UPDATE_EXPLORED'; playerId: string; hexKeys: string[] };

@@ -73,7 +73,15 @@ export class ActionExecutionService {
     const cost = pathCost(path, hexLookup, override);
     await this.animation.animateUnitMovement(unitId, path);
     this.undo.dispatch({ type: 'MOVE_UNIT', unitId, path, cost });
-    this.selection.selectUnit(unitId);
+
+    // If the unit docked at a starbase, select the hex instead
+    const movedUnit = this.gameState.units().get(unitId);
+    if (movedUnit?.dockedAt) {
+      this.selection.deselectUnits();
+      this.selection.selectHex(target);
+    } else {
+      this.selection.selectUnit(unitId);
+    }
     return true;
   }
 }

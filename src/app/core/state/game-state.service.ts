@@ -55,6 +55,7 @@ export class GameStateService {
   readonly unitsAtHex = computed<Map<string, UnitData[]>>(() => {
     const index = new Map<string, UnitData[]>();
     for (const unit of this.units().values()) {
+      if (unit.dockedAt) continue; // Docked units are not "at" a hex
       const key = hexKey(unit.q, unit.r);
       const list = index.get(key);
       if (list) list.push(unit);

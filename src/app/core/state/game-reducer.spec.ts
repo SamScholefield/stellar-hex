@@ -251,6 +251,78 @@ describe('gameReducer', () => {
       const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 1 });
       expect(next.units.get('u1')!.q).toBe(1);
     });
+
+    it('auto-docks unit when moving to friendly starbase', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0, movementPoints: 4, health: 3 })],
+      ]);
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 1, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
+      ]);
+      const state = makeState({ units, buildings });
+      const path = [{ q: 0, r: 0, s: 0 }, { q: 1, r: 0, s: -1 }];
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 1 });
+      const unit = next.units.get('u1')!;
+      expect(unit.dockedAt).toBe('b1');
+      expect(unit.health).toBe(unit.maxHealth);
+      expect(unit.shields).toBe(unit.maxShields);
+      expect(unit.movementPoints).toBe(0);
+      expect(next.buildings.get('b1')!.dockedUnits).toContain('u1');
+    });
+
+    it('does not dock at enemy starbase', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0, movementPoints: 4 })],
+      ]);
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p2', type: 'starbase', q: 1, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15 }],
+      ]);
+      const state = makeState({ units, buildings });
+      const path = [{ q: 0, r: 0, s: 0 }, { q: 1, r: 0, s: -1 }];
+      // Enemy starbase blocks movement
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 1 });
+      expect(next).toBe(state);
+    });
+
+    it('does not dock at non-starbase building', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0, movementPoints: 4 })],
+      ]);
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'colony', q: 1, r: 0, health: 30, maxHealth: 30, shields: 10, maxShields: 10 }],
+      ]);
+      const state = makeState({ units, buildings });
+      const path = [{ q: 0, r: 0, s: 0 }, { q: 1, r: 0, s: -1 }];
+      const next = gameReducer(state, { type: 'MOVE_UNIT', unitId: 'u1', path, cost: 1 });
+      expect(next.units.get('u1')!.dockedAt).toBeUndefined();
+    });
+  });
+
+  describe('UNDOCK_UNIT', () => {
+    it('undocks unit to adjacent hex', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 1, r: 0, dockedAt: 'b1' })],
+      ]);
+      const buildings = new Map<string, BuildingData>([
+        ['b1', { id: 'b1', ownerId: 'p1', type: 'starbase', q: 1, r: 0, health: 50, maxHealth: 50, shields: 15, maxShields: 15, dockedUnits: ['u1'] }],
+      ]);
+      const state = makeState({ units, buildings });
+      const next = gameReducer(state, { type: 'UNDOCK_UNIT', unitId: 'u1', buildingId: 'b1' });
+      const unit = next.units.get('u1')!;
+      expect(unit.dockedAt).toBeUndefined();
+      expect(unit.movementPoints).toBe(0);
+      expect(unit.q !== 1 || unit.r !== 0).toBe(true);
+      expect(next.buildings.get('b1')!.dockedUnits ?? []).not.toContain('u1');
+    });
+
+    it('rejects undock if unit not docked at building', () => {
+      const units = new Map<string, UnitData>([
+        ['u1', makeUnitData({ id: 'u1', ownerId: 'p1', type: 'scout', q: 0, r: 0 })],
+      ]);
+      const state = makeState({ units });
+      const next = gameReducer(state, { type: 'UNDOCK_UNIT', unitId: 'u1', buildingId: 'b1' });
+      expect(next).toBe(state);
+    });
   });
 
   describe('BUILD', () => {
@@ -461,8 +533,8 @@ describe('gameReducer', () => {
       expect(next.units.size).toBe(1);
       const unit = [...next.units.values()][0];
       expect(unit.type).toBe('scout');
-      expect(unit.q).toBe(0);
-      expect(unit.r).toBe(0);
+      // Unit spawns adjacent to the starbase, not on it
+      expect(unit.q !== 0 || unit.r !== 0).toBe(true);
       expect(unit.ownerId).toBe('p1');
       // Spawned unit should have new combat fields
       expect(unit.weapon).toBe('laser');

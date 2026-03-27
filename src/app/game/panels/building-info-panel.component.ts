@@ -3,7 +3,8 @@ import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { CameraService } from '../../core/camera/camera.service';
 import { hexKey, hexToPixel } from '../../shared/hex/hex-math';
-import { BuildingData, BUILDING_STATS, TECH_TREE, TechId } from '../../models/game-state';
+import { BuildingData, BUILDING_STATS, TECH_TREE, TechId, UnitData } from '../../models/game-state';
+import { UndoService } from '../../core/state/undo.service';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
 import { ProductionQueueComponent } from './production-queue.component';
 
@@ -77,6 +78,21 @@ import { ProductionQueueComponent } from './production-queue.component';
               <div class="queue-row">
                 <span class="queue-name">{{ techName(item.techId) }}</span>
                 <span class="queue-turns">{{ item.turnsRemaining }}T</span>
+              </div>
+            }
+          </div>
+        }
+
+        @if (dockedUnits().length > 0) {
+          <div class="section docked-section">
+            <span class="section-title">Docked ({{ dockedUnits().length }})</span>
+            @for (unit of dockedUnits(); track unit.id) {
+              <div class="docked-row">
+                <span class="docked-name">{{ unit.name }}</span>
+                <span class="docked-type">{{ unit.type | formatName }}</span>
+                @if (!isEnemy(b.ownerId)) {
+                  <button class="undock-btn" [disabled]="unit.movementPoints <= 0" (click)="undock(unit.id, b.id); $event.stopPropagation()">Undock</button>
+                }
               </div>
             }
           </div>
@@ -219,12 +235,49 @@ import { ProductionQueueComponent } from './production-queue.component';
       color: var(--accent-amber);
     }
     app-production-queue { display: block; }
+    .docked-section {
+      gap: 0.1rem;
+      min-width: 100px;
+    }
+    .docked-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .docked-name {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .docked-type {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+    }
+    .undock-btn {
+      font-size: 0.55rem;
+      padding: 0.1rem 0.35rem;
+      margin-left: auto;
+      color: var(--accent-teal);
+      background: none;
+      border: 1px solid rgba(94, 234, 212, 0.25);
+      border-radius: 0.2rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .undock-btn:hover:not(:disabled) {
+      background: rgba(94, 234, 212, 0.1);
+    }
+    .undock-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
   `,
 })
 export class BuildingInfoPanelComponent {
   private readonly selection = inject(SelectionService);
   private readonly gameState = inject(GameStateService);
   private readonly camera = inject(CameraService);
+  private readonly undo = inject(UndoService);
 
   private static readonly CIRCUMFERENCE = 2 * Math.PI * 17;
   readonly circ = `${BuildingInfoPanelComponent.CIRCUMFERENCE}`;
@@ -253,6 +306,17 @@ export class BuildingInfoPanelComponent {
       .filter(([, v]) => v != null && v > 0)
       .map(([k, v]) => ({ key: k, value: v! }));
   });
+
+  readonly dockedUnits = computed<UnitData[]>(() => {
+    const b = this.building();
+    if (!b?.dockedUnits || b.dockedUnits.length === 0) return [];
+    const units = this.gameState.units();
+    return b.dockedUnits.map(id => units.get(id)).filter((u): u is UnitData => !!u);
+  });
+
+  undock(unitId: string, buildingId: string): void {
+    this.undo.dispatch({ type: 'UNDOCK_UNIT', unitId, buildingId });
+  }
 
   centerOn(q: number, r: number): void {
     const { x, y } = hexToPixel(q, r, 30);
