@@ -49,8 +49,9 @@ class WorldController(
         val avgGenMs = if (generated > 0) genMs / generated else 0.0
 
         log.info(
-            "[chunks] {} requested, {} hits, {} generated in {:.1f}ms (gen {:.1f}ms, avg {:.1f}ms/chunk) | cache: {} entries, {}/{} hit/miss total",
-            chunkCoords.size, cacheHits, generated, totalMs, genMs, avgGenMs,
+            "[chunks] {} requested, {} hits, {} generated in {}ms (gen {}ms, avg {}ms/chunk) | cache: {} entries, {}/{} hit/miss total",
+            chunkCoords.size, cacheHits, generated,
+            "%.1f".format(totalMs), "%.1f".format(genMs), "%.1f".format(avgGenMs),
             cache.size, cache.hits.get(), cache.misses.get(),
         )
 
