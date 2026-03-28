@@ -32,6 +32,10 @@ class SecurityConfig {
     @Value("\${stellarhex.keycloak-logout-url:http://localhost:9090/realms/stellar-hex/protocol/openid-connect/logout}")
     private lateinit var keycloakLogoutUrl: String
 
+    /** Prefix for API paths. Empty in dev (context-path handles it), "/api" in prod. */
+    @Value("\${stellarhex.api-prefix:}")
+    private lateinit var apiPrefix: String
+
     @Bean
     fun securityFilterChain(
         http: HttpSecurity,
@@ -41,9 +45,12 @@ class SecurityConfig {
             .csrf { it.disable() }
             .authorizeHttpRequests { auth ->
                 auth
-                    .requestMatchers("/health", "/actuator/health").permitAll()
-                    .requestMatchers("/auth/me").permitAll()
-                    .requestMatchers("/world/**").permitAll()
+                    .requestMatchers("$apiPrefix/health", "/actuator/health").permitAll()
+                    .requestMatchers("$apiPrefix/auth/me").permitAll()
+                    .requestMatchers("$apiPrefix/world/**").permitAll()
+                    // Allow static assets and SPA routes
+                    .requestMatchers("/", "/*.js", "/*.css", "/*.ico", "/*.svg", "/*.woff2", "/assets/**").permitAll()
+                    .requestMatchers("/auth", "/auth/**", "/menu", "/menu/**", "/game", "/game/**", "/guide", "/guide/**").permitAll()
                     .anyRequest().authenticated()
             }
             .exceptionHandling {
@@ -51,9 +58,13 @@ class SecurityConfig {
             }
             .oauth2Login { oauth ->
                 oauth.authorizationEndpoint {
+                    it.baseUri("$apiPrefix/oauth2/authorization")
                     it.authorizationRequestResolver(
-                        KeycloakAuthorizationRequestResolver(clientRegistrationRepository)
+                        KeycloakAuthorizationRequestResolver(clientRegistrationRepository, apiPrefix)
                     )
+                }
+                oauth.redirectionEndpoint {
+                    it.baseUri("$apiPrefix/login/oauth2/code/*")
                 }
                 oauth.failureHandler(AuthenticationFailureHandler { _, response, exception ->
                     log.error("OAuth2 login failed: ${exception.message}", exception)
@@ -68,7 +79,7 @@ class SecurityConfig {
             }
             .logout { logout ->
                 logout
-                    .logoutUrl("/auth/logout")
+                    .logoutUrl("$apiPrefix/auth/logout")
                     .logoutSuccessHandler(keycloakLogoutHandler())
                     .invalidateHttpSession(true)
                     .clearAuthentication(true)

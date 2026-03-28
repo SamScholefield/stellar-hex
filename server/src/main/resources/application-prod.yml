@@ -1,10 +1,21 @@
 server:
   port: ${PORT:8080}
+  servlet:
+    context-path: /
   forward-headers-strategy: framework
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            redirect-uri: "{baseUrl}/api/login/oauth2/code/{registrationId}"
 
 stellarhex:
   frontend-url: ${FRONTEND_URL:https://stellar-hex.up.railway.app}
   keycloak-logout-url: ${KEYCLOAK_LOGOUT_URL}
+  api-prefix: /api
 
 logging:
   level:
