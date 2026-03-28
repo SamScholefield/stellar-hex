@@ -12,11 +12,12 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
  */
 class KeycloakAuthorizationRequestResolver(
     clientRegistrationRepository: ClientRegistrationRepository,
+    apiPrefix: String = "",
 ) : OAuth2AuthorizationRequestResolver {
 
     private val delegate = DefaultOAuth2AuthorizationRequestResolver(
         clientRegistrationRepository,
-        "/oauth2/authorization",
+        "$apiPrefix/oauth2/authorization",
     )
 
     override fun resolve(request: HttpServletRequest): OAuth2AuthorizationRequest? {
