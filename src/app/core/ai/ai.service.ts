@@ -1,4 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { GameStateService } from '../state/game-state.service';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { AnimationService } from '../../game/renderer/animation.service';
@@ -10,6 +11,10 @@ import { hexDistance, hexKey, hexesInRange, toHexCoord } from '../../shared/hex/
 import { findPartialPath, getUnitCostOverride, pathCost } from '../pathfinding/hex-pathfinder';
 import { attackWithResult } from '../state/game-reducer';
 import { scoreExplore, scoreAttack, scoreBuild, scoreProduction, scoreResearch } from './ai-scoring';
+import { ApiConfiguration } from '../../api/api-configuration';
+import { serializeState } from '../state/state-serialization';
+import { deserialize } from '../state/game-save.service';
+import { firstValueFrom } from 'rxjs';
 
 const ACTION_DELAY = 300;
 
@@ -23,6 +28,9 @@ export class AIService {
   private readonly chunkManager = inject(ChunkManagerService);
   private readonly animation = inject(AnimationService);
   private readonly eventLog = inject(EventLogService);
+  private readonly http = inject(HttpClient);
+  private readonly apiConfig = inject(ApiConfiguration);
+  private serverAvailable = true;
 
   private readonly _executing = signal(false);
   readonly executing = this._executing.asReadonly();
@@ -37,10 +45,43 @@ export class AIService {
     this._executing.set(true);
     try {
       const minWait = delay(1000);
-      await this.executeActions(playerId);
+      const serverSuccess = await this.tryServerAiTurn(playerId);
+      if (!serverSuccess) {
+        await this.executeActions(playerId);
+      }
       await minWait;
     } finally {
       this._executing.set(false);
+    }
+  }
+
+  /** Attempt server-side AI turn. Returns true if successful. */
+  private async tryServerAiTurn(playerId: string): Promise<boolean> {
+    if (!this.serverAvailable) return false;
+
+    try {
+      const stateJson = serializeState(this.gameState.getState());
+      const res = await firstValueFrom(
+        this.http.post<{ state: string }>(
+          `${this.apiConfig.rootUrl}/game/ai-turn`,
+          { state: stateJson, playerId },
+        )
+      );
+
+      // The server returns a serialized state wrapping the same format as saves.
+      // We wrap it in a minimal LocalSaveData shape so deserialize() can parse it.
+      const wrappedJson = JSON.stringify({
+        state: JSON.parse(res.state),
+        camera: { panX: 0, panY: 0, zoom: 1 },
+      });
+      const { state: newState } = deserialize(wrappedJson);
+      this.gameState.setState(newState);
+      return true;
+    } catch (err: unknown) {
+      if (err instanceof HttpErrorResponse && err.status === 0) {
+        this.serverAvailable = false;
+      }
+      return false;
     }
   }
 

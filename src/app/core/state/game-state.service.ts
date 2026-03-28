@@ -1,10 +1,14 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { GameState, GameOverState, PlayerState, Resources, UnitData, BuildingData, TechId } from '../../models/game-state';
 import { HexData } from '../../models/hex-data';
 import { computeMiningDroneIncome } from '../economy/economy.service';
 import { hexKey, hexNeighbors } from '../../shared/hex/hex-math';
 import { GameAction } from './actions';
 import { gameReducer } from './game-reducer';
+import { ApiConfiguration } from '../../api/api-configuration';
+import { serializeState, serializeAction } from './state-serialization';
+import { firstValueFrom } from 'rxjs';
 
 function createInitialState(): GameState {
   return {
@@ -24,6 +28,10 @@ function createInitialState(): GameState {
 
 @Injectable({ providedIn: 'root' })
 export class GameStateService {
+  private readonly http = inject(HttpClient);
+  private readonly apiConfig = inject(ApiConfiguration);
+  private serverAvailable = true;
+
   private readonly _gameState = signal<GameState>(createInitialState());
 
   readonly turn = computed(() => this._gameState().turn);
@@ -97,7 +105,32 @@ export class GameStateService {
   });
 
   dispatch(action: GameAction): void {
+    const preActionState = this._gameState();
     this._gameState.update((state) => gameReducer(state, action));
+    this.syncActionToServer(action, preActionState);
+  }
+
+  /** Fire-and-forget POST to server after local dispatch. */
+  private syncActionToServer(action: GameAction, preActionState: GameState): void {
+    if (!this.serverAvailable) return;
+
+    const stateJson = serializeState(preActionState);
+    const actionJson = serializeAction(action);
+
+    firstValueFrom(
+      this.http.post<{ state: string }>(
+        `${this.apiConfig.rootUrl}/game/action`,
+        { state: stateJson, action: actionJson },
+      )
+    ).catch((err: unknown) => {
+      if (err instanceof HttpErrorResponse) {
+        if (err.status === 0) {
+          this.serverAvailable = false;
+        } else {
+          console.error(`[syncAction] ${err.status} for ${actionJson['type']}:`, err.error);
+        }
+      }
+    });
   }
 
   /**

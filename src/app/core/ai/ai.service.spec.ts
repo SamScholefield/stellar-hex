@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AIService } from './ai.service';
 import { GameStateService } from '../state/game-state.service';
@@ -62,12 +64,19 @@ describe('AIService', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     ai = TestBed.inject(AIService);
     gameState = TestBed.inject(GameStateService);
     chunkManager = TestBed.inject(ChunkManagerService);
     animation = TestBed.inject(AnimationService);
     eventLog = TestBed.inject(EventLogService);
+
+    // Disable server AI so tests use local AI logic
+    (ai as any).serverAvailable = false;
+    // Disable server sync on GameStateService dispatch
+    (gameState as any).serverAvailable = false;
 
     // Mock animation methods to resolve instantly
     vi.spyOn(animation, 'animateUnitMovement').mockResolvedValue();

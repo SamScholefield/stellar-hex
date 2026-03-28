@@ -3,6 +3,8 @@
 
 export type { ActionRequest } from './models/action-request';
 export type { ActionResponse } from './models/action-response';
+export type { AiTurnRequest } from './models/ai-turn-request';
+export type { AiTurnResponse } from './models/ai-turn-response';
 export type { ChunkData } from './models/chunk-data';
 export type { ChunkResponse } from './models/chunk-response';
 export type { HealthResponse } from './models/health-response';

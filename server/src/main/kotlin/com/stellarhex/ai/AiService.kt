@@ -90,7 +90,7 @@ object AiService {
             // Try attack
             if (unit.weapon != null && !unit.hasAttacked) {
                 val attackResult = AiScoring.scoreAttack(
-                    unit, visibleEnemies, current.seed + current.turn, visibleEnemyBuildings,
+                    unit, visibleEnemies, (current.seed + current.turn).toInt(), visibleEnemyBuildings,
                 )
                 if (attackResult != null) {
                     val target = current.units[attackResult.targetId]
@@ -144,7 +144,7 @@ object AiService {
                             val cost = pathCost(path, hexLookup, costOverride)
                             current = GameReducer.reduce(
                                 current,
-                                GameAction.MoveUnit(freshUnit.id, path, cost),
+                                GameAction.MoveUnit(freshUnit.id, path, cost.toDouble()),
                             )
 
                             // After moving, try to collect anomaly at destination

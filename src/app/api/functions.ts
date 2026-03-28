@@ -19,5 +19,7 @@ export type { DeleteSave$Params as DeleteSave$Params } from './fn/saves/delete-s
 export { deleteSave as deleteSave } from './fn/saves/delete-save';
 export type { DispatchAction$Params as DispatchAction$Params } from './fn/game/dispatch-action';
 export { dispatchAction as dispatchAction } from './fn/game/dispatch-action';
+export type { AiTurn$Params as AiTurn$Params } from './fn/game/ai-turn';
+export { aiTurn as aiTurn } from './fn/game/ai-turn';
 export type { GetChunks$Params as GetChunks$Params } from './fn/world/get-chunks';
 export { getChunks as getChunks } from './fn/world/get-chunks';

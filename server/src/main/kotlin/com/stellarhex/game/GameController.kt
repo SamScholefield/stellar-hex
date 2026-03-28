@@ -6,8 +6,10 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.stellarhex.ai.AiService
 import com.stellarhex.model.*
 import com.stellarhex.world.HexCoord
+import com.stellarhex.world.WorldGeneratorService
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
@@ -25,6 +27,15 @@ data class ActionResponse(
     val state: String,   // updated serialized game state JSON
 )
 
+data class AiTurnRequest(
+    val state: String,   // serialized game state JSON
+    val playerId: String,
+)
+
+data class AiTurnResponse(
+    val state: String,   // updated serialized game state JSON after AI turn
+)
+
 // ── Serialized DTOs matching the client JSON format ──────────────────
 // The client serializes Maps as [key, value][] tuples and Sets as string[].
 
@@ -40,7 +51,7 @@ data class SerializedGameState(
     val anomalies: List<List<Any>>,       // [[id, Anomaly], ...]
     val tradeHubs: List<List<Any>>? = null,
     val tradedThisTurn: List<String>? = null,
-    val seed: Int,
+    val seed: Long,
     val gameOver: SerializedGameOver? = null,
     val spectate: Boolean? = null,
 )
@@ -68,7 +79,11 @@ data class SerializedGameOver(
 
 @RestController
 @RequestMapping("/game")
-class GameController {
+class GameController(
+    private val worldGenerator: WorldGeneratorService,
+) {
+
+    private val log = org.slf4j.LoggerFactory.getLogger(GameController::class.java)
 
     private val mapper: ObjectMapper = jacksonObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -78,20 +93,29 @@ class GameController {
         @AuthenticationPrincipal oidcUser: OidcUser,
         @RequestBody request: ActionRequest,
     ): ActionResponse {
+        log.debug("dispatchAction: received action type={}", request.action::class.simpleName)
+
         // 1. Parse the client's serialized state JSON into our DTO
         val serialized: SerializedGameState = try {
             mapper.readValue(request.state)
         } catch (e: Exception) {
+            log.error("dispatchAction: failed to parse state JSON", e)
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid state JSON: ${e.message}")
         }
 
         // 2. Convert from serialized format to domain GameState
-        val gameState = toGameState(serialized)
+        val gameState = try {
+            toGameState(serialized)
+        } catch (e: Exception) {
+            log.error("dispatchAction: failed to convert serialized state to GameState", e)
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "State conversion failed: ${e.message}")
+        }
 
         // 3. Apply the reducer
         val newState = try {
             GameReducer.reduce(gameState, request.action)
         } catch (e: Exception) {
+            log.error("dispatchAction: reducer failed for action {}", request.action::class.simpleName, e)
             throw ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Action failed: ${e.message}")
         }
 
@@ -100,6 +124,46 @@ class GameController {
         val newStateJson = mapper.writeValueAsString(newSerialized)
 
         return ActionResponse(state = newStateJson)
+    }
+
+    @PostMapping("/ai-turn")
+    fun aiTurn(
+        @AuthenticationPrincipal oidcUser: OidcUser,
+        @RequestBody request: AiTurnRequest,
+    ): AiTurnResponse {
+        // 1. Parse the client's serialized state JSON
+        val serialized: SerializedGameState = try {
+            mapper.readValue(request.state)
+        } catch (e: Exception) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid state JSON: ${e.message}")
+        }
+
+        // 2. Convert to domain GameState
+        val gameState = toGameState(serialized)
+
+        // 3. Build a hex lookup backed by WorldGeneratorService
+        val chunkCache = mutableMapOf<String, ChunkDataDto>()
+        val hexLookup: (Int, Int) -> HexDataDto? = { q, r ->
+            val cx = Math.floorDiv(q, 16)
+            val cy = Math.floorDiv(r, 16)
+            val chunkKey = "$cx,$cy"
+            val chunk = chunkCache.getOrPut(chunkKey) {
+                worldGenerator.generate(gameState.seed.toInt(), cx, cy)
+            }
+            chunk.hexes["$q,$r"]
+        }
+
+        // 4. Execute the AI turn
+        val newState = try {
+            AiService.executeTurn(gameState, request.playerId, hexLookup)
+        } catch (e: Exception) {
+            throw ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "AI turn failed: ${e.message}")
+        }
+
+        // 5. Serialize and return
+        val newSerialized = toSerializedState(newState)
+        val newStateJson = mapper.writeValueAsString(newSerialized)
+        return AiTurnResponse(state = newStateJson)
     }
 
     // ── Conversion: SerializedGameState → GameState ──────────────────

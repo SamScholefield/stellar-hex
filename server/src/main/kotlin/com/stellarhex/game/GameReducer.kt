@@ -266,7 +266,7 @@ object GameReducer {
             if (HexMath.hexKey(targetQ, targetR) in defenderInfluence) defenderIncomingMul *= 0.9
             if (HexMath.hexKey(targetQ, targetR) in attackerInfluence) defenderIncomingMul *= 1.1
 
-            val bCombat = CombatResolver.resolveBuildingCombat(attacker, targetBuilding, state.seed + state.turn, defenderIncomingMul)
+            val bCombat = CombatResolver.resolveBuildingCombat(attacker, targetBuilding, (state.seed + state.turn).toInt(), defenderIncomingMul)
 
             val units = state.units.toMutableMap()
             val newXp = attacker.xp + bCombat.attackerXpGain
@@ -328,7 +328,7 @@ object GameReducer {
             defenderInEnemyInfluence = HexMath.hexKey(defender.q, defender.r) in attackerInfluence,
         )
 
-        val combat = CombatResolver.resolveCombat(attacker, defender, dist, state.seed + state.turn, combatOptions)
+        val combat = CombatResolver.resolveCombat(attacker, defender, dist, (state.seed + state.turn).toInt(), combatOptions)
 
         val units = state.units.toMutableMap()
 
@@ -646,12 +646,12 @@ object GameReducer {
 
     // ── MoveUnit ────────────────────────────────────────────────────
 
-    private fun moveUnit(state: GameState, unitId: String, path: List<HexCoord>, cost: Int): GameState {
+    private fun moveUnit(state: GameState, unitId: String, path: List<HexCoord>, cost: Double): GameState {
         val unit = state.units[unitId] ?: return state
         if (path.isEmpty()) return state
 
         val dest = path.last()
-        val remaining = unit.movementPoints - cost
+        val remaining = unit.movementPoints - cost.toInt()
         if (remaining < 0) return state
 
         // Cannot move to a hex occupied by an enemy unit or building

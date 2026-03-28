@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { UndoService } from './undo.service';
 import { GameStateService } from './game-state.service';
 import { SelectionService } from '../selection/selection.service';
@@ -25,9 +27,13 @@ describe('UndoService', () => {
   let gameState: GameStateService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     undo = TestBed.inject(UndoService);
     gameState = TestBed.inject(GameStateService);
+    // Disable server sync so dispatches don't make HTTP calls
+    (gameState as any).serverAvailable = false;
     gameState.setState(makeState(1));
   });
 

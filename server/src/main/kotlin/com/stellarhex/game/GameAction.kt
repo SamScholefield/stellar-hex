@@ -32,7 +32,7 @@ sealed class GameAction {
     data class MoveUnit(
         val unitId: String,
         val path: List<HexCoord>,
-        val cost: Int,
+        val cost: Double,
     ) : GameAction()
 
     data class Attack(
@@ -86,9 +86,7 @@ sealed class GameAction {
         val impassableHexes: Set<String>? = null,
     ) : GameAction()
 
-    data class AdvanceComets(
-        val placeholder: Unit = Unit, // data class needs at least one property
-    ) : GameAction()
+    class AdvanceComets : GameAction()
 
     data class SetHomeBase(
         val playerId: String,

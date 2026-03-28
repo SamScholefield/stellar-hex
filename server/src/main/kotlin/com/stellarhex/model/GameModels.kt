@@ -358,7 +358,7 @@ data class GameState(
     val anomalies: Map<String, Anomaly>,
     val tradeHubs: Map<String, TradeHub>,
     val tradedThisTurn: Set<String>,
-    val seed: Int,
+    val seed: Long,
     val gameOver: GameOverState? = null,
     val spectate: Boolean? = null,
 )
