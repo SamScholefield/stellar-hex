@@ -35,7 +35,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./keycloak:/opt/keycloak/data/import
+      - ./keycloak/import:/opt/keycloak/data/import
       - ./keycloak/themes/stellar-hex:/opt/keycloak/themes/stellar-hex
     depends_on:
       postgres:
