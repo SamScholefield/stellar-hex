@@ -48,10 +48,10 @@ class SecurityConfig {
                     .requestMatchers("$apiPrefix/health", "/actuator/health").permitAll()
                     .requestMatchers("$apiPrefix/auth/me").permitAll()
                     .requestMatchers("$apiPrefix/world/**").permitAll()
-                    // Allow static assets and SPA routes
-                    .requestMatchers("/", "/*.js", "/*.css", "/*.ico", "/*.svg", "/*.woff2", "/assets/**").permitAll()
-                    .requestMatchers("/auth", "/auth/**", "/menu", "/menu/**", "/game", "/game/**", "/guide", "/guide/**").permitAll()
-                    .anyRequest().authenticated()
+                    // Only require auth for /api/** (except the above). Everything else
+                    // (SPA routes, static assets) is public.
+                    .requestMatchers("$apiPrefix/**").authenticated()
+                    .anyRequest().permitAll()
             }
             .exceptionHandling {
                 it.authenticationEntryPoint(Http401EntryPoint())
