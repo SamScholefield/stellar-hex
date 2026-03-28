@@ -1,0 +1,13 @@
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+
+stellarhex:
+  frontend-url: ${FRONTEND_URL:https://stellar-hex.up.railway.app}
+  keycloak-logout-url: ${KEYCLOAK_LOGOUT_URL}
+
+logging:
+  level:
+    com.stellarhex: INFO
+    org.springframework.security: WARN
+    org.springframework.security.oauth2: WARN

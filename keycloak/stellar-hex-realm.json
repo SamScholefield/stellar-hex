@@ -37,17 +37,19 @@
         "http://localhost:4200/*",
         "http://localhost:8080/*",
         "http://localhost:80/*",
-        "http://localhost/*"
+        "http://localhost/*",
+        "https://*.up.railway.app/*"
       ],
       "webOrigins": [
         "http://localhost:4200",
         "http://localhost:8080",
         "http://localhost:80",
-        "http://localhost"
+        "http://localhost",
+        "https://*.up.railway.app"
       ],
       "protocol": "openid-connect",
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:4200/*"
+        "post.logout.redirect.uris": "http://localhost:4200/*##https://*.up.railway.app/*"
       }
     }
   ],
