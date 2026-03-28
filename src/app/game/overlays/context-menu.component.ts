@@ -42,9 +42,12 @@ export interface ContextMenuState {
   collectUnitId: string | null;
   canMoveHere: boolean;
   moveHereUnitId: string | null;
+  moveHereInRange: boolean;
   canAttackHere: boolean;
   attackHereUnitId: string | null;
   attackHereTargetId: string | null;
+  canCancelMove: boolean;
+  cancelMoveUnitId: string | null;
   canTrade: boolean;
   tradeHubId: string | null;
   tradeUnitId: string | null;
@@ -55,33 +58,36 @@ export interface ContextMenuState {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormatNamePipe],
   host: {
-    '(document:click)': 'close()',
     '(document:keydown.escape)': 'close()',
   },
   template: `
     @if (state(); as s) {
-      @if (s.canCollect || s.canTrade || s.attackOptions.length > 0 || s.canMoveHere || s.canAttackHere || s.buildOptions.length > 0) {
-      <div class="dropdown" [style.left.px]="s.screenX" [style.top.px]="s.screenY">
+      @if (s.canCollect || s.canTrade || s.attackOptions.length > 0 || s.canMoveHere || s.canAttackHere || s.canCancelMove || s.buildOptions.length > 0) {
+      <div class="dropdown" [style.left.px]="s.screenX" [style.top.px]="s.screenY"
+           (pointerenter)="pauseTracking()" (pointerleave)="resumeTracking()">
         @if (s.canCollect) {
-          <button class="dropdown-item collect" (click)="onCollect()">Collect {{ s.collectAnomalyName }}</button>
+          <button class="dropdown-item collect" (pointerdown)="onCollect(); $event.stopPropagation()">Collect {{ s.collectAnomalyName }}</button>
         }
         @if (s.canTrade) {
-          <button class="dropdown-item collect" (click)="onTrade()">Trade</button>
+          <button class="dropdown-item collect" (pointerdown)="onTrade(); $event.stopPropagation()">Trade</button>
         }
         @for (atk of s.attackOptions; track atk.targetId) {
-          <button class="dropdown-item attack" (click)="onAttack(atk)">Attack {{ atk.label }}</button>
+          <button class="dropdown-item attack" (pointerdown)="onAttack(atk); $event.stopPropagation()">Attack {{ atk.label }}</button>
         }
         @if (s.canMoveHere) {
-          <button class="dropdown-item move" (click)="onMoveHere()">Move Here</button>
+          <button class="dropdown-item move" (pointerdown)="onMoveHere(); $event.stopPropagation()">Move Here</button>
         }
         @if (s.canAttackHere) {
-          <button class="dropdown-item attack-here" (click)="onAttackHere()">Attack Here</button>
+          <button class="dropdown-item attack-here" (pointerdown)="onAttackHere(); $event.stopPropagation()">Attack Here</button>
+        }
+        @if (s.canCancelMove) {
+          <button class="dropdown-item cancel" (pointerdown)="onCancelMove(); $event.stopPropagation()">Cancel Move</button>
         }
         @for (opt of s.buildOptions; track opt.type) {
           <button
             class="dropdown-item build"
             [disabled]="!opt.affordable"
-            (click)="onBuild(opt.type)"
+            (pointerdown)="onBuild(opt.type); $event.stopPropagation()"
           >
             <span>Build {{ opt.type | formatName }}</span>
             <span class="cost-row">
@@ -123,20 +129,88 @@ export class ContextMenuComponent {
   private readonly vision = inject(VisionService);
   private readonly undo = inject(UndoService);
   private readonly actionExec = inject(ActionExecutionService);
-
-
   private readonly waypointSvc = inject(WaypointService);
 
   readonly openTrade = output<{ hubId: string; unitId: string }>();
   private readonly _state = signal<ContextMenuState | null>(null);
   readonly state = this._state.asReadonly();
 
+  /** Cached reachable hexes — computed once on open, reused on pointer track. */
+  private cachedReachable: Map<string, number> | null = null;
+  private cachedSelectedUnitId: string | null = null;
+  private lastHexKey: string | null = null;
+  private _tracking = false;
+  private _paused = false;
+
+  get tracking(): boolean { return this._tracking; }
+
   open(clientX: number, clientY: number): void {
+    this.cacheReachableHexes();
+    this._tracking = true;
+    this.lastHexKey = null;
+    this.updateForPosition(clientX, clientY);
+  }
+
+  pauseTracking(): void { this._paused = true; }
+  resumeTracking(): void { this._paused = false; }
+
+  /** Update menu options for a new pointer position (called on pointermove). */
+  track(clientX: number, clientY: number): void {
+    if (!this._tracking || this._paused) return;
+    const hex = this.clientToHex(clientX, clientY);
+    const hk = hexKey(hex.q, hex.r);
+    if (hk === this.lastHexKey) return; // same hex, skip
+    this.updateForPosition(clientX, clientY);
+  }
+
+  close(): void {
+    this._state.set(null);
+    this._tracking = false;
+    this._paused = false;
+    this.cachedReachable = null;
+    this.cachedSelectedUnitId = null;
+    this.lastHexKey = null;
+  }
+
+  private clientToHex(clientX: number, clientY: number): HexCoord {
     const rect = document.querySelector('canvas')?.getBoundingClientRect();
     const canvasX = rect ? (clientX - rect.left) * devicePixelRatio : clientX * devicePixelRatio;
     const canvasY = rect ? (clientY - rect.top) * devicePixelRatio : clientY * devicePixelRatio;
     const { x, y } = this.camera.screenToWorld(canvasX, canvasY);
-    const hex = pixelToHex(x, y, HEX_SIZE);
+    return pixelToHex(x, y, HEX_SIZE);
+  }
+
+  /** Cache the expensive reachable-hex computation once per open. */
+  private cacheReachableHexes(): void {
+    const currentPlayer = this.gameState.currentPlayer();
+    const selectedUnitId = this.selection.selectedUnit();
+    if (!currentPlayer || !selectedUnitId) {
+      this.cachedReachable = null;
+      this.cachedSelectedUnitId = null;
+      return;
+    }
+
+    const units = this.gameState.units();
+    const selUnit = units.get(selectedUnitId);
+    if (!selUnit || selUnit.ownerId !== currentPlayer.id || selUnit.movementPoints <= 0) {
+      this.cachedReachable = null;
+      this.cachedSelectedUnitId = selectedUnitId;
+      return;
+    }
+
+    const from: HexCoord = toHexCoord(selUnit.q, selUnit.r);
+    const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
+    const blocked = buildBlockedSet(units, this.gameState.buildings(), currentPlayer.id, selectedUnitId);
+    const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
+    const override = getUnitCostOverride(selUnit.type);
+    this.cachedReachable = getReachableHexes(from, selUnit.movementPoints, hexLookup, isBlocked, override);
+    this.cachedSelectedUnitId = selectedUnitId;
+  }
+
+  private updateForPosition(clientX: number, clientY: number): void {
+    const hex = this.clientToHex(clientX, clientY);
+    const hexKeyStr = hexKey(hex.q, hex.r);
+    this.lastHexKey = hexKeyStr;
 
     const currentPlayer = this.gameState.currentPlayer();
     if (!currentPlayer) return;
@@ -145,29 +219,23 @@ export class ContextMenuComponent {
     const unitIndex = this.gameState.unitsAtHex();
     const buildingIndex = this.gameState.buildingAtHex();
     const selectedUnitId = this.selection.selectedUnit();
-    const hexKeyStr = hexKey(hex.q, hex.r);
+    const unitsHere = unitIndex.get(hexKeyStr);
 
-    // Check for attackable enemy units and buildings at hex
+    // --- Attack options (in-range) ---
     const attackOptions: AttackOption[] = [];
-
     if (selectedUnitId) {
       const attacker = units.get(selectedUnitId);
       if (attacker && attacker.ownerId === currentPlayer.id && !attacker.hasAttacked && attacker.weapon != null) {
         const visHexes = this.vision.visibleHexes();
         if (visHexes.has(hexKeyStr)) {
-          const dist = hexDistance(
-            toHexCoord(attacker.q, attacker.r),
-            toHexCoord(hex.q, hex.r),
-          );
+          const dist = hexDistance(toHexCoord(attacker.q, attacker.r), toHexCoord(hex.q, hex.r));
           if (dist <= attacker.range) {
-            // Add each enemy unit at this hex
             const unitsAtTarget = unitIndex.get(hexKeyStr) ?? [];
             for (const enemy of unitsAtTarget) {
               if (enemy.ownerId !== currentPlayer.id) {
                 attackOptions.push({ attackerId: selectedUnitId, targetId: enemy.id, label: enemy.name });
               }
             }
-            // Add enemy building at this hex
             const buildingHere = buildingIndex.get(hexKeyStr);
             if (buildingHere && buildingHere.ownerId !== currentPlayer.id) {
               attackOptions.push({ attackerId: selectedUnitId, targetId: buildingHere.id, label: formatName(buildingHere.type) });
@@ -177,22 +245,18 @@ export class ContextMenuComponent {
       }
     }
 
-    // Check for friendly unit at hex → build options
+    // --- Build options ---
     let buildOptions: BuildOption[] = [];
     let hexType: StellarObjectType | null = null;
-
-    const unitsHere = unitIndex.get(hexKeyStr);
     const hasFriendlyUnit = unitsHere?.some(u => u.ownerId === currentPlayer.id) ?? false;
 
     if (hasFriendlyUnit) {
       const hasBuilding = buildingIndex.has(hexKeyStr);
-
       if (!hasBuilding) {
         const hexData = this.chunkManager.getHex(hex.q, hex.r);
         if (hexData) {
           hexType = hexData.object?.type ?? 'empty';
           const resources = currentPlayer.resources;
-
           const hasScout = unitsHere?.some(u => u.ownerId === currentPlayer.id && u.type === 'scout') ?? false;
 
           for (const [type, stats] of Object.entries(BUILDING_STATS) as [BuildingType, BuildingStats][]) {
@@ -220,14 +284,13 @@ export class ContextMenuComponent {
       }
     }
 
-    // Check for collectable anomaly at hex — requires friendly scout with MP
+    // --- Collect anomaly ---
     let canCollect = false;
     let collectAnomalyId: string | null = null;
     let collectAnomalyName: string | null = null;
     let collectUnitId: string | null = null;
 
-    const anomalies = this.gameState.anomalies();
-    for (const anomaly of anomalies.values()) {
+    for (const anomaly of this.gameState.anomalies().values()) {
       if (anomaly.q === hex.q && anomaly.r === hex.r) {
         const scout = unitsHere?.find(u => u.ownerId === currentPlayer.id && u.type === 'scout');
         if (scout) {
@@ -240,7 +303,7 @@ export class ContextMenuComponent {
       }
     }
 
-    // Trade Hub — show when friendly scout at a discovered trade hub
+    // --- Trade Hub ---
     let canTrade = false;
     let tradeHubId: string | null = null;
     let tradeUnitId: string | null = null;
@@ -259,54 +322,44 @@ export class ContextMenuComponent {
       }
     }
 
-    // Move Here — show when unit selected, has MP, hex is outside reachable range
+    // --- Move Here / Attack Here / Cancel Move (uses cached reachable) ---
     let canMoveHere = false;
     let moveHereUnitId: string | null = null;
-
-    // Attack Here — show when enemy at hex, outside attack range
+    let moveHereInRange = false;
     let canAttackHere = false;
     let attackHereUnitId: string | null = null;
     let attackHereTargetId: string | null = null;
+    let canCancelMove = false;
+    let cancelMoveUnitId: string | null = null;
 
-    if (selectedUnitId && attackOptions.length === 0) {
-      const attacker = units.get(selectedUnitId);
-      if (attacker && attacker.ownerId === currentPlayer.id) {
-        const from: HexCoord = toHexCoord(attacker.q, attacker.r);
-        const isSameHex = attacker.q === hex.q && attacker.r === hex.r;
+    if (selectedUnitId) {
+      const selUnit = units.get(selectedUnitId);
+      if (selUnit && selUnit.ownerId === currentPlayer.id) {
+        const isSameHex = selUnit.q === hex.q && selUnit.r === hex.r;
 
-        if (!isSameHex) {
-          // Check if hex is within reachable range via normal pathfinding
-          const hexLookup = (q: number, r: number) => this.chunkManager.getHex(q, r);
-          const blocked = buildBlockedSet(units, this.gameState.buildings(), currentPlayer.id, selectedUnitId);
-          const isBlocked = (q: number, r: number) => blocked.has(hexKey(q, r));
-          const override = getUnitCostOverride(attacker.type);
-          const reachable = attacker.movementPoints > 0
-            ? getReachableHexes(from, attacker.movementPoints, hexLookup, isBlocked, override)
-            : new Map<string, number>();
-          const hexKeyTarget = hexKey(hex.q, hex.r);
+        const wp = this.waypointSvc.getWaypoint(selectedUnitId);
+        if (wp) {
+          canCancelMove = true;
+          cancelMoveUnitId = selectedUnitId;
+        }
 
-          if (!reachable.has(hexKeyTarget)) {
-            // Hex is outside reachable range — show Move Here
+        const isWaypointTarget = wp && wp.target.q === hex.q && wp.target.r === hex.r;
+
+        if (!isSameHex && !isWaypointTarget) {
+          const inRange = this.cachedReachable?.has(hexKeyStr) ?? false;
+
+          const enemyAtTarget = unitIndex.get(hexKeyStr)?.find(u => u.ownerId !== currentPlayer.id);
+          const enemyBuildingAtTarget = !enemyAtTarget ? buildingIndex.get(hexKeyStr) : null;
+          const attackTarget = enemyAtTarget ?? (enemyBuildingAtTarget && enemyBuildingAtTarget.ownerId !== currentPlayer.id ? enemyBuildingAtTarget : null);
+
+          if (attackTarget && selUnit.weapon != null && attackOptions.length === 0) {
+            canAttackHere = true;
+            attackHereUnitId = selectedUnitId;
+            attackHereTargetId = attackTarget.id;
+          } else if (!attackTarget) {
             canMoveHere = true;
             moveHereUnitId = selectedUnitId;
-
-            // Also check for Attack Here: enemy at hex, outside attack range
-            if (attacker.weapon != null) {
-              const visHexes = this.vision.visibleHexes();
-              if (visHexes.has(hexKeyTarget)) {
-                const enemyAtTarget = unitIndex.get(hexKeyTarget)?.find(u => u.ownerId !== currentPlayer.id);
-                const enemyBuildingAtTarget = !enemyAtTarget ? buildingIndex.get(hexKeyTarget) : null;
-                const attackTarget = enemyAtTarget ?? (enemyBuildingAtTarget && enemyBuildingAtTarget.ownerId !== currentPlayer.id ? enemyBuildingAtTarget : null);
-                if (attackTarget) {
-                  canAttackHere = true;
-                  attackHereUnitId = selectedUnitId;
-                  attackHereTargetId = attackTarget.id;
-                  // Don't show Move Here when Attack Here is available
-                  canMoveHere = false;
-                  moveHereUnitId = null;
-                }
-              }
-            }
+            moveHereInRange = inRange;
           }
         }
       }
@@ -325,17 +378,16 @@ export class ContextMenuComponent {
       collectUnitId,
       canMoveHere,
       moveHereUnitId,
+      moveHereInRange,
       canAttackHere,
       attackHereUnitId,
       attackHereTargetId,
+      canCancelMove,
+      cancelMoveUnitId,
       canTrade,
       tradeHubId,
       tradeUnitId,
     });
-  }
-
-  close(): void {
-    this._state.set(null);
   }
 
   onAttack(atk: AttackOption): void {
@@ -373,10 +425,14 @@ export class ContextMenuComponent {
     if (!s || !s.moveHereUnitId) return;
     this.close();
 
-    this.waypointSvc.setWaypoint(s.moveHereUnitId, s.hex);
-    this.waypointSvc.executeWaypoint(s.moveHereUnitId).then(() => {
-      this.selection.selectUnit(s.moveHereUnitId!);
-    });
+    if (s.moveHereInRange) {
+      this.actionExec.executeMove(s.moveHereUnitId, s.hex);
+    } else {
+      this.waypointSvc.setWaypoint(s.moveHereUnitId, s.hex);
+      this.waypointSvc.executeWaypoint(s.moveHereUnitId).then(() => {
+        this.selection.selectUnit(s.moveHereUnitId!);
+      });
+    }
   }
 
   onAttackHere(): void {
@@ -394,6 +450,14 @@ export class ContextMenuComponent {
         this.selection.deselectAll();
       }
     });
+  }
+
+  onCancelMove(): void {
+    this.audio.playClick();
+    const s = this._state();
+    if (!s || !s.cancelMoveUnitId) return;
+    this.close();
+    this.waypointSvc.clearWaypoint(s.cancelMoveUnitId);
   }
 
   costEntries(stats: BuildingStats) {

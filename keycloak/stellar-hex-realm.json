@@ -1,0 +1,88 @@
+{
+  "realm": "stellar-hex",
+  "enabled": true,
+  "sslRequired": "none",
+  "loginTheme": "stellar-hex",
+  "displayName": "Stellar Hex",
+  "displayNameHtml": "Stellar Hex",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "loginWithEmailAllowed": false,
+  "duplicateEmailsAllowed": true,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "player",
+        "description": "Default player role"
+      }
+    ]
+  },
+  "defaultRoles": ["player"],
+  "clients": [
+    {
+      "clientId": "stellar-hex-app",
+      "name": "Stellar Hex",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "stellar-hex-secret",
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "rootUrl": "http://localhost:4200",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://localhost:8080/*",
+        "http://localhost:80/*",
+        "http://localhost/*",
+        "https://*.up.railway.app/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200",
+        "http://localhost:8080",
+        "http://localhost:80",
+        "http://localhost",
+        "https://*.up.railway.app"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:4200/*##https://*.up.railway.app/*"
+      }
+    }
+  ],
+  "attributes": {
+    "userProfileEnabled": "true"
+  },
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"Username\",\"validations\":{\"length\":{\"min\":3,\"max\":30}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]}},{\"name\":\"email\",\"displayName\":\"Email\",\"validations\":{},\"required\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]}},{\"name\":\"firstName\",\"displayName\":\"First name\",\"validations\":{},\"required\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]}},{\"name\":\"lastName\",\"displayName\":\"Last name\",\"validations\":{},\"required\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]}}]}"
+          ]
+        }
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "email": "testuser@stellarhex.local",
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "testuser",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["player"]
+    }
+  ]
+}

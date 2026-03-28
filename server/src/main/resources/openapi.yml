@@ -1,0 +1,418 @@
+openapi: 3.0.3
+info:
+  title: Stellar Hex API
+  version: 0.1.0
+  description: BFF API for Stellar Hex game
+
+servers:
+  - url: /api
+    description: BFF proxy (dev)
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      tags: [system]
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /auth/me:
+    get:
+      operationId: getSession
+      summary: Get current session info
+      description: Returns user info if authenticated, null/empty if not. Always returns 200.
+      tags: [auth]
+      security: []
+      responses:
+        '200':
+          description: Session info (null if not authenticated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionInfo'
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Logout and invalidate session
+      tags: [auth]
+      responses:
+        '302':
+          description: Redirect to frontend after logout
+
+  /saves:
+    get:
+      operationId: listSaves
+      summary: List user's saved games
+      tags: [saves]
+      responses:
+        '200':
+          description: List of saves
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SaveSummary'
+    post:
+      operationId: createSave
+      summary: Create a new save
+      tags: [saves]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveRequest'
+      responses:
+        '201':
+          description: Save created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveSummary'
+
+  /saves/{id}:
+    get:
+      operationId: getSave
+      summary: Load a specific save
+      tags: [saves]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Full save data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveData'
+        '404':
+          description: Save not found
+    put:
+      operationId: updateSave
+      summary: Update a save (autosave)
+      tags: [saves]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveRequest'
+      responses:
+        '200':
+          description: Save updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveSummary'
+    delete:
+      operationId: deleteSave
+      summary: Delete a save
+      tags: [saves]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Save deleted
+
+  /game/action:
+    post:
+      operationId: dispatchAction
+      summary: Dispatch a game action and return updated state
+      tags: [game]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionRequest'
+      responses:
+        '200':
+          description: Updated game state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+
+  /game/ai-turn:
+    post:
+      operationId: aiTurn
+      summary: Execute a full AI turn and return updated state
+      tags: [game]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiTurnRequest'
+      responses:
+        '200':
+          description: Updated game state after AI turn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiTurnResponse'
+
+  /world/chunks:
+    get:
+      operationId: getChunks
+      summary: Generate world chunks for given coordinates
+      tags: [world]
+      parameters:
+        - name: seed
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: coords
+          in: query
+          required: true
+          description: 'Semicolon-separated chunk coordinates, e.g. 0,0;1,0;-1,1'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Generated chunks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChunkResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+
+    SessionInfo:
+      type: object
+      nullable: true
+      required: [username, displayName]
+      properties:
+        username:
+          type: string
+        displayName:
+          type: string
+
+    SaveSummary:
+      type: object
+      required: [id, saveName, turn, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        saveName:
+          type: string
+        playerName:
+          type: string
+          nullable: true
+        turn:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+
+    SaveRequest:
+      type: object
+      required: [stateJson]
+      properties:
+        saveName:
+          type: string
+        stateJson:
+          type: string
+          description: Serialized game state JSON
+        cameraJson:
+          type: string
+          nullable: true
+        waypointsJson:
+          type: string
+          nullable: true
+        turn:
+          type: integer
+        playerName:
+          type: string
+          nullable: true
+
+    SaveData:
+      type: object
+      required: [id, saveName, stateJson, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        saveName:
+          type: string
+        stateJson:
+          type: string
+        cameraJson:
+          type: string
+          nullable: true
+        waypointsJson:
+          type: string
+          nullable: true
+        turn:
+          type: integer
+        playerName:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+
+    ChunkResponse:
+      type: object
+      required: [chunks]
+      properties:
+        chunks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChunkData'
+
+    ChunkData:
+      type: object
+      required: [cx, cy, hexes]
+      properties:
+        cx:
+          type: integer
+        cy:
+          type: integer
+        hexes:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/HexData'
+
+    HexData:
+      type: object
+      required: [q, r]
+      properties:
+        q:
+          type: integer
+        r:
+          type: integer
+        object:
+          $ref: '#/components/schemas/StellarObject'
+          nullable: true
+        anomaly:
+          type: string
+          nullable: true
+        tradeHub:
+          type: boolean
+        inNebula:
+          type: boolean
+
+    StellarObject:
+      type: object
+      required: [type, size]
+      properties:
+        type:
+          type: string
+        subtype:
+          type: string
+          nullable: true
+        size:
+          type: integer
+        resources:
+          type: object
+          nullable: true
+          properties:
+            energy:
+              type: number
+            minerals:
+              type: number
+            alloys:
+              type: number
+            credits:
+              type: number
+        orbitAnchor:
+          $ref: '#/components/schemas/HexCoordDto'
+          nullable: true
+        velocity:
+          $ref: '#/components/schemas/HexCoordDto'
+          nullable: true
+
+    HexCoordDto:
+      type: object
+      required: [q, r]
+      properties:
+        q:
+          type: integer
+        r:
+          type: integer
+        s:
+          type: integer
+
+    AiTurnRequest:
+      type: object
+      required: [state, playerId]
+      properties:
+        state:
+          type: string
+          description: Serialized game state JSON
+        playerId:
+          type: string
+          description: The AI player's ID
+
+    AiTurnResponse:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          description: Updated serialized game state JSON after AI turn
+
+    ActionRequest:
+      type: object
+      required: [state, action]
+      properties:
+        state:
+          type: string
+          description: Serialized game state JSON
+        action:
+          type: object
+          description: Game action (polymorphic, discriminated by 'type' field)
+
+    ActionResponse:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          description: Updated serialized game state JSON
+
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+
+security:
+  - session: []

@@ -2,12 +2,13 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { HexCoord } from '../../shared/hex/hex-coord.type';
 import { hexKey, toHexCoord } from '../../shared/hex/hex-math';
 import { HexData } from '../../models/hex-data';
-import { UnitData } from '../../models/game-state';
+import { UnitData, UNIT_STATS } from '../../models/game-state';
 import { ChunkManagerService } from '../chunks/chunk-manager.service';
 import { GameStateService } from '../state/game-state.service';
 import { VisionService } from '../vision/vision.service';
 
 export type HexVisibility = 'visible' | 'explored' | 'unexplored';
+export type TabGroup = 'all' | 'combat' | 'industry';
 
 export interface SelectedHexInfo {
   hex: HexData;
@@ -24,6 +25,8 @@ export class SelectionService {
   private readonly _hoveredHexCoord = signal<HexCoord | null>(null);
   private readonly _selectedUnit = signal<string | null>(null);
   private readonly _selectedUnits = signal<ReadonlySet<string>>(new Set());
+  private readonly _tabGroup = signal<TabGroup>('all');
+  readonly tabGroup = this._tabGroup.asReadonly();
 
   /** Human player's units sorted by type then ID for stable cycling. */
   readonly ownedUnits = computed<UnitData[]>(() => {
@@ -163,7 +166,16 @@ export class SelectionService {
   /** Cycle to next/previous unit that can still act. Falls back to all owned units. */
   selectNextUnit(direction: 1 | -1): UnitData | null {
     const actionable = this.actionableUnits();
-    const units = actionable.length > 0 ? actionable : this.ownedUnits();
+    let units = actionable.length > 0 ? actionable : this.ownedUnits();
+
+    // Filter by active tab group
+    const group = this._tabGroup();
+    if (group === 'combat') {
+      units = units.filter(u => UNIT_STATS[u.type].attack > 0);
+    } else if (group === 'industry') {
+      units = units.filter(u => UNIT_STATS[u.type].attack === 0);
+    }
+
     if (units.length === 0) return null;
 
     const currentId = this._selectedUnit();
@@ -174,6 +186,14 @@ export class SelectionService {
     const unit = units[nextIdx];
     this.selectUnit(unit.id);
     return unit;
+  }
+
+  toggleTabGroup(): TabGroup {
+    const order: TabGroup[] = ['all', 'combat', 'industry'];
+    const idx = order.indexOf(this._tabGroup());
+    const next = order[(idx + 1) % order.length];
+    this._tabGroup.set(next);
+    return next;
   }
 
   /** Determine which unit to cycle to among friendly units at a hex. */

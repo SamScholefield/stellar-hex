@@ -310,7 +310,7 @@ describe('gameReducer', () => {
       const next = gameReducer(state, { type: 'UNDOCK_UNIT', unitId: 'u1', buildingId: 'b1' });
       const unit = next.units.get('u1')!;
       expect(unit.dockedAt).toBeUndefined();
-      expect(unit.movementPoints).toBe(0);
+      expect(unit.movementPoints).toBe(4); // Full MP preserved after undock
       expect(unit.q !== 1 || unit.r !== 0).toBe(true);
       expect(next.buildings.get('b1')!.dockedUnits ?? []).not.toContain('u1');
     });

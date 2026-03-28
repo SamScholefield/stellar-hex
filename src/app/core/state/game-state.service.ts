@@ -1,10 +1,14 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { GameState, GameOverState, PlayerState, Resources, UnitData, BuildingData, TechId } from '../../models/game-state';
 import { HexData } from '../../models/hex-data';
 import { computeMiningDroneIncome } from '../economy/economy.service';
-import { hexKey } from '../../shared/hex/hex-math';
+import { hexKey, hexNeighbors } from '../../shared/hex/hex-math';
 import { GameAction } from './actions';
 import { gameReducer } from './game-reducer';
+import { ApiConfiguration } from '../../api/api-configuration';
+import { serializeState, serializeAction } from './state-serialization';
+import { firstValueFrom } from 'rxjs';
 
 function createInitialState(): GameState {
   return {
@@ -24,6 +28,10 @@ function createInitialState(): GameState {
 
 @Injectable({ providedIn: 'root' })
 export class GameStateService {
+  private readonly http = inject(HttpClient);
+  private readonly apiConfig = inject(ApiConfiguration);
+  private serverAvailable = true;
+
   private readonly _gameState = signal<GameState>(createInitialState());
 
   readonly turn = computed(() => this._gameState().turn);
@@ -97,7 +105,32 @@ export class GameStateService {
   });
 
   dispatch(action: GameAction): void {
+    const preActionState = this._gameState();
     this._gameState.update((state) => gameReducer(state, action));
+    this.syncActionToServer(action, preActionState);
+  }
+
+  /** Fire-and-forget POST to server after local dispatch. */
+  private syncActionToServer(action: GameAction, preActionState: GameState): void {
+    if (!this.serverAvailable) return;
+
+    const stateJson = serializeState(preActionState);
+    const actionJson = serializeAction(action);
+
+    firstValueFrom(
+      this.http.post<{ state: string }>(
+        `${this.apiConfig.rootUrl}/game/action`,
+        { state: stateJson, action: actionJson },
+      )
+    ).catch((err: unknown) => {
+      if (err instanceof HttpErrorResponse) {
+        if (err.status === 0) {
+          this.serverAvailable = false;
+        } else {
+          console.error(`[syncAction] ${err.status} for ${actionJson['type']}:`, err.error);
+        }
+      }
+    });
   }
 
   /**
@@ -111,7 +144,21 @@ export class GameStateService {
     const miningYields = player
       ? computeMiningDroneIncome(state.units, player.id, hexLookup)
       : undefined;
-    this.dispatch({ type: 'END_TURN', miningYields });
+
+    // Pre-compute impassable hexes near buildings with production queues
+    const impassableHexes = new Set<string>();
+    const IMPASSABLE: Set<string> = new Set(['star', 'black_hole']);
+    for (const building of state.buildings.values()) {
+      if (!building.productionQueue?.length) continue;
+      for (const n of hexNeighbors(building.q, building.r)) {
+        const hex = hexLookup(n.q, n.r);
+        if (hex?.object?.type && IMPASSABLE.has(hex.object.type)) {
+          impassableHexes.add(hexKey(n.q, n.r));
+        }
+      }
+    }
+
+    this.dispatch({ type: 'END_TURN', miningYields, impassableHexes });
   }
 
   getState(): GameState {

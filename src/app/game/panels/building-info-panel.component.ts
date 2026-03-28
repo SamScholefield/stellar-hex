@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { SelectionService } from '../../core/selection/selection.service';
 import { GameStateService } from '../../core/state/game-state.service';
 import { CameraService } from '../../core/camera/camera.service';
-import { hexKey, hexToPixel } from '../../shared/hex/hex-math';
+import { hexKey, hexNeighbors, hexToPixel } from '../../shared/hex/hex-math';
+import { ChunkManagerService } from '../../core/chunks/chunk-manager.service';
 import { BuildingData, BUILDING_STATS, TECH_TREE, TechId, UnitData } from '../../models/game-state';
 import { UndoService } from '../../core/state/undo.service';
 import { FormatNamePipe } from '../../shared/pipes/format-name.pipe';
@@ -278,6 +279,7 @@ export class BuildingInfoPanelComponent {
   private readonly gameState = inject(GameStateService);
   private readonly camera = inject(CameraService);
   private readonly undo = inject(UndoService);
+  private readonly chunkManager = inject(ChunkManagerService);
 
   private static readonly CIRCUMFERENCE = 2 * Math.PI * 17;
   readonly circ = `${BuildingInfoPanelComponent.CIRCUMFERENCE}`;
@@ -315,7 +317,18 @@ export class BuildingInfoPanelComponent {
   });
 
   undock(unitId: string, buildingId: string): void {
-    this.undo.dispatch({ type: 'UNDOCK_UNIT', unitId, buildingId });
+    const building = this.gameState.buildings().get(buildingId);
+    const impassableHexes = new Set<string>();
+    const IMPASSABLE = new Set(['star', 'black_hole']);
+    if (building) {
+      for (const n of hexNeighbors(building.q, building.r)) {
+        const hex = this.chunkManager.getHex(n.q, n.r);
+        if (hex?.object?.type && IMPASSABLE.has(hex.object.type)) {
+          impassableHexes.add(hexKey(n.q, n.r));
+        }
+      }
+    }
+    this.undo.dispatch({ type: 'UNDOCK_UNIT', unitId, buildingId, impassableHexes });
   }
 
   centerOn(q: number, r: number): void {

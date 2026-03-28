@@ -10,7 +10,7 @@ import { GameAction } from './actions';
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'END_TURN':
-      return endTurn(state, action.miningYields);
+      return endTurn(state, action.miningYields, action.impassableHexes);
     case 'MOVE_UNIT':
       return moveUnit(state, action.unitId, action.path, action.cost);
     case 'BUILD':
@@ -30,7 +30,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'TRADE':
       return trade(state, action.hubId, action.unitId, action.sell, action.buy, action.sellAmount);
     case 'UNDOCK_UNIT':
-      return undockUnit(state, action.unitId, action.buildingId);
+      return undockUnit(state, action.unitId, action.buildingId, action.impassableHexes);
     case 'ADVANCE_COMETS':
       return advanceComets(state);
     case 'SET_HOME_BASE':
@@ -382,7 +382,7 @@ export function attackWithResult(state: GameState, attackerId: string, targetId:
   return { newState: { ...state, units, players, gameOver }, combat };
 }
 
-function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState {
+function endTurn(state: GameState, miningYields?: Partial<Resources>, impassableHexes?: Set<string>): GameState {
   // If game is already over, don't process further turns
   if (state.gameOver) return state;
 
@@ -497,7 +497,7 @@ function endTurn(state: GameState, miningYields?: Partial<Resources>): GameState
         const occupiedKeys = new Set<string>();
         for (const u of units.values()) if (!u.dockedAt) occupiedKeys.add(hexKey(u.q, u.r));
         for (const b of buildings.values()) occupiedKeys.add(hexKey(b.q, b.r));
-        const spawnHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r))) ?? { q: building.q, r: building.r };
+        const spawnHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r)) && !impassableHexes?.has(hexKey(n.q, n.r))) ?? { q: building.q, r: building.r };
 
         const unitId = `u_${building.q}_${building.r}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         const unitName = generateUnitName(item.unitType, units);
@@ -853,7 +853,7 @@ function trade(state: GameState, hubId: string, unitId: string, sell: ResourceKe
   return { ...state, players, tradeHubs, tradedThisTurn, gameOver };
 }
 
-function undockUnit(state: GameState, unitId: string, buildingId: string): GameState {
+function undockUnit(state: GameState, unitId: string, buildingId: string, impassableHexes?: Set<string>): GameState {
   const unit = state.units.get(unitId);
   if (!unit || unit.dockedAt !== buildingId) return state;
 
@@ -868,7 +868,7 @@ function undockUnit(state: GameState, unitId: string, buildingId: string): GameS
   const occupiedKeys = new Set<string>();
   for (const u of state.units.values()) if (!u.dockedAt) occupiedKeys.add(hexKey(u.q, u.r));
   for (const b of state.buildings.values()) occupiedKeys.add(hexKey(b.q, b.r));
-  const undockHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r)));
+  const undockHex = neighbors.find(n => !occupiedKeys.has(hexKey(n.q, n.r)) && !impassableHexes?.has(hexKey(n.q, n.r)));
   if (!undockHex) return state; // No space to undock
 
   const units = new Map(state.units);

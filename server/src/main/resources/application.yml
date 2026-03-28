@@ -1,0 +1,59 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:stellarhex}
+    username: ${DB_USER:stellarhex}
+    password: ${DB_PASS:stellarhex}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: stellarhex_app
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    schemas: stellarhex_app
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: stellar-hex-app
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:stellar-hex-secret}
+            scope: openid,profile,email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            authorization-uri: ${KEYCLOAK_AUTH_URI:http://localhost:9090/realms/stellar-hex/protocol/openid-connect/auth}
+            token-uri: ${KEYCLOAK_INTERNAL_TOKEN_URI:http://localhost:9090/realms/stellar-hex/protocol/openid-connect/token}
+            user-info-uri: ${KEYCLOAK_INTERNAL_USERINFO_URI:http://localhost:9090/realms/stellar-hex/protocol/openid-connect/userinfo}
+            jwk-set-uri: ${KEYCLOAK_INTERNAL_JWKS_URI:http://localhost:9090/realms/stellar-hex/protocol/openid-connect/certs}
+            user-name-attribute: preferred_username
+
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    com.stellarhex: DEBUG
+    org.springframework.security: TRACE
+    org.springframework.security.oauth2: TRACE

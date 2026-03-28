@@ -170,6 +170,10 @@ $noise-svg: "data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w
   @extend %menu-btn;
 }
 
+.logout {
+  @extend %menu-btn;
+}
+
 // Saves table
 h2 {
   font-size: 1rem;

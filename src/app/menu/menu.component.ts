@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { GameInitService } from '../core/state/game-init.service';
 import { AudioService } from '../core/audio/audio.service';
 import { GameSaveService, SaveEntry } from '../core/state/game-save.service';
+import { AuthService } from '../core/auth/auth.service';
 
 @Component({
   selector: 'app-menu',
@@ -18,7 +19,7 @@ export class MenuComponent {
   private readonly audio = inject(AudioService);
   private readonly router = inject(Router);
   protected readonly saveSvc = inject(GameSaveService);
-
+  private readonly auth = inject(AuthService);
   readonly showNewGameModal = signal(false);
 
   constructor() {
@@ -28,6 +29,7 @@ export class MenuComponent {
         loader.style.opacity = '0';
         setTimeout(() => loader.remove(), 300);
       }
+      this.saveSvc.refreshSaves();
     });
   }
   playerName = localStorage.getItem('stellar-hex-player-name') ?? 'Commander';
@@ -45,6 +47,7 @@ export class MenuComponent {
     const name = this.playerName || 'Commander';
     localStorage.setItem('stellar-hex-player-name', name);
     await this.audio.ensureContext();
+    this.saveSvc.clearAutosaveId();
     this.gameInit.newGame({
       playerName: name,
       aiOpponents: this.aiOpponents,
@@ -61,19 +64,29 @@ export class MenuComponent {
   }
 
   async continueSave(): Promise<void> {
-    const latest = this.saveSvc.latestSave();
-    if (!latest) return;
     await this.audio.ensureContext();
-    this.saveSvc.loadFromKey(latest.key);
+    await this.saveSvc.loadLatest();
   }
 
   async loadSave(entry: SaveEntry): Promise<void> {
     await this.audio.ensureContext();
-    this.saveSvc.loadFromKey(entry.key);
+    if (entry.id) {
+      await this.saveSvc.loadById(entry.id);
+    } else {
+      this.saveSvc.loadFromKey(entry.key);
+    }
   }
 
-  deleteSave(entry: SaveEntry): void {
-    this.saveSvc.deleteKey(entry.key);
+  logout(): void {
+    this.auth.logout();
+  }
+
+  async deleteSave(entry: SaveEntry): Promise<void> {
+    if (entry.id) {
+      await this.saveSvc.deleteById(entry.id);
+    } else {
+      this.saveSvc.deleteKey(entry.key);
+    }
   }
 
   openGuide(): void {

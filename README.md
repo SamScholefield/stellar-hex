@@ -1,59 +1,136 @@
-# StellarHex
+# Stellar Hex
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.4.
+A hex-based strategy game built with Angular 21, Spring Boot 3 (Kotlin), Keycloak, and PostgreSQL.
 
-## Development server
+## Prerequisites
 
-To start a local development server, run:
+- Node.js 22+
+- Docker & Docker Compose
+- Java 21 (for local Gradle builds)
 
-```bash
-ng serve
-```
+## Quick Start
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+### 1. Environment Setup
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Copy the example env file and adjust if needed:
 
 ```bash
-ng generate component component-name
+cp .env.example .env
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+### 2. Development Modes
+
+#### Frontend Development (recommended for UI work)
+
+Starts PostgreSQL + Keycloak in Docker, Spring Boot API via Docker, Angular dev server separately.
 
 ```bash
-ng generate --help
+# Start infrastructure + API
+docker compose up -d
+
+# Wait for services, then start Angular dev server
+npm start
 ```
 
-## Building
+- Angular dev server: `http://localhost:4200`
+- API (Spring Boot): `http://localhost:8080`
+- Keycloak admin: `http://localhost:9090` (admin/admin)
+- Angular proxy forwards `/api` requests to Spring Boot
 
-To build the project run:
+#### Full-Stack Docker
+
+Runs everything in Docker including a pre-built Angular frontend served by Nginx.
 
 ```bash
-ng build
+docker compose up -d
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+- Frontend (Nginx): `http://localhost:80`
+- API (Spring Boot): `http://localhost:8080`
+- Keycloak admin: `http://localhost:9090` (admin/admin)
 
-## Running unit tests
+#### Production Build (Single JAR)
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+Builds Angular into the Spring Boot JAR. One artifact serves everything.
 
 ```bash
-ng test
+docker build -t stellar-hex .
+docker run -p 8080:8080 stellar-hex
 ```
 
-## Running end-to-end tests
+- Everything on: `http://localhost:8080`
 
-For end-to-end (e2e) testing, run:
+#### Local Gradle (Spring Boot + embedded Angular)
+
+Builds Angular and embeds it in the Spring Boot app. Requires postgres + keycloak running.
 
 ```bash
-ng e2e
+# Start infrastructure only
+docker compose up -d postgres keycloak
+
+# Build and run (includes Angular build)
+cd server
+./gradlew bootRun --args='--spring.profiles.active=dev --stellarhex.frontend-url=http://localhost:8080'
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+- Everything on: `http://localhost:8080/api` (API) + `http://localhost:8080` (Angular)
 
-## Additional Resources
+## Services
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+| Service | Port | Description |
+|---------|------|-------------|
+| Angular dev server | 4200 | Hot-reload frontend (dev only) |
+| Spring Boot API | 8080 | BFF + REST API |
+| Keycloak | 9090 | Authentication (OIDC) |
+| PostgreSQL | 5432 | Database |
+| Nginx | 80 | Static frontend (Docker only) |
+
+## Authentication
+
+- Login/registration handled by Keycloak with custom theme
+- BFF pattern: Spring Boot manages sessions, Angular never talks to Keycloak directly
+- Test user: `testuser` / `testuser`
+- Admin: credentials from `.env` (default: admin/admin)
+
+## API
+
+- OpenAPI spec: `server/src/main/resources/openapi.yml`
+- Regenerate Angular API services: `npm run api:gen`
+- API services auto-regenerate on `npm start` and `npm run build`
+
+## Testing
+
+```bash
+# Angular unit tests
+npm test
+
+# Run once
+npx ng test --watch=false
+```
+
+## Project Structure
+
+```
+stellar-hex/
+├── src/                    # Angular frontend
+│   └── app/
+│       ├── api/            # Generated API services (ng-openapi-gen)
+│       ├── auth/           # Auth landing page
+│       ├── core/           # Services (state, AI, audio, camera, etc.)
+│       ├── game/           # Game viewport, HUD, panels, overlays
+│       ├── guide/          # In-game guide/encyclopedia
+│       ├── menu/           # Main menu
+│       └── models/         # TypeScript interfaces
+├── server/                 # Spring Boot backend (Kotlin)
+│   └── src/main/kotlin/com/stellarhex/
+│       ├── auth/           # User entity + auth controller
+│       ├── config/         # Security, CORS, SPA routing
+│       ├── saves/          # Game save persistence
+│       └── world/          # World generation API
+├── keycloak/               # Keycloak realm config + custom theme
+├── docker-compose.yml      # Dev infrastructure
+├── Dockerfile              # Production: Angular + Spring Boot single JAR
+├── Dockerfile.dev          # Dev: Angular-only (Nginx)
+├── proxy.conf.json         # Angular dev server proxy
+└── .env.example            # Environment variables template
+```

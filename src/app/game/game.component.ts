@@ -1,7 +1,6 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, OnDestroy, signal, untracked, viewChild } from '@angular/core';
 import { GameViewportComponent } from './viewport/game-viewport.component';
 import { HudComponent } from './hud/hud.component';
-import { ClickPopupComponent } from './overlays/click-popup.component';
 import { ContextMenuComponent } from './overlays/context-menu.component';
 import { HelpPanelComponent } from './overlays/help-panel.component';
 import { TradeModalComponent } from './overlays/trade-modal.component';
@@ -28,14 +27,16 @@ const ZOOM_STEP = 50;
 @Component({
   selector: 'app-game',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GameViewportComponent, HudComponent, ClickPopupComponent, ContextMenuComponent, HelpPanelComponent, TradeModalComponent],
+  imports: [GameViewportComponent, HudComponent, ContextMenuComponent, HelpPanelComponent, TradeModalComponent],
   host: {
     '(contextmenu)': 'onContextMenu($event)',
     '(window:keydown)': 'onKeyDown($event)',
+    '(pointermove)': 'onPointerMove($event)',
+    '(pointerdown)': 'onPointerDown($event)',
   },
   template: `
     @if (ready()) {
-      <app-game-viewport (showClickPopup)="onShowClickPopup($event)" />
+      <app-game-viewport />
       <app-hud [(helpVisible)]="helpVisible" [spectate]="spectate()" />
       @if (spectate()) {
         <div class="spectate-controls">
@@ -46,7 +47,6 @@ const ZOOM_STEP = 50;
           <span class="spectate-hint">Space to pause</span>
         </div>
       }
-      <app-click-popup />
       <app-context-menu (openTrade)="openTradeModal($event.hubId, $event.unitId)" />
       <app-help-panel [(visible)]="helpVisible" />
       <app-trade-modal [(visible)]="tradeModalVisible" [hubId]="tradeHubId()" [unitId]="tradeUnitId()" />
@@ -120,7 +120,6 @@ export class GameComponent implements OnDestroy {
   private readonly influenceSvc = inject(InfluenceService);
   private readonly router = inject(Router);
   private readonly el = inject(ElementRef);
-  private readonly clickPopup = viewChild(ClickPopupComponent);
   private readonly contextMenu = viewChild(ContextMenuComponent);
   private readonly viewport = viewChild(GameViewportComponent);
   readonly helpVisible = signal(false);
@@ -313,15 +312,17 @@ export class GameComponent implements OnDestroy {
 
   protected onContextMenu(event: MouseEvent): void {
     event.preventDefault();
-    this.clickPopup()?.close();
     this.contextMenu()?.open(event.clientX, event.clientY);
   }
 
-  protected onShowClickPopup(event: { clientX: number; clientY: number }): void {
-    this.contextMenu()?.close();
-    const shown = this.clickPopup()?.open(event.clientX, event.clientY);
-    if (!shown) {
-      // No valid options — fallback to hex select (viewport already played click SFX)
+  protected onPointerMove(event: PointerEvent): void {
+    this.contextMenu()?.track(event.clientX, event.clientY);
+  }
+
+  protected onPointerDown(event: PointerEvent): void {
+    // Left-click closes the context menu (if open and not clicking a menu item)
+    if (event.button === 0 && this.contextMenu()?.tracking) {
+      this.contextMenu()?.close();
     }
   }
 
@@ -353,8 +354,6 @@ export class GameComponent implements OnDestroy {
       case 'Escape':
         if (this.helpVisible()) {
           this.helpVisible.set(false);
-        } else if (this.clickPopup()?.state()) {
-          this.clickPopup()!.close();
         } else {
           // Cancel waypoint if selected unit has one
           const selectedId = this.selection.selectedUnit();
@@ -386,6 +385,10 @@ export class GameComponent implements OnDestroy {
         }
         break;
       }
+      case 'f':
+      case 'F':
+        this.selection.toggleTabGroup();
+        break;
       case 'g':
       case 'G':
         this.router.navigate(['/guide'], { queryParams: { from: 'game' } });
