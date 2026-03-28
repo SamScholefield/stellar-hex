@@ -163,7 +163,10 @@ export class ChunkManagerService {
     const coordsStr = toFetch.map(c => `${c.cx},${c.cy}`).join(';');
 
     try {
+      const t0 = performance.now();
       const response = await this.api.invoke(getChunks, { seed, coords: coordsStr });
+      const elapsed = performance.now() - t0;
+      console.debug(`[chunks] fetched ${response.chunks.length} chunks in ${elapsed.toFixed(0)}ms (${(elapsed / response.chunks.length).toFixed(0)}ms/chunk)`);
       for (const chunkData of response.chunks) {
         const key = chunkKey(chunkData.cx, chunkData.cy);
         const chunk = this.convertApiChunk(chunkData);
