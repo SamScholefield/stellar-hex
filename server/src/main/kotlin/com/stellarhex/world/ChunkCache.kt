@@ -1,48 +1,31 @@
 package com.stellarhex.world
 
+import com.github.benmanes.caffeine.cache.Caffeine
 import com.stellarhex.model.ChunkDataDto
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedDeque
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.TimeUnit
 
-private const val MAX_ENTRIES = 500
+private const val MAX_ENTRIES = 500L
+private const val EXPIRE_MINUTES = 10L
 
 class ChunkCache {
-    private val cache = ConcurrentHashMap<String, ChunkDataDto>()
-    private val accessOrder = ConcurrentLinkedDeque<String>()
+    private val cache = Caffeine.newBuilder()
+        .maximumSize(MAX_ENTRIES)
+        .expireAfterAccess(EXPIRE_MINUTES, TimeUnit.MINUTES)
+        .recordStats()
+        .build<String, ChunkDataDto>()
 
-    val hits = AtomicLong(0)
-    val misses = AtomicLong(0)
-    val evictions = AtomicLong(0)
-
-    val size: Int get() = cache.size
+    val hits: Long get() = cache.stats().hitCount()
+    val misses: Long get() = cache.stats().missCount()
+    val evictions: Long get() = cache.stats().evictionCount()
+    val size: Long get() = cache.estimatedSize()
 
     fun get(seed: Int, cx: Int, cy: Int): ChunkDataDto? {
         val key = "$seed:$cx,$cy"
-        val value = cache[key]
-        if (value != null) {
-            hits.incrementAndGet()
-            accessOrder.remove(key)
-            accessOrder.addFirst(key)
-        } else {
-            misses.incrementAndGet()
-        }
-        return value
+        return cache.getIfPresent(key)
     }
 
     fun put(seed: Int, cx: Int, cy: Int, chunk: ChunkDataDto) {
         val key = "$seed:$cx,$cy"
-        cache[key] = chunk
-        accessOrder.remove(key)
-        accessOrder.addFirst(key)
-        evict()
-    }
-
-    private fun evict() {
-        while (cache.size > MAX_ENTRIES) {
-            val oldest = accessOrder.pollLast() ?: break
-            cache.remove(oldest)
-            evictions.incrementAndGet()
-        }
+        cache.put(key, chunk)
     }
 }

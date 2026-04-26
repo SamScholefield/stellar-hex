@@ -15,6 +15,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ResponseStatusException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 // ── Request / Response DTOs ──────────────────────────────────────────
 
@@ -88,6 +91,9 @@ class GameController(
     private val mapper: ObjectMapper = jacksonObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
+    private val aiExecutor = Executors.newCachedThreadPool()
+    private val AI_TIMEOUT_SECONDS = 10L
+
     @PostMapping("/action")
     fun dispatchAction(
         @AuthenticationPrincipal oidcUser: OidcUser,
@@ -153,11 +159,18 @@ class GameController(
             chunk.hexes["$q,$r"]
         }
 
-        // 4. Execute the AI turn
+        // 4. Execute the AI turn (with timeout to prevent runaway pathfinding)
         val newState = try {
-            AiService.executeTurn(gameState, request.playerId, hexLookup)
+            val future = aiExecutor.submit<GameState> {
+                AiService.executeTurn(gameState, request.playerId, hexLookup)
+            }
+            future.get(AI_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        } catch (e: TimeoutException) {
+            log.warn("AI turn timed out after {}s for player {}", AI_TIMEOUT_SECONDS, request.playerId)
+            throw ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI turn timed out")
         } catch (e: Exception) {
-            throw ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "AI turn failed: ${e.message}")
+            val cause = e.cause ?: e
+            throw ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "AI turn failed: ${cause.message}")
         }
 
         // 5. Serialize and return

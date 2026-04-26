@@ -6,6 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ResponseStatusException
+import org.springframework.data.domain.PageRequest
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
@@ -46,9 +47,16 @@ class SaveController(
 
     @GetMapping
     @Transactional(readOnly = true)
-    fun listSaves(@AuthenticationPrincipal oidcUser: OidcUser): List<SaveSummary> {
+    fun listSaves(
+        @AuthenticationPrincipal oidcUser: OidcUser,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "50") size: Int,
+    ): List<SaveSummary> {
         val user = resolveUser(oidcUser)
-        return saveRepository.findByUserIdOrderByUpdatedAtDesc(user.id).map { it.toSummary() }
+        val clamped = size.coerceIn(1, 100)
+        return saveRepository.findByUserIdOrderByUpdatedAtDesc(user.id, PageRequest.of(page, clamped))
+            .map { it.toSummary() }
+            .content
     }
 
     @PostMapping

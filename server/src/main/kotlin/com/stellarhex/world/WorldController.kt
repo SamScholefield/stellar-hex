@@ -52,7 +52,7 @@ class WorldController(
             "[chunks] {} requested, {} hits, {} generated in {}ms (gen {}ms, avg {}ms/chunk) | cache: {} entries, {}/{} hit/miss total",
             chunkCoords.size, cacheHits, generated,
             "%.1f".format(totalMs), "%.1f".format(genMs), "%.1f".format(avgGenMs),
-            cache.size, cache.hits.get(), cache.misses.get(),
+            cache.size, cache.hits, cache.misses,
         )
 
         return ChunkResponseDto(chunks = chunks)
@@ -61,11 +61,11 @@ class WorldController(
     @GetMapping("/world/perf")
     fun getPerf(): Map<String, Any> = mapOf(
         "cacheSize" to cache.size,
-        "cacheHits" to cache.hits.get(),
-        "cacheMisses" to cache.misses.get(),
-        "cacheEvictions" to cache.evictions.get(),
-        "hitRate" to if (cache.hits.get() + cache.misses.get() > 0) {
-            "%.1f%%".format(cache.hits.get() * 100.0 / (cache.hits.get() + cache.misses.get()))
+        "cacheHits" to cache.hits,
+        "cacheMisses" to cache.misses,
+        "cacheEvictions" to cache.evictions,
+        "hitRate" to if (cache.hits + cache.misses > 0) {
+            "%.1f%%".format(cache.hits * 100.0 / (cache.hits + cache.misses))
         } else "N/A",
     )
 }
