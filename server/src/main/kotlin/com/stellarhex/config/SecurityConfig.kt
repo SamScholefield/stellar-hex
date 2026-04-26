@@ -16,6 +16,8 @@ import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.AuthenticationFailureHandler
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler
 import org.slf4j.LoggerFactory
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -42,7 +44,10 @@ class SecurityConfig {
         clientRegistrationRepository: ClientRegistrationRepository,
     ): SecurityFilterChain {
         http
-            .csrf { it.disable() }
+            .csrf { csrf ->
+                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                csrf.csrfTokenRequestHandler(CsrfTokenRequestAttributeHandler())
+            }
             .authorizeHttpRequests { auth ->
                 auth
                     .requestMatchers("$apiPrefix/health", "/actuator/health").permitAll()

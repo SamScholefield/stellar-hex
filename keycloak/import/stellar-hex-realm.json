@@ -1,7 +1,7 @@
 {
   "realm": "stellar-hex",
   "enabled": true,
-  "sslRequired": "none",
+  "sslRequired": "external",
   "loginTheme": "stellar-hex",
   "displayName": "Stellar Hex",
   "displayNameHtml": "Stellar Hex",
@@ -28,17 +28,17 @@
       "enabled": true,
       "publicClient": false,
       "secret": "stellar-hex-secret",
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "rootUrl": "http://localhost:4200",
       "baseUrl": "/",
       "redirectUris": [
-        "http://localhost:4200/*",
-        "http://localhost:8080/*",
-        "http://localhost:80/*",
-        "http://localhost/*",
-        "https://*.up.railway.app/*"
+        "http://localhost:4200/menu",
+        "http://localhost:8080/api/login/oauth2/code/keycloak",
+        "http://localhost:80/api/login/oauth2/code/keycloak",
+        "http://localhost/api/login/oauth2/code/keycloak",
+        "https://stellar-hex.up.railway.app/api/login/oauth2/code/keycloak"
       ],
       "webOrigins": [
         "http://localhost:4200",
@@ -49,7 +49,7 @@
       ],
       "protocol": "openid-connect",
       "attributes": {
-        "post.logout.redirect.uris": "http://localhost:4200/*##https://*.up.railway.app/*"
+        "post.logout.redirect.uris": "http://localhost:4200/auth##https://stellar-hex.up.railway.app/auth"
       }
     }
   ],
