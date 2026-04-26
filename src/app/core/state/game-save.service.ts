@@ -244,7 +244,11 @@ export class GameSaveService {
     const json = serialize(state, cam, waypoints);
 
     // Always save locally as fallback
-    localStorage.setItem(LOCAL_SAVE_KEY, json);
+    try {
+      localStorage.setItem(LOCAL_SAVE_KEY, json);
+    } catch {
+      console.warn('[GameSave] localStorage quota exceeded, local autosave skipped');
+    }
 
     if (!this.serverAvailable) {
       this.refreshSaves();

@@ -6,6 +6,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ResponseStatusException
+import org.springframework.data.domain.PageRequest
+import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 
 data class SaveRequest(
@@ -44,13 +46,22 @@ class SaveController(
 ) {
 
     @GetMapping
-    fun listSaves(@AuthenticationPrincipal oidcUser: OidcUser): List<SaveSummary> {
+    @Transactional(readOnly = true)
+    fun listSaves(
+        @AuthenticationPrincipal oidcUser: OidcUser,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "50") size: Int,
+    ): List<SaveSummary> {
         val user = resolveUser(oidcUser)
-        return saveRepository.findByUserIdOrderByUpdatedAtDesc(user.id).map { it.toSummary() }
+        val clamped = size.coerceIn(1, 100)
+        return saveRepository.findByUserIdOrderByUpdatedAtDesc(user.id, PageRequest.of(page, clamped))
+            .map { it.toSummary() }
+            .content
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     fun createSave(@AuthenticationPrincipal oidcUser: OidcUser, @RequestBody req: SaveRequest): SaveSummary {
         val user = resolveUser(oidcUser)
         val entity = SaveEntity(
@@ -66,6 +77,7 @@ class SaveController(
     }
 
     @GetMapping("/{id}")
+    @Transactional(readOnly = true)
     fun loadSave(@AuthenticationPrincipal oidcUser: OidcUser, @PathVariable id: Long): SaveData {
         val user = resolveUser(oidcUser)
         val entity = saveRepository.findById(id).orElseThrow {
@@ -78,6 +90,7 @@ class SaveController(
     }
 
     @PutMapping("/{id}")
+    @Transactional
     fun updateSave(
         @AuthenticationPrincipal oidcUser: OidcUser,
         @PathVariable id: Long,
@@ -102,6 +115,7 @@ class SaveController(
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
     fun deleteSave(@AuthenticationPrincipal oidcUser: OidcUser, @PathVariable id: Long) {
         val user = resolveUser(oidcUser)
         val entity = saveRepository.findById(id).orElseThrow {

@@ -16,6 +16,7 @@ stellarhex:
   frontend-url: ${FRONTEND_URL:https://stellar-hex.up.railway.app}
   keycloak-logout-url: ${KEYCLOAK_LOGOUT_URL}
   api-prefix: /api
+  cors-origins: ${FRONTEND_URL:https://stellar-hex.up.railway.app}
 
 logging:
   level:

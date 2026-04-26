@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   signal,
@@ -144,8 +145,26 @@ export class EventFeedComponent {
   private prevLength = 0;
   private readonly queue: GameEvent[] = [];
   private draining = false;
+  private readonly pendingTimers = new Set<ReturnType<typeof setTimeout>>();
+  private destroyed = false;
+  private readonly destroyRef = inject(DestroyRef);
+
+  private safeTimeout(fn: () => void, ms: number): void {
+    const id = setTimeout(() => {
+      this.pendingTimers.delete(id);
+      if (!this.destroyed) fn();
+    }, ms);
+    this.pendingTimers.add(id);
+  }
 
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.destroyed = true;
+      for (const id of this.pendingTimers) clearTimeout(id);
+      this.pendingTimers.clear();
+      this.queue.length = 0;
+      this.draining = false;
+    });
     effect(() => {
       const events = this.eventLog.events();
       const pushCount = this.eventLog.pushCount();
@@ -191,7 +210,7 @@ export class EventFeedComponent {
     }
 
     if (this.shouldSkip(event)) {
-      setTimeout(() => this.showNext(), 0);
+      this.safeTimeout(() => this.showNext(), 0);
       return;
     }
 
@@ -204,16 +223,16 @@ export class EventFeedComponent {
     });
 
     // Start fade-out after display time
-    setTimeout(() => {
+    this.safeTimeout(() => {
       this._items.update((list) => list.map((i) => (i.id === id ? { ...i, expiring: true } : i)));
-      setTimeout(() => {
+      this.safeTimeout(() => {
         this._items.update((list) => list.filter((i) => i.id !== id));
         this.eventLog.graduate(event);
       }, FADE_MS);
     }, DISPLAY_MS);
 
     // Stagger: show next item after a delay
-    setTimeout(() => this.showNext(), STAGGER_MS);
+    this.safeTimeout(() => this.showNext(), STAGGER_MS);
   }
 
   isAI(event: GameEvent): boolean {

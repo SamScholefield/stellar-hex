@@ -1,0 +1,14 @@
+SPRING_PROFILES_ACTIVE=prod
+PORT=8080
+DB_HOST=POSTGRES_APP_INTERNAL_HOST
+DB_PORT=5432
+DB_NAME=stellarhex
+DB_USER=stellarhex
+DB_PASS=SAME_AS_POSTGRES_APP_PASSWORD
+KEYCLOAK_CLIENT_SECRET=FROM_KEYCLOAK_CLIENT_CREDENTIALS_TAB
+KEYCLOAK_AUTH_URI=https://KEYCLOAK_SERVICE.sliplane.app/realms/stellar-hex/protocol/openid-connect/auth
+KEYCLOAK_INTERNAL_TOKEN_URI=http://KEYCLOAK_INTERNAL_HOST:8080/realms/stellar-hex/protocol/openid-connect/token
+KEYCLOAK_INTERNAL_USERINFO_URI=http://KEYCLOAK_INTERNAL_HOST:8080/realms/stellar-hex/protocol/openid-connect/userinfo
+KEYCLOAK_INTERNAL_JWKS_URI=http://KEYCLOAK_INTERNAL_HOST:8080/realms/stellar-hex/protocol/openid-connect/certs
+FRONTEND_URL=https://APP_SERVICE.sliplane.app
+KEYCLOAK_LOGOUT_URL=https://KEYCLOAK_SERVICE.sliplane.app/realms/stellar-hex/protocol/openid-connect/logout

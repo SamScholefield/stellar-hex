@@ -2,12 +2,25 @@ server:
   port: 8080
   servlet:
     context-path: /api
+  tomcat:
+    connection-timeout: 30000
+    max-http-post-size: 10485760
+  compression:
+    enabled: true
+    min-response-size: 1024
 
 spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:stellarhex}
     username: ${DB_USER:stellarhex}
     password: ${DB_PASS:stellarhex}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -54,6 +67,6 @@ management:
 
 logging:
   level:
-    com.stellarhex: DEBUG
-    org.springframework.security: TRACE
-    org.springframework.security.oauth2: TRACE
+    com.stellarhex: INFO
+    org.springframework.security: WARN
+    org.springframework.security.oauth2: WARN

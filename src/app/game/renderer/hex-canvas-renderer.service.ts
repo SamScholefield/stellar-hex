@@ -444,6 +444,11 @@ export class HexCanvasRendererService {
     const offsetY = minY - padding;
 
     if (!chunk.texture || chunk.texture.width !== texW || chunk.texture.height !== texH) {
+      if (chunk.texture) {
+        // Hint browser to release the old backing store
+        chunk.texture.width = 0;
+        chunk.texture.height = 0;
+      }
       chunk.texture = new OffscreenCanvas(texW, texH);
     }
 
