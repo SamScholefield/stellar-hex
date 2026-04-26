@@ -148,9 +148,16 @@ export class SpriteAtlasService {
     );
   }
 
+  private static readonly TINT_CACHE_MAX = 20;
+
   private getTintedAtlas(color: string): OffscreenCanvas {
     const cached = this.tintCache.get(color);
     if (cached) return cached;
+
+    if (this.tintCache.size >= SpriteAtlasService.TINT_CACHE_MAX) {
+      const oldest = this.tintCache.keys().next().value!;
+      this.tintCache.delete(oldest);
+    }
 
     const master = this.masterCanvas!;
     const w = master.width;

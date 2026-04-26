@@ -132,6 +132,7 @@ export class GameComponent implements OnDestroy {
   private lastTurnKey = '';
   private lastDiscoveryId = 0;
   private pendingAI: { playerId: string; turn: number } | null = null;
+  private pollRafId = 0;
   private readonly onBeforeUnload = () => {
     if (this.gameState.players().length === 0) return;
     this.saveSvc.autoSave();
@@ -155,9 +156,10 @@ export class GameComponent implements OnDestroy {
       const pollCanvasReady = () => {
         const vp = this.viewport();
         if (!vp || !vp.firstDrawComplete()) {
-          requestAnimationFrame(pollCanvasReady);
+          this.pollRafId = requestAnimationFrame(pollCanvasReady);
           return;
         }
+        this.pollRafId = 0;
         // Canvas has been drawn — wait 2 more frames for compositor
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -169,7 +171,7 @@ export class GameComponent implements OnDestroy {
           });
         });
       };
-      requestAnimationFrame(pollCanvasReady);
+      this.pollRafId = requestAnimationFrame(pollCanvasReady);
     }
     // Log turn start — only when turn/player actually changes
     effect(() => {
@@ -292,6 +294,7 @@ export class GameComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('beforeunload', this.onBeforeUnload);
+    if (this.pollRafId) cancelAnimationFrame(this.pollRafId);
     this.gameState.setPaused(false);
   }
 
